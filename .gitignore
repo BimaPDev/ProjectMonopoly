@@ -1,0 +1,20 @@
+# Global Ignore
+
+# Node.js (Client)
+node_modules/
+dist/
+.env
+
+# Go (Server)
+bin/
+vendor/
+*.log
+.env
+
+# OS/System Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+bruno/
