@@ -1,29 +1,42 @@
 import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { useEffect, useState } from "react";
-import Page from "./app/page";
+import { AppSidebar } from "./components/app-sidebar";
+import { Dashboard } from "./components/dashboard";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "./components/ui/breadcrumb";
+import { Separator } from "./components/ui/separator";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "./components/ui/sidebar";
 
 function App() {
-  const [mounted, setMounted] = useState(false);
-
-  // Initialize theme from localStorage or system preference
-  useEffect(() => {
-    const isDark =
-      localStorage.theme === "dark" ||
-      (!("theme" in localStorage) &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-    document.documentElement.classList.toggle("dark", isDark);
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
   return (
     <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
-      <div className="min-h-screen bg-background">
-        <Page />
+      <div className="min-h-screen">
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 h-4" />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </header>
+            <div className="flex-1 min-h-screen w-full space-y-4 p-4 pt-6 bg-background">
+              <Dashboard />
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
       </div>
     </NextThemesProvider>
   );

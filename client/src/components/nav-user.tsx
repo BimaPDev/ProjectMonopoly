@@ -27,7 +27,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useTheme } from "next-themes";
-import React from "react";
 
 interface NavUserProps {
   user: {
@@ -40,11 +39,6 @@ interface NavUserProps {
 export function NavUser({ user }: NavUserProps) {
   const { isMobile } = useSidebar();
   const { setTheme, theme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   return (
     <SidebarMenu>
@@ -102,22 +96,16 @@ export function NavUser({ user }: NavUserProps) {
                 Subscription
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
-                  const newTheme = theme === "dark" ? "light" : "dark";
-                  setTheme(newTheme);
+                onSelect={() => {
+                  setTheme(theme === "dark" ? "light" : "dark");
                   document.documentElement.classList.toggle("dark");
                 }}
               >
-                {mounted && (
-                  <>
-                    {theme === "dark" ? (
-                      <Sun className="mr-2 h-4 w-4" />
-                    ) : (
-                      <Moon className="mr-2 h-4 w-4" />
-                    )}
-                    {theme === "dark" ? "Light mode" : "Dark mode"}
-                  </>
-                )}
+                <div className="relative w-4 h-4 mr-2">
+                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute top-0 left-0 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                </div>
+                <span>Toggle theme</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

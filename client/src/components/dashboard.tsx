@@ -11,7 +11,15 @@ import {
   QuestionMarkCircledIcon,
   StopwatchIcon,
 } from "@radix-ui/react-icons";
-import { Bar, BarChart, Line, LineChart, ResponsiveContainer } from "recharts";
+import {
+  Bar,
+  BarChart,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  XAxis,
+  Tooltip,
+} from "recharts";
 import { Calendar, Hash } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -102,11 +110,11 @@ export function Dashboard() {
               <CardTitle className="text-sm font-medium">
                 Total Followers
               </CardTitle>
-              <ArrowUpIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+              <ArrowUpIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">45,231</div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 +20.1% from last month
               </p>
             </CardContent>
@@ -116,11 +124,11 @@ export function Dashboard() {
               <CardTitle className="text-sm font-medium">
                 Engagement Rate
               </CardTitle>
-              <ArrowUpIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+              <ArrowUpIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">5.2%</div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 +1.2% from last month
               </p>
             </CardContent>
@@ -130,11 +138,11 @@ export function Dashboard() {
               <CardTitle className="text-sm font-medium">
                 Scheduled Posts
               </CardTitle>
-              <StopwatchIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+              <StopwatchIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 For the next 7 days
               </p>
             </CardContent>
@@ -144,11 +152,11 @@ export function Dashboard() {
               <CardTitle className="text-sm font-medium">
                 Active Campaigns
               </CardTitle>
-              <CircleIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+              <CircleIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 2 ending this week
               </p>
             </CardContent>
@@ -162,12 +170,58 @@ export function Dashboard() {
             <CardContent className="pl-2">
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={data}>
+                  <XAxis
+                    dataKey="name"
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{
+                      fill: "var(--hover-color)",
+                      opacity: 0.1,
+                    }}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--background))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                    }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-lg border bg-background p-2 shadow-sm">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="flex flex-col">
+                                <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                  Month
+                                </span>
+                                <span className="font-bold text-foreground">
+                                  {payload[0].payload.name}
+                                </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                  Engagement
+                                </span>
+                                <span className="font-bold text-foreground">
+                                  {payload[0].value}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Bar
                     dataKey="total"
                     style={{
                       fill: "hsl(var(--primary))",
                       opacity: 0.9,
                     }}
+                    radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -191,7 +245,7 @@ export function Dashboard() {
                     <p className="text-sm font-medium leading-none">
                       New Product Launch
                     </p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="text-sm text-muted-foreground">
                       Instagram • 2 hours ago
                     </p>
                   </div>
@@ -208,7 +262,7 @@ export function Dashboard() {
                     <p className="text-sm font-medium leading-none">
                       Summer Collection
                     </p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="text-sm text-muted-foreground">
                       Twitter • 5 hours ago
                     </p>
                   </div>
@@ -225,7 +279,7 @@ export function Dashboard() {
                     <p className="text-sm font-medium leading-none">
                       Customer Story
                     </p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="text-sm text-muted-foreground">
                       LinkedIn • 1 day ago
                     </p>
                   </div>
@@ -250,7 +304,7 @@ export function Dashboard() {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex items-center">
                     <div className="flex items-center justify-center w-10">
-                      <Calendar className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="ml-4 space-y-1">
                       <p className="text-sm font-medium leading-none">
@@ -298,12 +352,12 @@ export function Dashboard() {
                   { tag: "#content", count: "3.8K", trend: "down" },
                 ].map((item) => (
                   <div key={item.tag} className="flex items-center">
-                    <Hash className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                    <Hash className="h-4 w-4 text-muted-foreground" />
                     <div className="ml-4 space-y-1">
                       <p className="text-sm font-medium leading-none">
                         {item.tag}
                       </p>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      <p className="text-sm text-muted-foreground">
                         {item.count} mentions
                       </p>
                     </div>
