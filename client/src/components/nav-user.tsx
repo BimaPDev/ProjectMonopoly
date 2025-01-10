@@ -1,12 +1,14 @@
+"use client";
+
 import {
   BadgeCheck,
   Bell,
   ChevronsUpDown,
-  CreditCard,
   LogOut,
   Settings,
   User,
 } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -24,6 +26,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useTheme } from "next-themes";
+import React from "react";
 
 interface NavUserProps {
   user: {
@@ -35,6 +39,12 @@ interface NavUserProps {
 
 export function NavUser({ user }: NavUserProps) {
   const { isMobile } = useSidebar();
+  const { setTheme, theme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <SidebarMenu>
@@ -49,14 +59,14 @@ export function NavUser({ user }: NavUserProps) {
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback>
                   {user.name
-                    .split("")
+                    .split(" ")
                     .map((n) => n[0])
                     .join("")}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="font-semibold">{user.name}</span>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-muted-foreground">
                   {user.email}
                 </span>
               </div>
@@ -91,9 +101,23 @@ export function NavUser({ user }: NavUserProps) {
                 <BadgeCheck className="mr-2 h-4 w-4" />
                 Subscription
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Billing
+              <DropdownMenuItem
+                onClick={() => {
+                  const newTheme = theme === "dark" ? "light" : "dark";
+                  setTheme(newTheme);
+                  document.documentElement.classList.toggle("dark");
+                }}
+              >
+                {mounted && (
+                  <>
+                    {theme === "dark" ? (
+                      <Sun className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Moon className="mr-2 h-4 w-4" />
+                    )}
+                    {theme === "dark" ? "Light mode" : "Dark mode"}
+                  </>
+                )}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
