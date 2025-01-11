@@ -12,14 +12,15 @@ import {
   StopwatchIcon,
 } from "@radix-ui/react-icons";
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
   Line,
   LineChart,
   ResponsiveContainer,
   XAxis,
   Tooltip,
 } from "recharts";
+import { Bar, BarChart } from "recharts";
 import { Calendar, Hash } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -114,8 +115,8 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">45,231</div>
-              <p className="text-xs text-muted-foreground">
-                +20.1% from last month
+              <p className={`text-xs text-green-500`}>
+                +{20.1}% from last month
               </p>
             </CardContent>
           </Card>
@@ -128,8 +129,8 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">5.2%</div>
-              <p className="text-xs text-muted-foreground">
-                +1.2% from last month
+              <p className={`text-xs text-green-500`}>
+                +{1.2}% from last month
               </p>
             </CardContent>
           </Card>
@@ -142,9 +143,7 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">
-                For the next 7 days
-              </p>
+              <p className={`text-xs text-red-500`}>-{5.2}% from last month</p>
             </CardContent>
           </Card>
           <Card>
@@ -156,8 +155,8 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">
-                2 ending this week
+              <p className={`text-xs text-green-500`}>
+                +{8.1}% from last month
               </p>
             </CardContent>
           </Card>
@@ -169,7 +168,16 @@ export function Dashboard() {
             </CardHeader>
             <CardContent className="pl-2">
               <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={data}>
+                <AreaChart
+                  data={data}
+                  stackOffset="none"
+                  margin={{
+                    top: 10,
+                    right: 30,
+                    left: 0,
+                    bottom: 0,
+                  }}
+                >
                   <XAxis
                     dataKey="name"
                     stroke="#888888"
@@ -178,52 +186,55 @@ export function Dashboard() {
                     axisLine={false}
                   />
                   <Tooltip
-                    cursor={{
-                      fill: "var(--hover-color)",
-                      opacity: 0.1,
-                    }}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
-                    }}
                     content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="rounded-lg border bg-background p-2 shadow-sm">
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="flex flex-col">
-                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                  Month
-                                </span>
-                                <span className="font-bold text-foreground">
-                                  {payload[0].payload.name}
-                                </span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                  Engagement
-                                </span>
-                                <span className="font-bold text-foreground">
-                                  {payload[0].value}
-                                </span>
-                              </div>
+                      if (
+                        !active ||
+                        !payload ||
+                        !payload[0]?.payload?.name ||
+                        !payload[0]?.value
+                      ) {
+                        return null;
+                      }
+
+                      return (
+                        <div className="rounded-lg border bg-background p-2 shadow-sm">
+                          <div className="grid gap-2">
+                            <div className="flex flex-col">
+                              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                {payload[0].payload.name}
+                              </span>
+                              <span className="font-bold text-foreground">
+                                {Number(payload[0].value).toLocaleString()}
+                              </span>
                             </div>
                           </div>
-                        );
-                      }
-                      return null;
+                        </div>
+                      );
                     }}
                   />
-                  <Bar
+                  <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="5%"
+                        stopColor="hsl(var(--primary))"
+                        stopOpacity={0.8}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="hsl(var(--primary))"
+                        stopOpacity={0.1}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="monotone"
                     dataKey="total"
-                    style={{
-                      fill: "hsl(var(--primary))",
-                      opacity: 0.9,
-                    }}
-                    radius={[4, 4, 0, 0]}
+                    stackId="1"
+                    stroke="hsl(var(--primary))"
+                    fill="url(#colorTotal)"
+                    opacity={0.9}
                   />
-                </BarChart>
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -318,17 +329,9 @@ export function Dashboard() {
                           ][i]
                         }
                       </p>
-                      <div className="flex items-center pt-2">
-                        <Badge variant="secondary" className="mr-2">
-                          Instagram
-                        </Badge>
-                        <Badge variant="secondary">Facebook</Badge>
-                      </div>
-                    </div>
-                    <div className="ml-auto font-medium">
-                      {new Date(
-                        Date.now() + (i + 1) * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString()}
+                      <p className="text-sm text-muted-foreground">
+                        {["Mon", "Tue", "Wed", "Thu", "Fri"][i]}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -337,36 +340,29 @@ export function Dashboard() {
           </Card>
           <Card className="col-span-3">
             <CardHeader>
-              <CardTitle>Hashtag Performance</CardTitle>
-              <CardDescription>
-                Top performing hashtags this month
-              </CardDescription>
+              <CardTitle>Trending Tags</CardTitle>
+              <CardDescription>Most used hashtags this week</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-8">
                 {[
-                  { tag: "#marketing", count: "12.3K", trend: "up" },
-                  { tag: "#socialmedia", count: "8.7K", trend: "up" },
-                  { tag: "#digital", count: "6.2K", trend: "down" },
-                  { tag: "#strategy", count: "4.5K", trend: "up" },
-                  { tag: "#content", count: "3.8K", trend: "down" },
-                ].map((item) => (
-                  <div key={item.tag} className="flex items-center">
-                    <Hash className="h-4 w-4 text-muted-foreground" />
+                  { tag: "#NewProduct", count: "2.4k posts" },
+                  { tag: "#Marketing", count: "1.8k posts" },
+                  { tag: "#Innovation", count: "962 posts" },
+                  { tag: "#Design", count: "751 posts" },
+                  { tag: "#Startup", count: "642 posts" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center">
+                    <div className="flex items-center justify-center w-10">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                    </div>
                     <div className="ml-4 space-y-1">
                       <p className="text-sm font-medium leading-none">
                         {item.tag}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {item.count} mentions
+                        {item.count}
                       </p>
-                    </div>
-                    <div className="ml-auto">
-                      {item.trend === "up" ? (
-                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-red-500" />
-                      )}
                     </div>
                   </div>
                 ))}
@@ -375,6 +371,9 @@ export function Dashboard() {
           </Card>
         </div>
       </TabsContent>
+      <TabsContent value="analytics">Analytics</TabsContent>
+      <TabsContent value="reports">Reports</TabsContent>
+      <TabsContent value="notifications">Notifications</TabsContent>
     </Tabs>
   );
 }
