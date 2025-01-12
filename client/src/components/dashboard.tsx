@@ -346,23 +346,28 @@ export function Dashboard() {
             <CardContent>
               <div className="space-y-8">
                 {[
-                  { tag: "#NewProduct", count: "2.4k posts" },
-                  { tag: "#Marketing", count: "1.8k posts" },
-                  { tag: "#Innovation", count: "962 posts" },
-                  { tag: "#Design", count: "751 posts" },
-                  { tag: "#Startup", count: "642 posts" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center">
-                    <div className="flex items-center justify-center w-10">
-                      <Hash className="h-4 w-4 text-muted-foreground" />
-                    </div>
+                  { tag: "#marketing", count: "12.3K", trend: "up" },
+                  { tag: "#socialmedia", count: "8.7K", trend: "up" },
+                  { tag: "#digital", count: "6.2K", trend: "down" },
+                  { tag: "#strategy", count: "4.5K", trend: "up" },
+                  { tag: "#content", count: "3.8K", trend: "down" },
+                ].map((item) => (
+                  <div key={item.tag} className="flex items-center">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
                     <div className="ml-4 space-y-1">
                       <p className="text-sm font-medium leading-none">
                         {item.tag}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {item.count}
+                        {item.count} mentions
                       </p>
+                    </div>
+                    <div className="ml-auto">
+                      {item.trend === "up" ? (
+                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-red-500" />
+                      )}
                     </div>
                   </div>
                 ))}
