@@ -26,13 +26,13 @@ import {
 
 const data = {
   user: {
-    name: "Sophie Chen",
-    email: "sophie@marketing.co",
+    name: "Testing User",
+    email: "Testing@Testing.co",
     avatar: "/placeholder.svg?height=32&width=32",
   },
   teams: [
     {
-      name: "Marketing Co",
+      name: "DoogWood Gaming",
       logo: GalleryHorizontalEnd,
       plan: "Enterprise",
     },
@@ -43,6 +43,25 @@ const data = {
       url: "#",
       icon: Home,
       isActive: true,
+    },
+    {
+      title: "Content",
+      url: "#",
+      icon: MessageCircle,
+      items: [
+        {
+          title: "Posts",
+          url: "/posts",
+        },
+        {
+          title: "Scheduler",
+          url: "#",
+        },
+        {
+          title: "Media Library",
+          url: "#",
+        },
+      ],
     },
     {
       title: "Analytics",
@@ -63,25 +82,7 @@ const data = {
         },
       ],
     },
-    {
-      title: "Content",
-      url: "#",
-      icon: MessageCircle,
-      items: [
-        {
-          title: "Posts",
-          url: "#",
-        },
-        {
-          title: "Scheduler",
-          url: "#",
-        },
-        {
-          title: "Media Library",
-          url: "#",
-        },
-      ],
-    },
+
     {
       title: "Campaigns",
       url: "#",
@@ -113,7 +114,7 @@ const data = {
     },
     {
       title: "Competitors",
-      url: "#",
+      url: "/competitors",
       icon: Users2,
     },
     {

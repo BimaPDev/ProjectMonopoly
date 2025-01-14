@@ -1,6 +1,8 @@
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { AppSidebar } from "./components/app-sidebar";
 import { Dashboard } from "./components/dashboard";
+import Competitors from "@/app/competitors/page"; // Example of another page
+import Upload from "@/app/upload/page"; // Example of another page
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,6 +15,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "./components/ui/sidebar";
+import { Routes, Route } from "react-router-dom";
 
 function App() {
   return (
@@ -33,7 +36,11 @@ function App() {
               </Breadcrumb>
             </header>
             <div className="flex-1 min-h-screen w-full space-y-4 p-4 pt-6 bg-background">
-              <Dashboard />
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/posts" element={<Upload />} />
+                <Route path="/competitors" element={<Competitors />} />
+              </Routes>
             </div>
           </SidebarInset>
         </SidebarProvider>

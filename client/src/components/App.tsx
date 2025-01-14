@@ -1,16 +1,16 @@
-import { ThemeProvider as NextThemesProvider } from "'next-themes'"
-import { useEffect, useState } from "'react'"
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { useEffect, useState } from "react";
 
 function App() {
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(false);
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   if (!mounted) {
-    return null
+    return null;
   }
 
   return (
@@ -19,8 +19,7 @@ function App() {
         {/* Your existing app content */}
       </div>
     </NextThemesProvider>
-  )
+  );
 }
 
-export default App
-
+export default App;
