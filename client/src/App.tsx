@@ -3,6 +3,7 @@ import { AppSidebar } from "./components/app-sidebar";
 import { Dashboard } from "./components/dashboard";
 import Competitors from "@/app/competitors/page"; // Example of another page
 import Upload from "@/app/upload/page"; // Example of another page
+import LiveFeedPage from "@/app/competitors/live/page"; // Example of another page
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/posts" element={<Upload />} />
                 <Route path="/competitors" element={<Competitors />} />
+                <Route path="/competitors/live" element={<LiveFeedPage />} />
               </Routes>
             </div>
           </SidebarInset>

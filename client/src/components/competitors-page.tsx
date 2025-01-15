@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   Twitter,
+  Radio,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 
@@ -108,8 +109,11 @@ export function CompetitorsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Competitors</h2>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={() => alert("Button clicked!")}>
-            Click Me
+          <Button variant="outline" className="gap-2" asChild>
+            <a href="/competitors/live">
+              <Radio className="h-4 w-4 text-red-500 animate-pulse" />
+              Live Feed
+            </a>
           </Button>
           <Button>
             <Plus className="mr-2 h-4 w-4" /> Add Competitor
