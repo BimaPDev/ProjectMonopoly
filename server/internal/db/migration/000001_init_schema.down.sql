@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS "users";
+DROP TABLE IF EXISTS "competitors";
+DROP TABLE IF EXISTS "campaigns";
+DROP TABLE IF EXISTS "posts";
