@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   BarChart3,
+  BotIcon,
   Calendar,
   GalleryHorizontalEnd,
   Hash,
@@ -23,6 +24,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { RadiobuttonIcon } from "@radix-ui/react-icons";
 
 const data = {
   user: {
@@ -44,6 +46,12 @@ const data = {
       icon: Home,
       isActive: true,
     },
+    {
+      title: "DogWood AI",
+      url: "/Ai",
+      icon: BotIcon,
+    },
+
     {
       title: "Content",
       url: "#",
@@ -127,6 +135,7 @@ const data = {
       url: "#",
       icon: Settings2,
     },
+    
   ],
   projects: [
     {
@@ -146,6 +155,8 @@ const data = {
     },
   ],
 };
+
+
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (

@@ -1,6 +1,7 @@
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { AppSidebar } from "./components/app-sidebar";
 import { Dashboard } from "./components/dashboard";
+import Ai from "./app/Ai/Ai";
 import Competitors from "@/app/competitors/page"; // Example of another page
 import Upload from "@/app/upload/page"; // Example of another page
 import LiveFeedPage from "@/app/competitors/live/page"; // Example of another page
@@ -42,6 +43,7 @@ function App() {
                 <Route path="/posts" element={<Upload />} />
                 <Route path="/competitors" element={<Competitors />} />
                 <Route path="/competitors/live" element={<LiveFeedPage />} />
+                <Route path="/Ai" element={<Ai/>}/>
               </Routes>
             </div>
           </SidebarInset>
