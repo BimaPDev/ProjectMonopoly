@@ -9,7 +9,7 @@ import (
 )
 
 // RunPythonScript executes the Python script with the provided arguments
-func RunPythonScript(sessionID, videoPath, caption string, headless bool) (string, error) {
+func TikTokUpload(sessionID, videoPath, caption string, headless bool) (string, error) {
 	// Get absolute video path
 	absVideoPath, err := filepath.Abs(videoPath)
 	if err != nil {
@@ -49,6 +49,40 @@ func RunPythonScript(sessionID, videoPath, caption string, headless bool) (strin
 	cmd.Stderr = &stderr
 
 	err = cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("error executing Python script: %v\nStderr: %s", err, stderr.String())
+	}
+
+	return out.String(), nil
+}
+
+func GetFollowers(headless bool) (string, error) {
+	// Path to the Python script
+	scriptPath := filepath.Join("python", "followers", "getFollowers.py")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("Python script does not exist at path: %s", scriptPath)
+	}
+
+	// Detect Python command
+	pythonCmd := DetectPythonCommand()
+	if pythonCmd == "" {
+		return "", fmt.Errorf("could not detect Python command")
+	}
+
+	// Construct arguments
+	args := []string{scriptPath}
+	if headless {
+		args = append(args, "--headless")
+	}
+
+	// Execute Python script
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(pythonCmd, args...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("error executing Python script: %v\nStderr: %s", err, stderr.String())
 	}
