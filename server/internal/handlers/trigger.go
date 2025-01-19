@@ -74,7 +74,7 @@ func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run the Python script
-	output, err := utils.RunPythonScript(reqBody.Headless)
+	output, err := utils.RunPythonScriptFollow(reqBody.Headless)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ResponseBody{

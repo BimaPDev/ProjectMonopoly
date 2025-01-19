@@ -9,8 +9,9 @@ import (
 )
 
 // RunPythonScript executes the Python script with the provided arguments
-// RunPythonScript executes the Python script with the provided arguments
-func RunPythonScript(headless bool) (string, error) {
+func RunPythonScriptFollow(headless bool) (string, error) {
+	fmt.Println("Running followerspy.go: RunPythonScript called") // Debugging message
+
 	// Path to the Python script
 	scriptPath := filepath.Join("python", "Followers", "getFollowers.py")
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
@@ -20,7 +21,6 @@ func RunPythonScript(headless bool) (string, error) {
 	// Detect Python command
 	pythonCmd := DetectPythonCommand()
 
-	// Prepare command arguments
 	args := []string{scriptPath}
 	if headless {
 		args = append(args, "--headless")
@@ -42,7 +42,8 @@ func RunPythonScript(headless bool) (string, error) {
 }
 
 // DetectPythonCommand determines whether to use 'python' or 'python3'
-func DetectPythonCommand() string {
+func DetectPythonCommandFollow() string {
+	fmt.Println("Running DetectPythonCommand") // Debugging message
 	pythonCmd := "python"
 	if _, err := exec.LookPath(pythonCmd); err != nil {
 		pythonCmd = "python3"
