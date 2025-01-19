@@ -4,16 +4,15 @@ import React, { useState } from "react";
 import { Box, Menu, MenuItem, Stack } from "@mui/material";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { RecommendationForm } from "@/components/ui/recommendationForm"; // Import the form component
+import { RecommendationForm } from "@/components/ui/recommendationForm"; 
 
 export function AiPage() {
-  const { theme } = useTheme(); // Access the theme
-  const [anchorEl, setAnchorEl] = useState(null); // Tracks the menu anchor
-  const [selectedModel, setSelectedModel] = useState(""); // Tracks the selected model
-  const [showForm, setShowForm] = useState(false); // Tracks form visibility
-  const open = Boolean(anchorEl);
+  const { theme } = useTheme(); 
+  const [anchorEl, setAnchorEl] = useState(null); 
+  const [selectedModel, setSelectedModel] = useState(""); 
+  const [showForm, setShowForm] = useState(false); 
 
-  // Handlers for menu and model selection
+  
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -29,7 +28,7 @@ export function AiPage() {
 
   const handleGetRecommendation = () => {
     if (selectedModel) {
-      setShowForm(true); // Show the form if a model is selected
+      setShowForm(true);
     } else {
       alert("Please select a model before getting recommendations.");
     }

@@ -9,12 +9,8 @@ import (
 )
 
 // RunPythonScript executes the Python script with the provided arguments
+// RunPythonScript executes the Python script with the provided arguments
 func RunPythonScript(headless bool) (string, error) {
-	
-	
-
-	
-
 	// Path to the Python script
 	scriptPath := filepath.Join("python", "Followers", "getFollowers.py")
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
@@ -24,7 +20,8 @@ func RunPythonScript(headless bool) (string, error) {
 	// Detect Python command
 	pythonCmd := DetectPythonCommand()
 
-	
+	// Prepare command arguments
+	args := []string{scriptPath}
 	if headless {
 		args = append(args, "--headless")
 	}
@@ -32,11 +29,11 @@ func RunPythonScript(headless bool) (string, error) {
 	// Execute Python script
 	var out bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.Command(pythonCmd)
+	cmd := exec.Command(pythonCmd, args...)
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("error executing Python script: %v\nStderr: %s", err, stderr.String())
 	}

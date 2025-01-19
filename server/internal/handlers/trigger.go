@@ -61,6 +61,38 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// TriggerFollowersScript handles requests to trigger the followers Python script
+func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Parse request body
+	var reqBody RequestBody
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	if err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	// Run the Python script
+	output, err := utils.RunPythonScript(reqBody.Headless)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ResponseBody{
+			Success: false,
+			Message: "Failed to execute Python script",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Success response
+	json.NewEncoder(w).Encode(ResponseBody{
+		Success: true,
+		Message: "Python script executed successfully",
+		Output:  output,
+	})
+}
+
 // HealthCheck provides a simple health check endpoint
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
