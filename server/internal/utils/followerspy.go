@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 )
 
 // RunPythonScript executes the Python script with the provided arguments
 func RunPythonScriptFollow(headless bool) (string, error) {
-	fmt.Println("Running followerspy.go: RunPythonScript called") // Debugging message
 
 	// Path to the Python script
-	scriptPath := filepath.Join("python", "Followers", "getFollowers.py")
+	scriptPath := "server/python/followers/getFollowers.py"
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("Python script does not exist at path: %s", scriptPath)
 	}

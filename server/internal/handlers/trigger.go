@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
@@ -61,20 +63,29 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// FollowersResponse defines the structure of the JSON response
+type FollowersResponse struct {
+	TotalFollowers string `json:"total_followers"`
+	Error          string `json:"error,omitempty"` // Include an error field for error responses
+}
+
 // TriggerFollowersScript handles requests to trigger the followers Python script
 func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Parse request body
-	var reqBody RequestBody
-	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	// Debug: Log the incoming request (if needed for troubleshooting)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
+	fmt.Printf("Raw request body: %s\n", string(body))
+
+	// Always run the Python script in headless mode
+	headless := true
 
 	// Run the Python script
-	output, err := utils.RunPythonScriptFollow(reqBody.Headless)
+	output, err := utils.RunPythonScriptFollow(headless)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ResponseBody{

@@ -4,15 +4,16 @@ import React, { useState } from "react";
 import { Box, Menu, MenuItem, Stack } from "@mui/material";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { RecommendationForm } from "@/components/ui/recommendationForm"; 
+import ChatComponent from "@/components/ui/chatComponent";  // Import the ChatComponent
+
 
 export function AiPage() {
-  const { theme } = useTheme(); 
-  const [anchorEl, setAnchorEl] = useState(null); 
-  const [selectedModel, setSelectedModel] = useState(""); 
-  const [showForm, setShowForm] = useState(false); 
+  const { theme } = useTheme();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedModel, setSelectedModel] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [showChat, setShowChat] = useState(false);  // State to toggle ChatComponent visibility
 
-  
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -36,6 +37,10 @@ export function AiPage() {
 
   const handleFormSubmit = (data) => {
     console.log("Form submitted with data:", data);
+  };
+
+  const handleChatToggle = () => {
+    setShowChat(!showChat);  // Toggle ChatComponent visibility
   };
 
   return (
@@ -64,11 +69,15 @@ export function AiPage() {
             {selectedModel ? `Model: ${selectedModel}` : "Select Model"}
           </Button>
           <Button onClick={handleGetRecommendation}>Get Recommendation</Button>
+          {/* Button to toggle ChatComponent */}
+          <Button onClick={handleChatToggle}>
+            {showChat ? "Hide Chat" : "Show Chat"}
+          </Button>
         </Stack>
 
         <Menu
           anchorEl={anchorEl}
-          open={open}
+          open={Boolean(anchorEl)}  // Adjust to conditionally open the menu
           onClose={handleClose}
         >
           <MenuItem onClick={() => handleModelSelect("Chat GPT")}>Chat GPT</MenuItem>
@@ -76,30 +85,30 @@ export function AiPage() {
         </Menu>
       </Box>
 
-      
+      {/* Conditional rendering of the form */}
       <Box
         sx={{
           position: "relative",
           width: "100%",
         }}
       >
-       
         <Box
           sx={{
-            position: "absolute", 
-            top: "15px", 
-            left: 0, 
-            width: "400px", 
-            padding: "0px", 
+            position: "absolute",
+            top: "15px",
+            left: 0,
+            width: "400px",
+            padding: "0px",
             borderRadius: "5px",
-            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)" 
+            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
           }}
         >
-          {showForm && (
-            <RecommendationForm onSubmit={handleFormSubmit} />
-          )}
+          {showForm && <RecommendationForm onSubmit={handleFormSubmit} />}
         </Box>
       </Box>
+
+      {/* Conditional rendering of the ChatComponent */}
+      {showChat && <ChatComponent />}
     </Box>
   );
 }
