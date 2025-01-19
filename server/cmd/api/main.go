@@ -10,9 +10,10 @@ import (
 
 func main() {
 	// Set up HTTP routes
-	http.HandleFunc("/trigger", handlers.TriggerPythonScript) // Trigger Python script
-	http.HandleFunc("/health", handlers.HealthCheck)          // Health check
-	http.HandleFunc("/followers", handlers.TriggerFollowersScript)
+	http.HandleFunc("/trigger", handlers.TriggerPythonScript)      // Trigger Python script
+	http.HandleFunc("/health", handlers.HealthCheck)               // Health check
+	http.HandleFunc("/followers", handlers.TriggerFollowersScript) // Default route
+
 	// Start the server
 	port := ":8080"
 	fmt.Printf("✅ API server is running on http://localhost%s\n", port)

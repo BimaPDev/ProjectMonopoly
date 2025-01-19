@@ -44,7 +44,7 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run the Python script
-	output, err := utils.RunPythonScript(reqBody.SessionID, reqBody.VideoPath, reqBody.Caption, reqBody.Headless)
+	output, err := utils.TikTokUpload(reqBody.SessionID, reqBody.VideoPath, reqBody.Caption, reqBody.Headless)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ResponseBody{
@@ -63,12 +63,6 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// FollowersResponse defines the structure of the JSON response
-type FollowersResponse struct {
-	TotalFollowers string `json:"total_followers"`
-	Error          string `json:"error,omitempty"` // Include an error field for error responses
-}
-
 // TriggerFollowersScript handles requests to trigger the followers Python script
 func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -85,7 +79,7 @@ func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
 	headless := true
 
 	// Run the Python script
-	output, err := utils.RunPythonScriptFollow(headless)
+	output, err := utils.GetFollowers(headless)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ResponseBody{
