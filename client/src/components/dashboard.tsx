@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import{ useEffect, useState } from "react";
 import {
   ArrowDownIcon,
   ArrowRightIcon,
@@ -96,6 +97,23 @@ const data = [
 ];
 
 export function Dashboard() {
+  const [followers, setFollowers] = useState(0); // State for followers
+
+  // Fetch followers from the script/API
+  useEffect(() => {
+    async function fetchFollowers() {
+      try {
+        const response = await fetch("/api/followers"); 
+        const data = await response.json();
+        setFollowers(data.count); 
+      } catch (error) {
+        console.error("Error fetching followers:", error);
+      }
+    }
+
+    fetchFollowers();
+  }, []); 
+
   return (
     <Tabs defaultValue="overview" className="space-y-4">
       <TabsList>
@@ -114,7 +132,7 @@ export function Dashboard() {
               <ArrowUpIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">45,231</div>
+              <div className="text-2xl font-bold">{followers}</div>
               <p className={`text-xs text-green-500`}>
                 +{20.1}% from last month
               </p>
