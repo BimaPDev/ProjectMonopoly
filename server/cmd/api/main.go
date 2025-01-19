@@ -10,8 +10,9 @@ import (
 
 func main() {
 	// Set up HTTP routes
-	http.HandleFunc("/trigger", handlers.TriggerPythonScript) // Trigger Python script
-	http.HandleFunc("/health", handlers.HealthCheck)          // Health check
+	http.HandleFunc("/trigger", handlers.TriggerPythonScript)      // Trigger Python script
+	http.HandleFunc("/health", handlers.HealthCheck)               // Health check
+	http.HandleFunc("/followers", handlers.TriggerFollowersScript) // Followers Python script
 
 	// Start the server
 	port := ":8080"
