@@ -6,7 +6,6 @@ import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import ChatComponent from "@/components/ui/chatComponent";  // Import the ChatComponent
 
-
 export function AiPage() {
   const { theme } = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -25,18 +24,6 @@ export function AiPage() {
   const handleModelSelect = (model) => {
     setSelectedModel(model);
     handleClose();
-  };
-
-  const handleGetRecommendation = () => {
-    if (selectedModel) {
-      setShowForm(true);
-    } else {
-      alert("Please select a model before getting recommendations.");
-    }
-  };
-
-  const handleFormSubmit = (data) => {
-    console.log("Form submitted with data:", data);
   };
 
   const handleChatToggle = () => {
@@ -68,9 +55,19 @@ export function AiPage() {
           <Button onClick={handleClick}>
             {selectedModel ? `Model: ${selectedModel}` : "Select Model"}
           </Button>
-          <Button onClick={handleGetRecommendation}>Get Recommendation</Button>
-          {/* Button to toggle ChatComponent */}
-          <Button onClick={handleChatToggle}>
+
+          {/* Button to toggle ChatComponent with gray styling when no model is selected */}
+          <Button
+            onClick={handleChatToggle}
+            sx={{
+              backgroundColor: selectedModel ? "primary.main" : "gray",  // Gray until a model is selected
+              color: selectedModel ? "white" : "black",  // Ensure text color is readable
+              "&:hover": {
+                backgroundColor: selectedModel ? "primary.dark" : "gray",
+              },
+            }}
+            disabled={!selectedModel}  // Disable button until a model is selected
+          >
             {showChat ? "Hide Chat" : "Show Chat"}
           </Button>
         </Stack>
@@ -103,7 +100,7 @@ export function AiPage() {
             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
           }}
         >
-          {showForm && <RecommendationForm onSubmit={handleFormSubmit} />}
+    
         </Box>
       </Box>
 
