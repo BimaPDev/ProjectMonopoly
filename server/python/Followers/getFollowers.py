@@ -122,10 +122,5 @@ if __name__ == "__main__":
     total_followers = (
                         facebook_followers + instagram_followers + twitch_followers + youtube_followers + linkedin_followers
                        )
-    
-    print(f"Instagram Followers: {instagram_followers}")
-    print(f"Twitch Followers: {twitch_followers}")
-    print(f"YouTube Subscribers: {youtube_followers}")
-    print(f"Facebook Followers: {facebook_followers}")
-    print(f"LinkedIn Followers: {linkedin_followers}")
-    print(f"Total Followers: {total_followers}")
+    print(total_followers)
+   
