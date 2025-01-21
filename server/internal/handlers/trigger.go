@@ -103,3 +103,34 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
+
+func TriggerAiScript(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var reqBody struct {
+		Model string `json:"model"`
+		Input string `json:"input"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	// Call the TriggerModel function
+	output, err := utils.TriggerModel(reqBody.Model, reqBody.Input)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ResponseBody{
+			Success: false,
+			Message: fmt.Sprintf("Failed to execute %s model", reqBody.Model),
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(ResponseBody{
+		Success: true,
+		Message: fmt.Sprintf("%s model executed successfully", reqBody.Model),
+		Output:  output,
+	})
+}

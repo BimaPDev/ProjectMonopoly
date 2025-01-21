@@ -58,7 +58,10 @@ func TikTokUpload(sessionID, videoPath, caption string, headless bool) (string, 
 
 func GetFollowers(headless bool) (string, error) {
 	// Path to the Python script
-	scriptPath := filepath.Join("python", "followers", "getFollowers.py")
+	workingDir, err := os.Getwd()
+	fmt.Printf("Current working directory: %s\n", workingDir)
+
+	scriptPath := "server/python/followers/getFollowers.py"
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("Python script does not exist at path: %s", scriptPath)
 	}
@@ -82,7 +85,6 @@ func GetFollowers(headless bool) (string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("error executing Python script: %v\nStderr: %s", err, stderr.String())
 	}
@@ -100,4 +102,44 @@ func DetectPythonCommand() string {
 		}
 	}
 	return pythonCmd
+}
+
+// TriggerModel executes a Python script based on the selected model
+func TriggerModel(model, input string) (string, error) {
+	// Define the script paths for each model
+	modelScripts := map[string]string{
+		"chatgpt":  filepath.Join("python", "models", "chatgpt.py"),
+		"deepseek": filepath.Join("python", "models", "deepseek.py"),
+	}
+
+	// Ensure the requested model exists in the map
+	scriptPath, exists := modelScripts[model]
+	if !exists {
+		return "", fmt.Errorf("invalid model: %s", model)
+	}
+
+	// Check if the Python script exists
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("Python script does not exist at path: %s", scriptPath)
+	}
+
+	// Detect Python command
+	pythonCmd := DetectPythonCommand()
+
+	// Build arguments
+	args := []string{scriptPath, "--input", input}
+
+	// Execute Python script
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(pythonCmd, args...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("error executing %s script: %v\nStderr: %s", model, err, stderr.String())
+	}
+
+	return out.String(), nil
 }
