@@ -22,7 +22,9 @@ func MainDeep(prompt string) (string, error) {
 	// Load and process the CSV file
 	csvData, err := readCSV("detailed_data.csv")
 	if err != nil {
+
 		return "", fmt.Errorf("failed to read CSV file: %v", err)
+
 	}
 
 	// Summarize the CSV data for the system prompt
@@ -132,7 +134,7 @@ func ChatDeep(prompt string) (string, error) {
 	// Load API key from environment variables
 	apiKey := os.Getenv("DEEPAPI_KEY")
 	if apiKey == "" {
-		return "", fmt.Errorf("missing DEEPAPI_KEY environment variable")
+		return "", fmt.Errorf("missing DEEPAPI_KEY environment variableaaaaa")
 	}
 
 	// DeepSeek API URL
