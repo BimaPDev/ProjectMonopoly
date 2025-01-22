@@ -2,11 +2,14 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
+import json
+from flask import Flask, request, jsonify
 
+app = Flask(__name__)
 def set_up_driver():
     options = Options()
     options.add_argument("--headless")  # Run in headless mode
-    options.add_argument("--disable-gpu")
+    options.add_argument("--enable-gpu")
     options.add_argument("--no-sandbox")
     driver = webdriver.Chrome(options=options)
     return driver
@@ -16,7 +19,7 @@ def get_instagram_followers(username):
     driver = set_up_driver()
     url = f"https://www.instagram.com/{username}/"
     driver.get(url)
-    time.sleep(5)  # Wait for the page to load
+    time.sleep(2)  # Wait for the page to load
 
     try:
         followers = driver.find_element(By.XPATH, "//div/div/div[2]/div/div/div[1]/div[2]/div/div[1]/section/main/div/header/section/div[2]/ul/li[2]/div/button/span/span").text
@@ -33,7 +36,7 @@ def get_facebook_followers(page_name):
     driver = set_up_driver()
     url = f"https://www.facebook.com/{page_name}"
     driver.get(url)
-    time.sleep(5)  # Wait for the page to load
+    time.sleep(2)  # Wait for the page to load
 
     try:
         # Locate the follower count using XPath
@@ -50,7 +53,7 @@ def get_linkedin_followers(company_name):
     driver = set_up_driver()
     url = f"https://www.linkedin.com/company/{company_name}"
     driver.get(url)
-    time.sleep(5)  # Wait for the page to load
+    time.sleep(2)  # Wait for the page to load
 
     try:
         followers = driver.find_element(By.XPATH, "//section[1]/section/div/div[2]/div[1]/h3").text
@@ -68,7 +71,7 @@ def get_twitch_followers(username):
     driver = set_up_driver()
     url = f"https://twitch.tv/{username}/about"
     driver.get(url)
-    time.sleep(5)  # Wait for the page to load
+    time.sleep(2)  # Wait for the page to load
 
     try:
         followers = driver.find_element(By.XPATH, "//div[3]/div/div/div/div[1]/div[2]/div/div/div[2]/div/div[1]/div/div/div/span/div/div/span").text
@@ -84,7 +87,7 @@ def get_youtube_followers(channel_id):
     driver = set_up_driver()
     url = f"https://www.youtube.com/c/{channel_id}"
     driver.get(url)
-    time.sleep(5)  # Wait for the page to load
+    time.sleep(2)  # Wait for the page to load
 
     try:
         subscribers = driver.find_element(By.XPATH, "//yt-page-header-renderer/yt-page-header-view-model/div/div[1]/div/yt-content-metadata-view-model/div[2]/span[1]").text
@@ -107,8 +110,9 @@ def parse_number(text):
         text = int(text)
         return text
 
-# Main function
-if __name__ == "__main__":
+@app.route('/followers', methods=['POST'])
+def totalFollowers():
+    data = request.json
     instagram_username = "dogwood_gaming"
     twitch_username = "dogwoodgaming"
     youtube_channel_id = "DogwoodGaming"
@@ -122,5 +126,9 @@ if __name__ == "__main__":
     total_followers = (
                         facebook_followers + instagram_followers + twitch_followers + youtube_followers + linkedin_followers
                        )
-    print(total_followers)
+    return jsonify({"total_followers": total_followers})
+
    
+# Main function
+if __name__ == "__main__":
+    app.run()

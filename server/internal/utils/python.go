@@ -100,42 +100,53 @@ func DetectPythonCommand() string {
 	return pythonCmd
 }
 
-// TriggerModel executes a Python script based on the selected model
-func TriggerModel(model, input string) (string, error) {
-	// Define the script paths for each model
-	modelScripts := map[string]string{
-		"chatgpt":  filepath.Join("python", "models", "chatgpt.py"),
-		"deepseek": filepath.Join("python", "models", "deepseek.py"),
-	}
+/*
+USAGE:
+{
+    "model": "deepseek",
+    "input": "What are the details in the CSV?"
+}
 
-	// Ensure the requested model exists in the map
-	scriptPath, exists := modelScripts[model]
-	if !exists {
+this is what is supposed to be on the post request
+*/
+
+// TriggerModel executes a model based on the selected type (Python script or Go function).
+func TriggerModel(model, input string) (string, error) {
+	switch model {
+	case "chatgpt":
+		// Define the Python script path for ChatGPT
+		scriptPath := filepath.Join("python", "models", "chatgpt.py")
+
+		// Check if the Python script exists
+		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+			return "", fmt.Errorf("Python script does not exist at path: %s", scriptPath)
+		}
+
+		// Detect Python command
+		pythonCmd := DetectPythonCommand()
+
+		// Build arguments
+		args := []string{scriptPath, "--input", input}
+
+		// Execute Python script
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd := exec.Command(pythonCmd, args...)
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+
+		err := cmd.Run()
+		if err != nil {
+			return "", fmt.Errorf("error executing chatgpt script: %v\nStderr: %s", err, stderr.String())
+		}
+
+		return out.String(), nil
+
+	case "deepseek":
+		// Call the Go function directly for DeepSeek
+		return mainDeep(input)
+
+	default:
 		return "", fmt.Errorf("invalid model: %s", model)
 	}
-
-	// Check if the Python script exists
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("Python script does not exist at path: %s", scriptPath)
-	}
-
-	// Detect Python command
-	pythonCmd := DetectPythonCommand()
-
-	// Build arguments
-	args := []string{scriptPath, "--input", input}
-
-	// Execute Python script
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(pythonCmd, args...)
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("error executing %s script: %v\nStderr: %s", model, err, stderr.String())
-	}
-
-	return out.String(), nil
 }

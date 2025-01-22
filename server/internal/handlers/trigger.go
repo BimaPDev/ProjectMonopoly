@@ -107,12 +107,21 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 func TriggerAiScript(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// Define the request body structure
 	var reqBody struct {
 		Model string `json:"model"`
 		Input string `json:"input"`
 	}
+
+	// Decode the JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	// Validate the input
+	if reqBody.Model == "" || reqBody.Input == "" {
+		http.Error(w, "Model and input fields are required", http.StatusBadRequest)
 		return
 	}
 
@@ -128,6 +137,7 @@ func TriggerAiScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Return the successful response
 	json.NewEncoder(w).Encode(ResponseBody{
 		Success: true,
 		Message: fmt.Sprintf("%s model executed successfully", reqBody.Model),
