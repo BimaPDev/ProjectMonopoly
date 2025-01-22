@@ -30,6 +30,7 @@ func main() {
 	http.HandleFunc("/followers", handlers.TriggerFollowersScript) // Default route
 	http.HandleFunc("/Ai", handlers.TriggerAiScript)
 	http.HandleFunc("/api/users", handlers.CreateUserHandler(queries))
+	http.HandleFunc("/ai/deepseek", handlers.ChatDeepHandler)
 
 	// Start the server
 	port := ":8080"

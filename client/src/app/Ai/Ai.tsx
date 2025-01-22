@@ -1,6 +1,5 @@
-import { AiPage } from "@/components/Ai-page"
+import { AIPage } from "@/components/Ai-page"
 
-export default function Ai(){
-    return <AiPage />;
-
+export default function Page() {
+  return <AIPage />
 }
