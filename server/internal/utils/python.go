@@ -58,10 +58,7 @@ func TikTokUpload(sessionID, videoPath, caption string, headless bool) (string, 
 
 func GetFollowers(headless bool) (string, error) {
 	// Path to the Python script
-	workingDir, err := os.Getwd()
-	fmt.Printf("Current working directory: %s\n", workingDir)
-
-	scriptPath := "server/python/followers/getFollowers.py"
+	scriptPath := filepath.Join("python", "followers", "getFollowers.py")
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("Python script does not exist at path: %s", scriptPath)
 	}
@@ -84,11 +81,10 @@ func GetFollowers(headless bool) (string, error) {
 	cmd := exec.Command(pythonCmd, args...)
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
-
+	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("error executing Python script: %v\nStderr: %s", err, stderr.String())
 	}
-
 	return out.String(), nil
 }
 
