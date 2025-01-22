@@ -28,3 +28,8 @@ RETURNING id, username, email, created_at;
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;
+
+-- name: CheckUsernameOrEmailExists :one
+SELECT COUNT(*) > 0 AS exists
+FROM users
+WHERE username = $1 OR email = $2;

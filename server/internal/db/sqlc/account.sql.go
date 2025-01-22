@@ -10,6 +10,24 @@ import (
 	"database/sql"
 )
 
+const checkUsernameOrEmailExists = `-- name: CheckUsernameOrEmailExists :one
+SELECT COUNT(*) > 0 AS exists
+FROM users
+WHERE username = $1 OR email = $2
+`
+
+type CheckUsernameOrEmailExistsParams struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsernameOrEmailExistsParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkUsernameOrEmailExists, arg.Username, arg.Email)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, password_hash, created_at)
 VALUES ($1, $2, $3, NOW())
