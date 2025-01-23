@@ -44,6 +44,7 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ChatDeepHandler(w http.ResponseWriter, r *http.Request) {
+	print("aaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 	// Only allow POST requests
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST requests are allowed.", http.StatusMethodNotAllowed)
@@ -66,7 +67,7 @@ func ChatDeepHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call ChatDeep to send the prompt and get the response
-	response, err := utils.ChatDeep(requestBody.Prompt)
+	response, err := utils.MainDeep(requestBody.Prompt)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error calling DeepSeek API: %v", err), http.StatusInternalServerError)
 		return
