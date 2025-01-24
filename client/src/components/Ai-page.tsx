@@ -47,7 +47,7 @@ export function AIPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+    
     if (!input.trim()) return;
   
     const userMessage: Message = { role: "user", content: input };
@@ -57,7 +57,6 @@ export function AIPage() {
     setIsLoading(true);
   
     try {
-      
       const response = await fetch("http://localhost:8080/ai/deepseek", {
         method: "POST",
         headers: {
@@ -67,39 +66,28 @@ export function AIPage() {
       });
   
       if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
+        // More detailed error handling
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
   
       const data = await response.json();
   
-      
       const aiMessage: Message = {
         role: "assistant",
-        content: data.response, 
+        content: data.response || "No response received", 
       };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error("Error communicating with AI API:", error);
       const errorMessage: Message = {
         role: "assistant",
-        content: "Something went wrong while communicating with the AI.",
+        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
-
-    // // Simulate AI response
-    // setTimeout(() => {
-    //   const aiMessage: Message = {
-    //     role: "assistant",
-    //     content:
-    //       "This is a simulated response. In a real implementation, this would be replaced with an actual API call to the selected AI model.",
-    //   }
-    //   setMessages((prev) => [...prev, aiMessage])
-    //   setIsLoading(false)
-      
-    // }, 1000)
   };
   
   return (

@@ -14,13 +14,14 @@ import (
 // MainDeep reads a CSV file and uses it as the basis for the AI's responses.
 func MainDeep(prompt string) (string, error) {
 	// Load API key from environment variables
-	apiKey := os.Getenv("DEEPAPI_KEY")
+	print("CALLED MAIN DEEP")
+	apiKey := "sk-"
 	if apiKey == "" {
 		return "", fmt.Errorf("missing DEEPAPI_KEY environment variable")
 	}
-
+	csvPath := "data.csv"
 	// Load and process the CSV file
-	csvData, err := readCSV("detailed_data.csv")
+	csvData, err := readCSV(csvPath)
 	if err != nil {
 
 		return "", fmt.Errorf("failed to read CSV file: %v", err)
@@ -106,110 +107,118 @@ func MainDeep(prompt string) (string, error) {
 	return content, nil
 }
 
-// readCSV reads the contents of a CSV file and returns it as a formatted string.
 func readCSV(filePath string) (string, error) {
+
+	// Open the CSV file
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %v", err)
 	}
 	defer file.Close()
 
+	// Create a CSV reader
 	reader := csv.NewReader(file)
+
+	// Read all records
 	records, err := reader.ReadAll()
 	if err != nil {
 		return "", fmt.Errorf("failed to read CSV data: %v", err)
 	}
 
-	// Format the CSV data into a string (e.g., as a table)
+	// Build a formatted string
 	var sb strings.Builder
-	for _, record := range records {
-		sb.WriteString(strings.Join(record, ", "))
+	sb.WriteString("Parsed CSV Data:\n")
+	for i, record := range records {
+		sb.WriteString(fmt.Sprintf("Record %d:\n", i+1))
+		for j, field := range record {
+			sb.WriteString(fmt.Sprintf("  Field %d: %s\n", j+1, field))
+		}
 		sb.WriteString("\n")
 	}
 
 	return sb.String(), nil
 }
 
-func ChatDeep(prompt string) (string, error) {
-	// Load API key from environment variables
-	apiKey := os.Getenv("DEEPAPI_KEY")
-	if apiKey == "" {
-		return "", fmt.Errorf("missing DEEPAPI_KEY environment variableaaaaa")
-	}
+// func ChatDeep(prompt string) (string, error) {
+// 	// Load API key from environment variables
+// 	apiKey := "sk-"
+// 	if apiKey == "" {
+// 		return "", fmt.Errorf("missing DEEPAPI_KEY environment variable")
+// 	}
 
-	// DeepSeek API URL
-	url := "https://api.deepseek.com/chat/completions"
+// 	// DeepSeek API URL
+// 	url := "https://api.deepseek.com/chat/completions"
 
-	// Prepare the request body
-	requestBody := map[string]interface{}{
-		"model": "deepseek-chat", // Specify the model
-		"messages": []map[string]string{
-			{"role": "user", "content": prompt}, // User's prompt
-		},
-	}
+// 	// Prepare the request body
+// 	requestBody := map[string]interface{}{
+// 		"model": "deepseek-chat", // Specify the model
+// 		"messages": []map[string]string{
+// 			{"role": "user", "content": prompt}, // User's prompt
+// 		},
+// 	}
 
-	// Convert the request body to JSON
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to encode request body: %v", err)
-	}
+// 	// Convert the request body to JSON
+// 	jsonBody, err := json.Marshal(requestBody)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to encode request body: %v", err)
+// 	}
 
-	// Create a new HTTP request
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to create HTTP request: %v", err)
-	}
+// 	// Create a new HTTP request
+// 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to create HTTP request: %v", err)
+// 	}
 
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+// 	// Set headers
+// 	req.Header.Set("Content-Type", "application/json")
+// 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	// Send the request using an HTTP client
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send HTTP request: %v", err)
-	}
-	defer resp.Body.Close()
+// 	// Send the request using an HTTP client
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to send HTTP request: %v", err)
+// 	}
+// 	defer resp.Body.Close()
 
-	// Check for a successful response
-	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body) // Read the body for error details
-		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, body)
-	}
+// 	// Check for a successful response
+// 	if resp.StatusCode != http.StatusOK {
+// 		body, _ := ioutil.ReadAll(resp.Body) // Read the body for error details
+// 		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, body)
+// 	}
 
-	// Parse the response body
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %v", err)
-	}
+// 	// Parse the response body
+// 	body, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to read response body: %v", err)
+// 	}
 
-	// Extract the content from the API response
-	var response map[string]interface{}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return "", fmt.Errorf("failed to parse response: %v", err)
-	}
+// 	// Extract the content from the API response
+// 	var response map[string]interface{}
+// 	if err := json.Unmarshal(body, &response); err != nil {
+// 		return "", fmt.Errorf("failed to parse response: %v", err)
+// 	}
 
-	// Assume the response contains a "choices" array with "message" content
-	choices, ok := response["choices"].([]interface{})
-	if !ok || len(choices) == 0 {
-		return "", fmt.Errorf("invalid response format or no choices returned")
-	}
+// 	// Assume the response contains a "choices" array with "message" content
+// 	choices, ok := response["choices"].([]interface{})
+// 	if !ok || len(choices) == 0 {
+// 		return "", fmt.Errorf("invalid response format or no choices returned")
+// 	}
 
-	choice, ok := choices[0].(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("unexpected choice format")
-	}
+// 	choice, ok := choices[0].(map[string]interface{})
+// 	if !ok {
+// 		return "", fmt.Errorf("unexpected choice format")
+// 	}
 
-	message, ok := choice["message"].(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("unexpected message format")
-	}
+// 	message, ok := choice["message"].(map[string]interface{})
+// 	if !ok {
+// 		return "", fmt.Errorf("unexpected message format")
+// 	}
 
-	content, ok := message["content"].(string)
-	if !ok {
-		return "", fmt.Errorf("response content is not a string")
-	}
+// 	content, ok := message["content"].(string)
+// 	if !ok {
+// 		return "", fmt.Errorf("response content is not a string")
+// 	}
 
-	return content, nil
-}
+// 	return content, nil
+// }

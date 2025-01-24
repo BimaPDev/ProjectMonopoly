@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/BimaPDev/ProjectMonopoly/internal/utils" // Adjust based on your actual module path
+	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
 )
 
 // DeepSeekHandler handles AI requests to DeepSeek.
 func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
+	print("HANDLER CALLED\n")
 	// Only allow POST requests
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method. Only POST is allowed.", http.StatusMethodNotAllowed)
@@ -34,6 +35,7 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
 	// Call the MainDeep function in utils
 	response, err := utils.MainDeep(requestBody.Prompt)
 	if err != nil {
+		print("ERROR")
 		http.Error(w, fmt.Sprintf("Error processing request: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -44,7 +46,7 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ChatDeepHandler(w http.ResponseWriter, r *http.Request) {
-	print("aaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+	print("HANDLER CALLED\n")
 	// Only allow POST requests
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST requests are allowed.", http.StatusMethodNotAllowed)
