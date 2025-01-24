@@ -47,7 +47,7 @@ export function AIPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+  
     if (!input.trim()) return;
   
     const userMessage: Message = { role: "user", content: input };
@@ -66,28 +66,39 @@ export function AIPage() {
       });
   
       if (!response.ok) {
-        // More detailed error handling
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        throw new Error(`Error: ${response.statusText}`);
       }
   
       const data = await response.json();
   
+      
       const aiMessage: Message = {
         role: "assistant",
-        content: data.response || "No response received", 
+        content: data.response, 
       };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error("Error communicating with AI API:", error);
       const errorMessage: Message = {
         role: "assistant",
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        content: "Something went wrong while communicating with the AI.",
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
+
+    // // Simulate AI response
+    // setTimeout(() => {
+    //   const aiMessage: Message = {
+    //     role: "assistant",
+    //     content:
+    //       "This is a simulated response. In a real implementation, this would be replaced with an actual API call to the selected AI model.",
+    //   }
+    //   setMessages((prev) => [...prev, aiMessage])
+    //   setIsLoading(false)
+      
+    // }, 1000)
   };
   
   return (
