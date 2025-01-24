@@ -6,6 +6,7 @@ import Competitors from "@/app/competitors/page"; // Example of another page
 import Upload from "@/app/upload/page"; // Example of another page
 import LiveFeedPage from "@/app/competitors/live/page"; // Example of another page
 import LoginPage from "./app/login/page";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
