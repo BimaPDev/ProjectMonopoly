@@ -19,8 +19,7 @@ func main() {
 	}))
 	http.Handle("/ai/deepseek", middleware.CORS(http.HandlerFunc(handlers.DeepSeekHandler)))
 
-	// Logging
-	log.Println("MAIN CALLED")
+	
 
 	// Start the server
 	port := ":8080"
