@@ -3,15 +3,18 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
 import json
-from flask import Flask, request, jsonify
 import random
-app = Flask(__name__)
+import concurrent.futures
+import sys
+import datetime
+
+
 def set_up_driver():
-    print("RUNNING")
     options = Options()
     options.add_argument("--headless")  # Run in headless mode
-    options.add_argument("--enable-gpu")
+    options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
+    options.add_argument("--enable-unsafe-swiftshader")
     driver = webdriver.Chrome(options=options)
     return driver
 
@@ -67,7 +70,6 @@ def get_linkedin_followers(company_name):
         return 0
 
 
-
 def get_twitch_followers(username):
     driver = set_up_driver()
     url = f"https://twitch.tv/{username}/about"
@@ -111,27 +113,56 @@ def parse_number(text):
         text = int(text)
         return text
 
-@app.route('/followers', methods=['POST'])
+
 def totalFollowers():
-    data = request.json
     instagram_username = "dogwood_gaming"
     twitch_username = "dogwoodgaming"
     youtube_channel_id = "DogwoodGaming"
     facebook_page_name = "DogwoodGaming"
     linkedin_company_name = "dogwood-gaming"
-    instagram_followers = get_instagram_followers(instagram_username)
-    # twitch_followers = get_twitch_followers(twitch_username)
-    # youtube_followers = get_youtube_followers(youtube_channel_id)
-    # facebook_followers = get_facebook_followers(facebook_page_name)
-    # linkedin_followers = get_linkedin_followers(linkedin_company_name)
-    total_followers = (
-                        instagram_followers
-                       )
-    return {total_followers}
 
-   
+    # Create a dictionary of tasks
+    tasks = {
+        'instagram': (get_instagram_followers, instagram_username),
+        'twitch': (get_twitch_followers, twitch_username),
+        'youtube': (get_youtube_followers, youtube_channel_id),
+        'facebook': (get_facebook_followers, facebook_page_name),
+        'linkedin': (get_linkedin_followers, linkedin_company_name)
+    }
+
+    followers = {}
+    # Use ThreadPoolExecutor for parallel processing
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_platform = {
+            executor.submit(func, arg): platform 
+            for platform, (func, arg) in tasks.items()
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_platform):
+            platform = future_to_platform[future]
+            try:
+                followers[platform] = future.result()
+            except Exception as e:
+                print(f"Error getting {platform} followers: {e}")
+                followers[platform] = 0
+
+    total_followers = sum(followers.values())
+    
+    # Create a response dictionary with both total and breakdown
+    response = {
+        "total_followers": total_followers,
+        
+    }
+    
+    return json.dumps(response)
+
 # Main function
 if __name__ == "__main__":
-
-    random_port = random.randint(5000, 9999)
-    app.run(debug=True, port=random_port)
+    # start_time = time.time()
+    totalFollowers()
+    
+    # print(result)  # Print the JSON string
+    # end_time = time.time()
+    # total_time = end_time - start_time
+    # print(f"\nTotal Execution Time: {datetime.timedelta(seconds=int(total_time))}")
+    sys.exit()
