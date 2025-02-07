@@ -29,7 +29,7 @@ func MainDeep(prompt string) (string, error) {
 	}
 
 	// Summarize the CSV data for the system prompt
-	systemPrompt := fmt.Sprintf("You are a helpful assistant. Use the following data as context for answering questions:\n%s", csvData)
+	systemPrompt := fmt.Sprintf("You are a helpful assistant. Use the following data as context for answering questions, MAKE SURE TO RETURN OUTPUT IN Markdown format:\n%s", csvData)
 
 	url := "https://api.deepseek.com/chat/completions"
 

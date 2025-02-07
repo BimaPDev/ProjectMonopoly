@@ -22,7 +22,7 @@ import {
   Tooltip,
 } from "recharts";
 import { Bar, BarChart } from "recharts";
-import { Calendar, Hash } from "lucide-react";
+import { Calendar, Hash, Loader2Icon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -97,19 +97,19 @@ const data = [
 ];
 
 export function Dashboard() {
-  const [followers, setFollowers] = useState(0); // State for followers
-
+  const [followers, setFollowers] = useState(0);
+  const [loading, setLoading] = useState(false);
   async function fetchFollowers() {
     try {
-      const response = await fetch("http://127.0.0.1:8080/followers"); // Ensure the correct endpoint
+      const response = await fetch("http://127.0.0.1:8080/followers");
       const data = await response.json();
-      setFollowers(data.data.total_followers); // Correct property path
+      setFollowers(data.data.total_followers);
     } catch (error) {
       console.error("Error fetching followers:", error);
+    }finally{
+      setLoading(false);
     }
   }
-
-  fetchFollowers();
 
   return (
     <Tabs defaultValue="overview" className="space-y-4">
@@ -121,19 +121,28 @@ export function Dashboard() {
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+        <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Followers
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Total Followers</CardTitle>
               <ArrowUpIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{followers}</div>
-              <p className={`text-xs text-green-500`}>
-                +{20.1}% from last month
-              </p>
+              <p className={`text-xs text-green-500`}>+{20.1}% from last month</p>
             </CardContent>
+            <CardFooter>
+              <Button onClick={fetchFollowers} disabled={loading}>
+                { loading? (
+                <div className="flex items-center">
+                  <Loader2Icon className="h-4 w-4 mr-2 animate-spin"/>
+                  <span>Getting Followers..</span>
+
+                </div>
+                ):(
+                "Update Followers"
+                )}
+                </Button>
+            </CardFooter>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

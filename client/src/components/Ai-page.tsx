@@ -1,15 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState, useRef } from "react";
-import { Bot, Send, User } from "lucide-react"
-import {Typewriter, Cursor} from 'react-simple-typewriter'
+import { useEffect, useState, useRef } from "react"
+import { Bot, Send, User, Upload } from "lucide-react"
+import { Typewriter, Cursor } from 'react-simple-typewriter'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import styled from 'styled-components';
-import Pattern from "@/components/ui/Pattern"
+
 const models = [
   { id: "gpt-4", name: "GPT-4" },
   { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
@@ -20,23 +19,19 @@ const models = [
 interface Message {
   role: "user" | "assistant"
   content: string
+  attachments?: string[]
 }
 
 export function AIPage() {
-  const [input2, setInput2] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
   const [messages, setMessages] = React.useState<Message[]>([])
   const [input, setInput] = React.useState("")
   const [model, setModel] = React.useState("gpt-4")
   const [isLoading, setIsLoading] = React.useState(false)
   const [messageSent, setMessageSent] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
-  
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    setInput(value); // Update the input value
-    setIsTyping(value.length > 0); // Detect typing if the input is not empty
-  };
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -45,62 +40,69 @@ export function AIPage() {
     scrollToBottom()
   }, [messages])
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files)
+      setFiles(prevFiles => [...prevFiles, ...newFiles])
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  
-    if (!input.trim()) return;
-  
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setMessageSent(true);
-    setIsLoading(true);
-  
+    e.preventDefault()
+
+    if (!input.trim() && files.length === 0) return
+
+    const formData = new FormData()
+    formData.append('prompt', input)
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+
+    const fileNames = files.map(file => file.name)
+    const userMessage: Message = {
+      role: "user",
+      content: input,
+      attachments: fileNames
+    }
+    setMessages(prev => [...prev, userMessage])
+    setInput("")
+    setFiles([])
+    setMessageSent(true)
+    setIsLoading(true)
+
     try {
       const response = await fetch("http://localhost:8080/ai/deepseek", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt: input }),
-      });
-  
+        body: formData,
+      })
+
       if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
+        throw new Error(`Error: ${response.statusText}`)
       }
-  
-      const data = await response.json();
-  
+
+      const data = await response.json()
       
       const aiMessage: Message = {
         role: "assistant",
-        content: data.response, 
-      };
-      setMessages((prev) => [...prev, aiMessage]);
+        content: data.response,
+      }
+      setMessages(prev => [...prev, aiMessage])
     } catch (error) {
-      console.error("Error communicating with AI API:", error);
+      console.error("Error communicating with AI API:", error)
       const errorMessage: Message = {
         role: "assistant",
         content: "Something went wrong while communicating with the AI.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      }
+      setMessages(prev => [...prev, errorMessage])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
+  }
 
-    // // Simulate AI response
-    // setTimeout(() => {
-    //   const aiMessage: Message = {
-    //     role: "assistant",
-    //     content:
-    //       "This is a simulated response. In a real implementation, this would be replaced with an actual API call to the selected AI model.",
-    //   }
-    //   setMessages((prev) => [...prev, aiMessage])
-    //   setIsLoading(false)
-      
-    // }, 1000)
-  };
-  
+  const removeFile = (fileToRemove: File) => {
+    setFiles(files.filter(file => file !== fileToRemove))
+  }
+
   return (
     <div className="flex-1 space-y-5 p-6 pt-6">
       <div className="flex items-center justify-between">
@@ -119,8 +121,7 @@ export function AIPage() {
         </Select>
       </div>
 
-      <Card className="flex h-[calc(100vh-8rem)] flex-col"
-      style={{boxShadow: '0 4px 20px rgba(255, 255, 255, 0.5)'}}>
+      <Card className="flex h-[calc(100vh-8rem)] flex-col">
         <CardHeader>
           <CardTitle>Chat Session</CardTitle>
           <CardDescription>
@@ -129,12 +130,7 @@ export function AIPage() {
         </CardHeader>
         {!input && !messageSent && (
           <div className="flex flex-1 items-center justify-center">
-            <span
-              style={{
-                fontSize: 35,
-                fontWeight: 'bold',
-              }}
-            >
+            <span className="text-4xl font-bold">
               <Typewriter
                 words={['Welcome To', 'DogWood Gaming\'s', 'Ai Marketing Tool']}
                 loop={true}
@@ -143,13 +139,12 @@ export function AIPage() {
                 typeSpeed={120}
                 deleteSpeed={200}
                 delaySpeed={500}
-                
               />
             </span>
           </div>
         )}
 
-        <CardContent className="flex-1 overflow-y-auto ">
+        <CardContent className="flex-1 overflow-y-auto">
           <div className="space-y-4">
             {messages.map((message, index) => (
               <div
@@ -179,6 +174,16 @@ export function AIPage() {
                   }`}
                 >
                   {message.content}
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mt-2 text-sm">
+                      <p className="font-semibold">Attached files:</p>
+                      <ul className="list-disc pl-4">
+                        {message.attachments.map((file, i) => (
+                          <li key={i}>{file}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -194,23 +199,61 @@ export function AIPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <form onSubmit={handleSubmit} className="flex w-full gap-2">
-            <Input
-              placeholder="Type your message..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={isLoading}
+          <form onSubmit={handleSubmit} className="flex w-full flex-col gap-2">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Type your message..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={isLoading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+              >
+                <Upload className="h-4 w-4" />
+                <span className="sr-only">Upload files</span>
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                <Send className="h-4 w-4" />
+                <span className="sr-only">Send message</span>
+              </Button>
+            </div>
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+              ref={fileInputRef}
             />
-            <Button type="submit" disabled={isLoading}>
-              <Send className="h-4 w-4" />
-              <span className="sr-only">Send message</span>
-            </Button>
+            {files.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm font-medium">Selected files:</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {files.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                    >
+                      <span>{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(file)}
+                        className="ml-1 text-muted-foreground hover:text-foreground"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
         </CardFooter>
       </Card>
     </div>
-  
-
   )
 }
-
