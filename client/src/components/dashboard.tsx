@@ -103,7 +103,7 @@ export function Dashboard() {
   useEffect(() => {
     async function fetchFollowers() {
       try {
-        const response = await fetch("/api/followers"); 
+        const response = await fetch("http://localhost:8080"); 
         const data = await response.json();
         setFollowers(data.count); 
       } catch (error) {
