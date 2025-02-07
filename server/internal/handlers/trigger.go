@@ -66,7 +66,7 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 // TriggerFollowersScript handles requests to trigger the followers Python script
 func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
+	print("SCRIPT TRIGGERED")
 	// Debug: Log the incoming request (if needed for troubleshooting)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {

@@ -3,18 +3,21 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
 import json
-import random
 import concurrent.futures
-import sys
 import datetime
+from flask import Flask, jsonify
+from flask_cors import CORS
+app = Flask(__name__)
 
-
+CORS(app)
 def set_up_driver():
     options = Options()
-    options.add_argument("--headless")  # Run in headless mode
-    options.add_argument("--disable-gpu")
+    options.add_argument("--headless")  # Headless mode
+    options.add_argument("--disable-gpu")  # Disable GPU acceleration
     options.add_argument("--no-sandbox")
-    options.add_argument("--enable-unsafe-swiftshader")
+    options.add_argument("--disable-dev-shm-usage")  # Fix memory issues
+    options.add_argument("--use-gl=swiftshader")  # Force software rendering
+    options.add_argument("--disable-software-rasterizer")  # Avoid software fallback
     driver = webdriver.Chrome(options=options)
     return driver
 
@@ -114,55 +117,60 @@ def parse_number(text):
         return text
 
 
-def totalFollowers():
-    instagram_username = "dogwood_gaming"
-    twitch_username = "dogwoodgaming"
-    youtube_channel_id = "DogwoodGaming"
-    facebook_page_name = "DogwoodGaming"
-    linkedin_company_name = "dogwood-gaming"
+@app.route('/followers', methods=['GET'])
+def get_total_followers():
+    try:
+        instagram_username = "dogwood_gaming"
+        twitch_username = "dogwoodgaming"
+        youtube_channel_id = "DogwoodGaming"
+        facebook_page_name = "DogwoodGaming"
+        linkedin_company_name = "dogwood-gaming"
 
-    # Create a dictionary of tasks
-    tasks = {
-        'instagram': (get_instagram_followers, instagram_username),
-        'twitch': (get_twitch_followers, twitch_username),
-        'youtube': (get_youtube_followers, youtube_channel_id),
-        'facebook': (get_facebook_followers, facebook_page_name),
-        'linkedin': (get_linkedin_followers, linkedin_company_name)
-    }
+        # Create a dictionary of tasks
+        tasks = {
+            'instagram': (get_instagram_followers, instagram_username),
+            'twitch': (get_twitch_followers, twitch_username),
+            'youtube': (get_youtube_followers, youtube_channel_id),
+            'facebook': (get_facebook_followers, facebook_page_name),
+            'linkedin': (get_linkedin_followers, linkedin_company_name)
+        }
 
-    followers = {}
-    # Use ThreadPoolExecutor for parallel processing
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_platform = {
-            executor.submit(func, arg): platform 
-            for platform, (func, arg) in tasks.items()
+        followers = {}
+        # Use ThreadPoolExecutor for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_platform = {
+                executor.submit(func, arg): platform 
+                for platform, (func, arg) in tasks.items()
+            }
+            
+            for future in concurrent.futures.as_completed(future_to_platform):
+                platform = future_to_platform[future]
+                try:
+                    followers[platform] = future.result()
+                except Exception as e:
+                    print(f"Error getting {platform} followers: {e}")
+                    followers[platform] = 0
+
+        total_followers = sum(followers.values())
+        
+        # Create a response dictionary
+        response = {
+            "status": "success",
+            "data": {
+                "total_followers": total_followers,
+                "breakdown": followers,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
         }
         
-        for future in concurrent.futures.as_completed(future_to_platform):
-            platform = future_to_platform[future]
-            try:
-                followers[platform] = future.result()
-            except Exception as e:
-                print(f"Error getting {platform} followers: {e}")
-                followers[platform] = 0
+        return jsonify(response), 200
 
-    total_followers = sum(followers.values())
-    
-    # Create a response dictionary with both total and breakdown
-    response = {
-        "total_followers": total_followers,
-        
-    }
-    
-    return json.dumps(response)
+    except Exception as e:
+        error_response = {
+            "status": "error",
+            "message": str(e)
+        }
+        return jsonify(error_response), 500
 
-# Main function
-if __name__ == "__main__":
-    # start_time = time.time()
-    totalFollowers()
-    
-    # print(result)  # Print the JSON string
-    # end_time = time.time()
-    # total_time = end_time - start_time
-    # print(f"\nTotal Execution Time: {datetime.timedelta(seconds=int(total_time))}")
-    sys.exit()
+if __name__ == '__main__':
+    app.run(port=8080)

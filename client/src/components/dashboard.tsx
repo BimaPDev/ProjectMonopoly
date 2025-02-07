@@ -99,20 +99,17 @@ const data = [
 export function Dashboard() {
   const [followers, setFollowers] = useState(0); // State for followers
 
-  // Fetch followers from the script/API
-  useEffect(() => {
-    async function fetchFollowers() {
-      try {
-        const response = await fetch("http://localhost:8080"); 
-        const data = await response.json();
-        setFollowers(data.count); 
-      } catch (error) {
-        console.error("Error fetching followers:", error);
-      }
+  async function fetchFollowers() {
+    try {
+      const response = await fetch("http://127.0.0.1:8080/followers"); // Ensure the correct endpoint
+      const data = await response.json();
+      setFollowers(data.data.total_followers); // Correct property path
+    } catch (error) {
+      console.error("Error fetching followers:", error);
     }
+  }
 
-    fetchFollowers();
-  }, []); 
+  fetchFollowers();
 
   return (
     <Tabs defaultValue="overview" className="space-y-4">
