@@ -44,9 +44,11 @@ type Post struct {
 }
 
 type User struct {
-	ID           int32        `json:"id"`
-	Username     string       `json:"username"`
-	Email        string       `json:"email"`
-	PasswordHash string       `json:"password_hash"`
-	CreatedAt    sql.NullTime `json:"created_at"`
+	ID            int32          `json:"id"`
+	Username      string         `json:"username"`
+	Email         string         `json:"email"`
+	PasswordHash  string         `json:"password_hash"`
+	CreatedAt     sql.NullTime   `json:"created_at"`
+	OauthProvider sql.NullString `json:"oauth_provider"`
+	OauthID       sql.NullString `json:"oauth_id"`
 }

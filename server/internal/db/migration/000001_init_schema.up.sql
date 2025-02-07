@@ -39,6 +39,8 @@ CREATE TABLE "posts" (
   "created_at" TIMESTAMP
 );
 
+ALTER TABLE "users" ADD COLUMN "oauth_provider" VARCHAR(50), ADD COLUMN "oauth_id" VARCHAR(255);
+
 ALTER TABLE "groups" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 
 ALTER TABLE "group_items" ADD FOREIGN KEY ("group_id") REFERENCES "groups" ("id");
