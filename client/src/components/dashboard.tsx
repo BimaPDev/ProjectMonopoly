@@ -115,9 +115,9 @@ export function Dashboard() {
     <Tabs defaultValue="overview" className="space-y-4">
       <TabsList>
         <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        {/* <TabsTrigger value="analytics">Analytics</TabsTrigger>
         <TabsTrigger value="reports">Reports</TabsTrigger>
-        <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        <TabsTrigger value="notifications">Notifications</TabsTrigger> */}
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -145,6 +145,17 @@ export function Dashboard() {
             </CardFooter>
           </Card>
           <Card>
+          <CardHeader className="flex flex-row item-center justify-between space-y-0 pb-2">
+            In development:
+          </CardHeader>
+          <CardContent>
+            <p>Deployment</p>
+            <p>Getting Popular Hashtags</p>
+            <p>File upload</p>
+            <p>Login page</p>
+          </CardContent>
+          </Card>
+          {/* <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Engagement Rate
@@ -157,8 +168,8 @@ export function Dashboard() {
                 +{1.2}% from last month
               </p>
             </CardContent>
-          </Card>
-          <Card>
+          </Card> */}
+          {/* <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Scheduled Posts
@@ -169,8 +180,8 @@ export function Dashboard() {
               <div className="text-2xl font-bold">12</div>
               <p className={`text-xs text-red-500`}>-{5.2}% from last month</p>
             </CardContent>
-          </Card>
-          <Card>
+          </Card> */}
+          {/* <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Active Campaigns
@@ -183,10 +194,10 @@ export function Dashboard() {
                 +{8.1}% from last month
               </p>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
+          {/* <Card className="col-span-4">
             <CardHeader>
               <CardTitle>Engagement Overview</CardTitle>
             </CardHeader>
@@ -261,8 +272,8 @@ export function Dashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
-          </Card>
-          <Card className="col-span-3">
+          </Card> */}
+          {/* <Card className="col-span-3">
             <CardHeader>
               <CardTitle>Recent Posts</CardTitle>
               <CardDescription>
@@ -324,10 +335,10 @@ export function Dashboard() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
+          {/* <Card className="col-span-4">
             <CardHeader>
               <CardTitle>Upcoming Content</CardTitle>
               <CardDescription>
@@ -361,8 +372,8 @@ export function Dashboard() {
                 ))}
               </div>
             </CardContent>
-          </Card>
-          <Card className="col-span-3">
+          </Card> */}
+          {/* <Card className="col-span-3">
             <CardHeader>
               <CardTitle>Trending Tags</CardTitle>
               <CardDescription>Most used hashtags this week</CardDescription>
@@ -397,7 +408,7 @@ export function Dashboard() {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </TabsContent>
       <TabsContent value="analytics">Analytics</TabsContent>

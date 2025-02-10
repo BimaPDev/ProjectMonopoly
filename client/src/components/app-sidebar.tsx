@@ -52,107 +52,107 @@ const data = {
       icon: BotIcon,
     },
 
-    {
-      title: "Content",
-      url: "#",
-      icon: MessageCircle,
-      items: [
-        {
-          title: "Posts",
-          url: "/posts",
-        },
-        {
-          title: "Scheduler",
-          url: "#",
-        },
-        {
-          title: "Media Library",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: TrendingUp,
-      items: [
-        {
-          title: "Overview",
-          url: "#",
-        },
-        {
-          title: "Engagement",
-          url: "#",
-        },
-        {
-          title: "Audience",
-          url: "#",
-        },
-      ],
-    },
+    // {
+    //   title: "Content",
+    //   url: "#",
+    //   icon: MessageCircle,
+    //   items: [
+    //     {
+    //       title: "Posts",
+    //       url: "/posts",
+    //     },
+    //     {
+    //       title: "Scheduler",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Media Library",
+    //       url: "#",
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: "Analytics",
+    //   url: "#",
+    //   icon: TrendingUp,
+    //   items: [
+    //     {
+    //       title: "Overview",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Engagement",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Audience",
+    //       url: "#",
+    //     },
+    //   ],
+    // },
 
-    {
-      title: "Campaigns",
-      url: "#",
-      icon: Share2,
-      items: [
-        {
-          title: "Active",
-          url: "#",
-        },
-        {
-          title: "Drafts",
-          url: "#",
-        },
-        {
-          title: "Archive",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Calendar",
-      url: "#",
-      icon: Calendar,
-    },
-    {
-      title: "Hashtags",
-      url: "#",
-      icon: Hash,
-    },
+    // {
+    //   title: "Campaigns",
+    //   url: "#",
+    //   icon: Share2,
+    //   items: [
+    //     {
+    //       title: "Active",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Drafts",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Archive",
+    //       url: "#",
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: "Calendar",
+    //   url: "#",
+    //   icon: Calendar,
+    // },
+    // {
+    //   title: "Hashtags",
+    //   url: "#",
+    //   icon: Hash,
+    // },
     {
       title: "Competitors",
       url: "/competitors",
       icon: Users2,
     },
-    {
-      title: "Reports",
-      url: "#",
-      icon: BarChart3,
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-    },
+    // {
+    //   title: "Reports",
+    //   url: "#",
+    //   icon: BarChart3,
+    // },
+    // {
+    //   title: "Settings",
+    //   url: "#",
+    //   icon: Settings2,
+    // },
     
   ],
   projects: [
-    {
-      name: "Summer Campaign",
-      url: "#",
-      icon: Share2,
-    },
-    {
-      name: "Product Launch",
-      url: "#",
-      icon: Share2,
-    },
-    {
-      name: "Holiday Season",
-      url: "#",
-      icon: Share2,
-    },
+    // {
+    //   name: "Summer Campaign",
+    //   url: "#",
+    //   icon: Share2,
+    // },
+    // {
+    //   name: "Product Launch",
+    //   url: "#",
+    //   icon: Share2,
+    // },
+    // {
+    //   name: "Holiday Season",
+    //   url: "#",
+    //   icon: Share2,
+    // },
   ],
 };
 
