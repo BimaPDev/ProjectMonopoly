@@ -25,6 +25,7 @@ function App() {
   return (
     <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
       <div className="min-h-screen">
+        
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>

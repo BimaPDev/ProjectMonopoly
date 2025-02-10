@@ -11,9 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const models = [
   { id: "gpt-4", name: "GPT-4" },
-  { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
-  { id: "claude-2", name: "Claude 2" },
-  { id: "palm-2", name: "PaLM 2" },
+ 
 ]
 
 interface Message {
@@ -117,6 +115,7 @@ export function AIPage() {
                 {model.name}
               </SelectItem>
             ))}
+            <span>More Coming Soon!</span>
           </SelectContent>
         </Select>
       </div>

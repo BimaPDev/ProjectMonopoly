@@ -52,25 +52,25 @@ const data = {
       icon: BotIcon,
     },
 
-    // {
-    //   title: "Content",
-    //   url: "#",
-    //   icon: MessageCircle,
-    //   items: [
-    //     {
-    //       title: "Posts",
-    //       url: "/posts",
-    //     },
-    //     {
-    //       title: "Scheduler",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Media Library",
-    //       url: "#",
-    //     },
-    //   ],
-    // },
+    {
+      title: "Content",
+      url: "#",
+      icon: MessageCircle,
+      items: [
+        {
+          title: "Posts",
+          url: "/posts",
+        },
+        // {
+        //   title: "Scheduler",
+        //   url: "#",
+        // },
+        // {
+        //   title: "Media Library",
+        //   url: "#",
+        // },
+      ],
+    },
     // {
     //   title: "Analytics",
     //   url: "#",
