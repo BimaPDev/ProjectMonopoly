@@ -59,3 +59,17 @@ WHERE username = $1 OR email = $2;
 SELECT COUNT(*) > 0 AS exists
 FROM users
 WHERE email = $1;
+
+-- Create a new session
+-- name: CreateSession :one
+INSERT INTO sessions (user_id, expires_at)
+VALUES ($1, NOW() + INTERVAL '24 hours')
+RETURNING id, user_id, created_at, expires_at;
+
+-- Get session by ID
+-- name: GetSession :one
+SELECT id, user_id, created_at, expires_at FROM sessions WHERE id = $1;
+
+-- Delete a session (logout)
+-- name: DeleteSession :exec
+DELETE FROM sessions WHERE id = $1;

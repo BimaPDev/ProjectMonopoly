@@ -36,8 +36,8 @@ func CreateUser(queries *db.Queries, input CreateUserInput) (*UserResponse, erro
 		return nil, err
 	}
 
-	// Create the user
-	userRow, err := queries.CreateUser(context.TODO(), db.CreateUserParams{
+	// 🔹 FIX: Change from `CreateUser` to `CreateUserWithPassword`
+	userRow, err := queries.CreateUserWithPassword(context.TODO(), db.CreateUserWithPasswordParams{
 		Username:     input.Username,
 		Email:        input.Email,
 		PasswordHash: hashedPassword,

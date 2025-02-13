@@ -39,6 +39,13 @@ CREATE TABLE "posts" (
   "created_at" TIMESTAMP
 );
 
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP NOT NULL
+);
+
 ALTER TABLE "users" ADD COLUMN "oauth_provider" VARCHAR(50), ADD COLUMN "oauth_id" VARCHAR(255);
 
 ALTER TABLE "groups" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
