@@ -11,6 +11,7 @@ import (
 	"github.com/BimaPDev/ProjectMonopoly/internal/auth"
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc" // Renamed sqlc -> db
 	"github.com/BimaPDev/ProjectMonopoly/internal/handlers"
+	"github.com/BimaPDev/ProjectMonopoly/internal/middleware"
 )
 
 func main() {
@@ -39,8 +40,12 @@ func main() {
 		w.Write([]byte("🔒 Welcome to the protected dashboard!"))
 	}))
 
+	// Middleware (CORS)
+	handlers := middleware.CORSMiddleware(http.DefaultServeMux)
+
+
 	// Start the server
 	port := ":8080"
 	fmt.Printf("✅ API server is running on http://localhost%s\n", port)
-	log.Fatal(http.ListenAndServe(port, nil)) // Use built-in HTTP router
+	log.Fatal(http.ListenAndServe(port, handlers)) // Use built-in HTTP router
 }

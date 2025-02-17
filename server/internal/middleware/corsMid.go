@@ -1,21 +1,24 @@
 package middleware
 
-import "net/http"
+import (
+	"net/http"
+)
 
-// CORS Middleware adds CORS headers and handles preflight requests
-func CORS(next http.Handler) http.Handler {
+// CORSMiddleware allows frontend requests from different origins
+func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5174") // Allow specific frontend origin
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		// 🔹 Allow requests from your frontend
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
-		// Handle preflight OPTIONS request
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
+		// 🔹 Handle OPTIONS Preflight Requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 
-		// Pass to the next handler
 		next.ServeHTTP(w, r)
 	})
 }

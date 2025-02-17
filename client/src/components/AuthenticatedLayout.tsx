@@ -1,4 +1,4 @@
-import { Outlet, Routes, Route } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./app-sidebar";
 import {
   Breadcrumb,
@@ -13,41 +13,30 @@ import {
   SidebarTrigger,
 } from "./ui/sidebar";
 
-// Dashboard Pages
-import { Dashboard } from "@/components/dashboard";
-import Ai from "@/app/Ai/Ai";
-import Competitors from "@/app/competitors/page";
-import Upload from "@/app/upload/page";
-import LiveFeedPage from "@/app/competitors/live/page";
-
 export default function AuthenticatedLayout() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex">
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Dashboard</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </header>
-          <div className="flex-1 min-h-screen w-full space-y-4 p-4 pt-6 bg-background">
-            {/* 🔹 Define Dashboard Routes Inside the Authenticated Layout */}
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/posts" element={<Upload />} />
-              <Route path="/competitors" element={<Competitors />} />
-              <Route path="/competitors/live" element={<LiveFeedPage />} />
-              <Route path="/Ai" element={<Ai />} />
-            </Routes>
-          </div>
-        </SidebarInset>
+        <div className="flex-1">
+          <SidebarInset>
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 h-4" />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </header>
+            <div className="p-6">
+              {/* 🔹 This is where the current page will be rendered */}
+              <Outlet />
+            </div>
+          </SidebarInset>
+        </div>
       </SidebarProvider>
     </div>
   );

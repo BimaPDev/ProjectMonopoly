@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,39 +10,33 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Get the page the user was trying to access before login
-  const redirectPath = location.state?.from || "/";
+  const navigate = useNavigate(); // ✅ Initialize React Router Navigation
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-  
+
     try {
-      const response = await fetch("http://localhost:8080/api/login", {
+      const response = await fetch("http://127.0.0.1:8080/api/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-  
+
       if (!response.ok) {
         throw new Error("Invalid credentials, please try again.");
       }
-  
+
       const data = await response.json();
-  
-      // 🔹 Store the JWT token in localStorage
+
+      // ✅ Store token and session ID
       localStorage.setItem("token", data.token);
       localStorage.setItem("sessionId", data.sessionId);
-  
-      // 🔹 Redirect to the intended page after successful login
-      navigate(redirectPath);
+
+      // ✅ Redirect to the dashboard after successful login
+      navigate("/dashboard");
+
     } catch (err) {
-      // 🔹 Explicitly cast `err` as `Error`
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -50,7 +44,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       }
     }
   };
-  
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
