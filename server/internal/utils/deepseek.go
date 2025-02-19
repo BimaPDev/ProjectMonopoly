@@ -2,63 +2,57 @@ package utils
 
 import (
 	"bytes"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 )
 
-// MainDeep reads a CSV file and uses it as the basis for the AI's responses.
+// MainDeep reads a JSON file and uses it as the basis for the AI's responses.
 func MainDeep(prompt string) (string, error) {
-	// Load API key from environment variables
-	print("CALLED MAIN DEEP")
-	apiKey := "sk-"
+	apiKey := "sk-" // Ensure you set a valid API key
 	if apiKey == "" {
 		return "", fmt.Errorf("missing DEEPAPI_KEY environment variable")
 	}
-	csvPath := "data.csv"
-	// Load and process the CSV file
-	csvData, err := readCSV(csvPath)
+
+	jsonPath := "detailed_data.json"
+	// Load and process the JSON file
+	jsonData, err := readJSON(jsonPath)
 	if err != nil {
-
-		return "", fmt.Errorf("failed to read CSV file: %v", err)
-
+		return "", fmt.Errorf("failed to read JSON file: %v", err)
 	}
 
-	// Summarize the CSV data for the system prompt
-	systemPrompt := fmt.Sprintf("You are a helpful assistant. Use the following data as context for answering questions, MAKE SURE TO RETURN OUTPUT IN Markdown format:\n%s", csvData)
+	// Summarize the JSON data for the system prompt
+	systemPrompt := fmt.Sprintf("You are a helpful assistant. Use the following data as context for answering questions. MAKE SURE TO RETURN OUTPUT IN Markdown format, there are two marketing and normal and use whichever depending on what is asked:\n%s", jsonData)
 
 	url := "https://api.deepseek.com/chat/completions"
 
-	// Prepare the request body
 	requestBody := map[string]interface{}{
-		"model": "deepseek-chat", // Specify the model to use
+		"model": "deepseek-chat",
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": prompt}, // Use the provided prompt
+			{"role": "user", "content": prompt},
 		},
 	}
 
-	// Convert the request body to JSON
+	//request body to JSON
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode request body: %v", err)
 	}
 
-	// Create a new HTTP request
+	// a new HTTP request
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return "", fmt.Errorf("failed to create HTTP request: %v", err)
 	}
 
-	// Set request headers
+	// request headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	// Send the request using an HTTP client
+	// send the request using an HTTP client
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -66,24 +60,20 @@ func MainDeep(prompt string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	// Read the response body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	// Check for a successful response
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, body)
 	}
 
-	// Parse the response body and return the answer
 	var response map[string]interface{}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return "", fmt.Errorf("failed to parse response body: %v", err)
 	}
 
-	// Extract the AI's response from the response object
 	choices, ok := response["choices"].([]interface{})
 	if !ok || len(choices) == 0 {
 		return "", fmt.Errorf("invalid response format or no choices available")
@@ -107,36 +97,32 @@ func MainDeep(prompt string) (string, error) {
 	return content, nil
 }
 
-func readCSV(filePath string) (string, error) {
-
-	// Open the CSV file
+// readJSON reads a JSON file and returns its contents as a string.
+func readJSON(filePath string) (string, error) {
+	// Open the JSON file
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %v", err)
 	}
 	defer file.Close()
 
-	// Create a CSV reader
-	reader := csv.NewReader(file)
-
-	// Read all records
-	records, err := reader.ReadAll()
+	// Read the file contents
+	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return "", fmt.Errorf("failed to read CSV data: %v", err)
+		return "", fmt.Errorf("failed to read JSON data: %v", err)
 	}
 
-	// Build a formatted string
-	var sb strings.Builder
-	sb.WriteString("Parsed CSV Data:\n")
-	for i, record := range records {
-		sb.WriteString(fmt.Sprintf("Record %d:\n", i+1))
-		for j, field := range record {
-			sb.WriteString(fmt.Sprintf("  Field %d: %s\n", j+1, field))
-		}
-		sb.WriteString("\n")
+	var formattedJSON map[string]interface{}
+	if err := json.Unmarshal(data, &formattedJSON); err != nil {
+		return "", fmt.Errorf("failed to parse JSON: %v", err)
 	}
 
-	return sb.String(), nil
+	prettyJSON, err := json.MarshalIndent(formattedJSON, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to format JSON: %v", err)
+	}
+
+	return string(prettyJSON), nil
 }
 
 // func ChatDeep(prompt string) (string, error) {
