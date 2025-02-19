@@ -93,7 +93,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
             </form>
 
             {/* Right Side: Image */}
-            <div className="hidden md:block relative">
+            <div className="hidden md:block relative py-5">
               <img 
                 src="https://i.imgur.com/VmjeljH.png" 
                 alt="Login Visual"
@@ -111,11 +111,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
           100% { background-position: 0% 50%; }
         }
         .bg-gradient {
-          background: linear-gradient(-55deg,rgb(255, 255, 255),rgb(27, 26, 26),rgb(35, 35, 35),rgb(0, 0, 0));
+          background: linear-gradient(-55deg,rgb(255, 255, 255),rgb(27, 26, 26),rgb(215, 181, 249),rgb(0, 0, 0));
           background-size: 400% 400%;
         }
         .animate-gradient {
-          animation: gradient 5s ease;
+          animation: gradient 5s;
         }
       `}</style>
     </div>

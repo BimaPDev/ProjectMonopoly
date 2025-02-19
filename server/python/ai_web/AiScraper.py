@@ -406,10 +406,7 @@ def set_up_driver():
     options.add_argument(f"--user-agent={random.choice(user_agents)}")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-notifications")
-    
-    # Add a proxy if needed
-    # options.add_argument('--proxy-server=ip_addr:port')
-    
+
     driver = webdriver.Chrome(options=options)
     return driver
 
