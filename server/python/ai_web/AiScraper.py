@@ -836,8 +836,10 @@ def main():
         ],
         "marketing": [
             "https://acorngames.gg/blog/2024/1/11/using-social-media-as-an-indie-game-developer",
-            "https://enjin.io/blog/10-social-media-marketing-tips-for-indie-game-developers",
             "https://www.conduit.gg/blog/posts/best-channels-for-marketing-an-indie-game",
+            "https://www.helpshift.com/blog/the-only-guide-you-need-for-effective-indie-game-marketing/",
+            "https://www.developermarketing.io/the-ultimate-marketing-guide-for-indie-game-developers/",
+
         ]
     }
     
@@ -918,6 +920,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # sourceFile= "/Users/nirajdhakal/ProjectMonopoly/server/python/ai_web/output/detailed_data.json"
-    # destinationFolder= "/Users/nirajdhakal/ProjectMonopoly/server/cmd/api"
-    # shutil.move(sourceFile, destinationFolder)
+    sourceFile= "/Users/nirajdhakal/ProjectMonopoly/server/python/ai_web/output/detailed_data.json"
+    destinationFolder= "/Users/nirajdhakal/ProjectMonopoly/server/cmd/api"
+    shutil.move(sourceFile, destinationFolder)

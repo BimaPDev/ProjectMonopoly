@@ -42,13 +42,13 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "/",
+      url: "/dashboard",
       icon: Home,
       isActive: true,
     },
     {
       title: "DogWood AI",
-      url: "/Ai",
+      url: "dashboard/Ai",
       icon: BotIcon,
     },
 
@@ -59,7 +59,7 @@ const data = {
       items: [
         {
           title: "Posts",
-          url: "/posts",
+          url: "dashboard/posts",
         },
         // {
         //   title: "Scheduler",
@@ -122,7 +122,7 @@ const data = {
     // },
     {
       title: "Competitors",
-      url: "/competitors",
+      url: "dashboard/competitors",
       icon: Users2,
     },
     // {

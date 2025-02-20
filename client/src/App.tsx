@@ -59,27 +59,19 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 function App() {
   return (
     <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
-      {/* ✅ Remove BrowserRouter - It is already in main.tsx */}
       <Routes>
         {/* 🔹 Public Routes (No Authentication) */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* 🔒 Protected Dashboard Routes */}
-        <Route
-          path="/dashboard/*"
-          element={
-            <ProtectedRoute>
-              <AuthenticatedLayout />
-            </ProtectedRoute>
-          }
-        >
-          {/* 🔹 Nested Routes inside AuthenticatedLayout */}
-          <Route index element={<Dashboard />} />
-          <Route path="posts" element={<Upload />} />
-          <Route path="competitors" element={<Competitors />} />
-          <Route path="competitors/live" element={<LiveFeedPage />} />
-          <Route path="ai" element={<Ai />} />
+        <Route element={<ProtectedRoute><AuthenticatedLayout /></ProtectedRoute>}>
+          {/* 🔹 Dashboard Routes */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard/posts" element={<Upload />} />
+          <Route path="/dashboard/competitors" element={<Competitors />} />
+          <Route path="/dashboard/competitors/live" element={<LiveFeedPage />} />
+          <Route path="/dashboard/ai" element={<Ai />} />
         </Route>
 
         {/* 🔹 Catch-all Route for 404s */}
@@ -90,4 +82,3 @@ function App() {
 }
 
 export default App;
-

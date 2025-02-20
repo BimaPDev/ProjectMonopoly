@@ -1,5 +1,13 @@
 [
   {
+    "title": "",
+    "link": "https://indiegamereviewer.com/",
+    "date": "",
+    "excerpt": "Invalid Request...",
+    "category": "normal",
+    "source_url": "https://indiegamereviewer.com/"
+  },
+  {
     "title": "Building Relationships Is The Weirdest Dating Sim I've Ever Played",
     "link": "https://www.thegamer.com/building-relationships-is-the-weirdest-dating-sim-ive-ever-played/",
     "date": "",
@@ -14,14 +22,6 @@
     "excerpt": "UFO 50 is full of great games, but Bug Hunter is my favorite.",
     "category": "normal",
     "source_url": "https://www.thegamer.com/tag/indie-games/"
-  },
-  {
-    "title": "",
-    "link": "https://indiegamereviewer.com/",
-    "date": "",
-    "excerpt": "Invalid Request...",
-    "category": "normal",
-    "source_url": "https://indiegamereviewer.com/"
   },
   {
     "title": "The Indie Informer Plays Urban Myth Dissolution Center",
@@ -168,11 +168,75 @@
     "source_url": "https://enjin.io/blog/10-social-media-marketing-tips-for-indie-game-developers"
   },
   {
+    "title": "Buyers Guide for Customer Service Chatbots in 2025",
+    "link": "https://www.helpshift.com/blog/customer-service-chatbot-2/",
+    "date": "",
+    "excerpt": "read",
+    "category": "marketing",
+    "source_url": "https://www.helpshift.com/blog/the-only-guide-you-need-for-effective-indie-game-marketing/"
+  },
+  {
+    "title": "Buyers Guide for Customer Service Chatbots in 2025",
+    "link": "https://www.helpshift.com/blog/customer-service-chatbot-2/",
+    "date": "",
+    "excerpt": "read",
+    "category": "marketing",
+    "source_url": "https://www.helpshift.com/blog/the-only-guide-you-need-for-effective-indie-game-marketing/"
+  },
+  {
+    "title": "Top 15 B2B Customer Service Examples [that worked]",
+    "link": "https://www.helpshift.com/blog/b2b-customer-service-examples/",
+    "date": "",
+    "excerpt": "read",
+    "category": "marketing",
+    "source_url": "https://www.helpshift.com/blog/the-only-guide-you-need-for-effective-indie-game-marketing/"
+  },
+  {
+    "title": "Conversational AI for Customer Service: A Complete Guide",
+    "link": "https://www.helpshift.com/blog/conversational-ai-for-customer-service/",
+    "date": "",
+    "excerpt": "read",
+    "category": "marketing",
+    "source_url": "https://www.helpshift.com/blog/the-only-guide-you-need-for-effective-indie-game-marketing/"
+  },
+  {
     "title": "Video Game Marketing Blog from Conduit",
     "link": "https://www.conduit.gg/blog/posts/best-channels-for-marketing-an-indie-game",
     "date": "",
     "excerpt": "NOVEMBER 7, 2024 Best Channels for Marketing an Indie Game Marketing an indie game is a crucial aspect of the game development process, often determining the game's success or failure in a highly competitive market. This article delves into the various channels available for promoting indie games, g...",
     "category": "marketing",
     "source_url": "https://www.conduit.gg/blog/posts/best-channels-for-marketing-an-indie-game"
+  },
+  {
+    "title": "Developer Marketing",
+    "link": "https://www.developermarketing.io/tag/developer-marketing/",
+    "date": "22 JUNE 2023",
+    "excerpt": "For indie game developers, creating an exceptional game is only half the battle. Making noise about your new release in an already crowded market can prove to be both a major and disheartening challenge.",
+    "category": "marketing",
+    "source_url": "https://www.developermarketing.io/the-ultimate-marketing-guide-for-indie-game-developers/"
+  },
+  {
+    "title": "AI-powered product marketing: Trends, tips, and use cases",
+    "link": "https://www.developermarketing.io/ai-powered-pmm-trends-tips-and-use-cases/",
+    "date": "",
+    "excerpt": "Smarter workflows and better product marketing with AI....",
+    "category": "marketing",
+    "source_url": "https://www.developermarketing.io/the-ultimate-marketing-guide-for-indie-game-developers/"
+  },
+  {
+    "title": "Bot or not: Lessons on consumer reactions to algorithm vs. human decisions",
+    "link": "https://www.developermarketing.io/bot-or-not-lessons-on-consumer-reactions-to-algorithm-vs-human-decisions/",
+    "date": "",
+    "excerpt": "How do consumers feel about decisions made by robots (bots) versus humans?...",
+    "category": "marketing",
+    "source_url": "https://www.developermarketing.io/the-ultimate-marketing-guide-for-indie-game-developers/"
+  },
+  {
+    "title": "How product marketers can truly connect with engineering leaders",
+    "link": "https://www.developermarketing.io/how-product-marketers-can-truly-connect-with-engineering-leaders/",
+    "date": "",
+    "excerpt": "If you think marketing to engineering leaders is just like marketing to developers, keep on reading....",
+    "category": "marketing",
+    "source_url": "https://www.developermarketing.io/the-ultimate-marketing-guide-for-indie-game-developers/"
   }
 ]
