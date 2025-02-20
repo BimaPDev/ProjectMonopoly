@@ -152,7 +152,7 @@ export function Dashboard() {
             <p>Deployment</p>
             <p>Getting Popular Hashtags</p>
             <p>File upload</p>
-            <p>Login page</p>
+            <p>Login page (FINISHED)</p>
           </CardContent>
           </Card>
           {/* <Card>
