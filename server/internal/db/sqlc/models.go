@@ -6,7 +6,9 @@ package db
 
 import (
 	"database/sql"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 )
 
@@ -41,6 +43,23 @@ type Post struct {
 	Title           string        `json:"title"`
 	SocialMediaLink string        `json:"social_media_link"`
 	CreatedAt       sql.NullTime  `json:"created_at"`
+}
+
+type Session struct {
+	ID        uuid.UUID     `json:"id"`
+	UserID    sql.NullInt32 `json:"user_id"`
+	CreatedAt sql.NullTime  `json:"created_at"`
+	ExpiresAt time.Time     `json:"expires_at"`
+}
+
+type UploadJob struct {
+	ID          string         `json:"id"`
+	UserID      int32          `json:"user_id"`
+	VideoPath   sql.NullString `json:"video_path"`
+	StorageType sql.NullString `json:"storage_type"`
+	FileUrl     sql.NullString `json:"file_url"`
+	Status      sql.NullString `json:"status"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
 }
 
 type User struct {

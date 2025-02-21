@@ -73,3 +73,30 @@ SELECT id, user_id, created_at, expires_at FROM sessions WHERE id = $1;
 -- Delete a session (logout)
 -- name: DeleteSession :exec
 DELETE FROM sessions WHERE id = $1;
+
+-- name: CreateUploadJob :one
+INSERT INTO upload_jobs (id, user_id, video_path, storage_type, file_url, status)
+VALUES ($1, $2, $3, $4, $5, $6)  
+RETURNING id, user_id, video_path, storage_type, file_url, status, created_at;
+
+-- name: GetUploadJob :one
+SELECT id, user_id, video_path, storage_type, file_url, status, created_at
+FROM upload_jobs
+WHERE id = $1;
+
+-- name: UpdateUploadJobStatus :exec
+UPDATE upload_jobs
+SET status = $2
+WHERE id = $1;
+
+-- name: UpdateUploadJobFileURL :exec
+UPDATE upload_jobs
+SET file_url = $2
+WHERE id = $1;
+
+-- name: ListUserUploadJobs :many
+SELECT id, video_path, storage_type, file_url, status, created_at
+FROM upload_jobs
+WHERE user_id = $1
+ORDER BY created_at DESC;
+

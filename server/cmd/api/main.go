@@ -40,6 +40,12 @@ func main() {
 		w.Write([]byte("🔒 Welcome to the protected dashboard!"))
 	}))
 
+
+	// 🔒 POST API Request
+	http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
+		handlers.UploadVideoHandler(w, r, queries)
+	})
+
 	// Middleware (CORS)
 	handlers := middleware.CORSMiddleware(http.DefaultServeMux)
 

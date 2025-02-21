@@ -46,6 +46,17 @@ CREATE TABLE sessions (
     expires_at TIMESTAMP NOT NULL
 );
 
+CREATE TABLE upload_jobs (
+    id TEXT PRIMARY KEY,               -- Unique job ID
+    user_id INT NOT NULL,               -- User who uploaded the file
+    video_path TEXT DEFAULT '',         -- Local file path (if stored locally)
+    storage_type VARCHAR(50) DEFAULT 'local',  -- "local", "s3", "gcs"
+    file_url TEXT DEFAULT '',           -- Full URL (if using S3/GCS)
+    status TEXT DEFAULT 'pending',      -- "pending", "processing", "completed", "failed"
+    created_at TIMESTAMP DEFAULT NOW(), -- Timestamp when job was created
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 ALTER TABLE "users" ADD COLUMN "oauth_provider" VARCHAR(50), ADD COLUMN "oauth_id" VARCHAR(255);
 
 ALTER TABLE "groups" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
