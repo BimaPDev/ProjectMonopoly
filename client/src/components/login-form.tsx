@@ -52,6 +52,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     const googleToken = response.credential;
 
     try {
+      // Attempt to log in with the Google token
       const loginResponse = await fetch("http://127.0.0.1:8080/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,15 +60,28 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       });
 
       if (!loginResponse.ok) {
-        throw new Error("Google login failed.");
+        // If login fails (user not found), attempt to register the user
+        const registerResponse = await fetch("http://127.0.0.1:8080/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ googleToken }),
+        });
+
+        if (!registerResponse.ok) {
+          throw new Error("Google login and registration failed.");
+        }
+
+        const data = await registerResponse.json();
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("sessionId", data.sessionId);
+        navigate("/dashboard");
+        return;
       }
 
       const data = await loginResponse.json();
-
       // ✅ Store token and session ID
       localStorage.setItem("token", data.token);
       localStorage.setItem("sessionId", data.sessionId);
-
       // ✅ Redirect to the dashboard after successful login
       navigate("/dashboard");
 
@@ -91,6 +105,19 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 <div className="flex flex-col items-center text-center">
                   <h1 className="text-2xl font-bold tracking-wide">Welcome Back</h1>
                   <p className="text-gray-400">Login to your account</p>
+                </div>
+                <div className="flex justify-center items-center mt-4">
+                  <GoogleLogin
+                    onSuccess={handleGoogleLoginSuccess}  // Handle Google login success
+                    onError={() => setError("Google login failed.")}
+                    useOneTap
+                    theme="outline"
+                  />
+                </div>
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-gray-700"></div>
+                  <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
+                  <div className="flex-grow border-t border-gray-700"></div>
                 </div>
                 {error && <p className="text-red-500 text-sm">{error}</p>}
                 <div className="space-y-2">
@@ -121,14 +148,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                   Login
                 </Button>
 
-                {/* Google Login Button */}
-                <div className="flex justify-center items-center mt-4">
-                  <GoogleLogin
-                    onSuccess={handleGoogleLoginSuccess}  // Handle Google login success
-                    onError={() => setError("Google login failed.")}
-                    useOneTap
-                    theme="outline"
-                  />
+                <div className="text-center mt-4 text-sm text-gray-400">
+                  Don't have an account? <a href="/register" className="text-white underline">Register</a>
                 </div>
               </div>
             </form>

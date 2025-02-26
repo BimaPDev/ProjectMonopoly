@@ -3,79 +3,103 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
 )
 
-// DeepSeekHandler handles AI requests to DeepSeek.
+// DeepSeekHandler handles AI requests to DeepSeek and saves uploaded files.
 func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
-	print("HANDLER CALLED\n")
-	// Only allow POST requests
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method. Only POST is allowed.", http.StatusMethodNotAllowed)
+	// Set CORS headers if needed
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Or your specific origin
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight requests
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// Parse the request body to extract the prompt
-	var requestBody struct {
-		Prompt string `json:"prompt"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	// Create uploads directory if it doesn't exist
+	uploadsDir := "./uploads"
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create uploads directory: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Validate the prompt
-	if requestBody.Prompt == "" {
-		http.Error(w, "Prompt cannot be empty", http.StatusBadRequest)
+	// Parse multipart form
+	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max memory
+		http.Error(w, fmt.Sprintf("Failed to parse multipart form: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	// Call the MainDeep function in utils
-	response, err := utils.MainDeep(requestBody.Prompt)
+	// Extract prompt from form data
+	prompt := r.FormValue("prompt")
+	if prompt == "" {
+		prompt = " "
+	}
+
+	// Log received prompt
+	fmt.Printf("Received prompt: %s\n", prompt)
+
+	// Extract and save files
+	savedFiles := []string{}
+	for _, fileHeaders := range r.MultipartForm.File {
+		for _, fileHeader := range fileHeaders {
+			// Log file information
+			fmt.Printf("Received file: %s, size: %d bytes\n",
+				fileHeader.Filename, fileHeader.Size)
+
+			// Open the uploaded file
+			uploadedFile, err := fileHeader.Open()
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to open uploaded file: %v", err), http.StatusInternalServerError)
+				return
+			}
+			defer uploadedFile.Close()
+
+			// Create a new file on the server
+			filePath := filepath.Join(uploadsDir, fileHeader.Filename)
+			dst, err := os.Create(filePath)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to create file on server: %v", err), http.StatusInternalServerError)
+				return
+			}
+			defer dst.Close()
+
+			// Copy content from uploaded file to server file
+			if _, err := io.Copy(dst, uploadedFile); err != nil {
+				http.Error(w, fmt.Sprintf("Failed to save uploaded file: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			savedFiles = append(savedFiles, filePath)
+			fmt.Printf("File saved to: %s\n", filePath)
+		}
+	}
+
+	// Get the first uploaded file for processing (if any)
+	var uploadedFile *multipart.FileHeader
+	if files := r.MultipartForm.File["files"]; len(files) > 0 {
+		uploadedFile = files[0]
+	}
+
+	// Call the AI processing function with the prompt and file
+	response, err := utils.MainDeep(prompt, uploadedFile)
 	if err != nil {
-		print("ERROR")
 		http.Error(w, fmt.Sprintf("Error processing request: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Respond with the AI's output
+	// Return the AI-generated response along with information about saved files
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"response": response})
-}
-
-func ChatDeepHandler(w http.ResponseWriter, r *http.Request) {
-	print("HANDLER CALLED\n")
-	// Only allow POST requests
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed.", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse the request body
-	var requestBody struct {
-		Prompt string `json:"prompt"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		http.Error(w, "Invalid JSON request body.", http.StatusBadRequest)
-		return
-	}
-
-	// Validate the prompt
-	if requestBody.Prompt == "" {
-		http.Error(w, "Prompt cannot be empty.", http.StatusBadRequest)
-		return
-	}
-
-	// Call ChatDeep to send the prompt and get the response
-	response, err := utils.MainDeep(requestBody.Prompt)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error calling DeepSeek API: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Send the response back to the client
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"response": response})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"response":   response,
+		"savedFiles": savedFiles,
+	})
 }

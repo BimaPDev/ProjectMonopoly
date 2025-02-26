@@ -30,7 +30,7 @@ func main() {
 	http.HandleFunc("/trigger", handlers.TriggerPythonScript)
 	http.HandleFunc("/health", handlers.HealthCheck)
 	http.HandleFunc("/followers", handlers.TriggerFollowersScript)
-
+	http.HandleFunc("/ai/deepseek", handlers.DeepSeekHandler)
 	// 🔹 Authentication Routes
 	http.HandleFunc("/api/register", auth.RegisterHandler(queries)) // ✅ Pass queries
 	http.HandleFunc("/api/login", auth.LoginHandler(queries))       // ✅ Pass queries
@@ -40,7 +40,6 @@ func main() {
 		w.Write([]byte("🔒 Welcome to the protected dashboard!"))
 	}))
 
-
 	// 🔒 POST API Request
 	http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
 		handlers.UploadVideoHandler(w, r, queries)
@@ -48,7 +47,6 @@ func main() {
 
 	// Middleware (CORS)
 	handlers := middleware.CORSMiddleware(http.DefaultServeMux)
-
 
 	// Start the server
 	port := ":8080"

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const models = [
-  { id: "gpt-4", name: "GPT-4" },
+  { id: "DeepSeek", name: "DeepSeek" },
  
 ]
 
@@ -44,58 +44,59 @@ export function AIPage() {
       setFiles(prevFiles => [...prevFiles, ...newFiles])
     }
   }
-
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!input.trim() && files.length === 0) return
-
-    const formData = new FormData()
-    formData.append('prompt', input)
+    e.preventDefault();
+  
+    if (!input.trim() && files.length === 0) return;
+  
+    const formData = new FormData();
+    formData.append("prompt", input);
     files.forEach(file => {
-      formData.append('files', file)
-    })
-
-    const fileNames = files.map(file => file.name)
-    const userMessage: Message = {
-      role: "user",
-      content: input,
-      attachments: fileNames
-    }
-    setMessages(prev => [...prev, userMessage])
-    setInput("")
-    setFiles([])
-    setMessageSent(true)
-    setIsLoading(true)
-
+      formData.append("files", file); // Make sure this matches the field name in your Go handler
+    });
+  
+    setMessages(prev => [
+      ...prev,
+      { role: "user", content: input, attachments: files.map(file => file.name) }
+    ]);
+    setInput("");
+    setFiles([]);
+    setIsLoading(true);
+  
     try {
+      // Let fetch set the Content-Type header automatically for FormData
       const response = await fetch("http://localhost:8080/ai/deepseek", {
         method: "POST",
         body: formData,
-      })
-
+        // Don't set Content-Type header manually for FormData
+      });
+  
       if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`)
+        const errorText = await response.text();
+        console.error("Server error:", errorText);
+        throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
-
-      const data = await response.json()
-      
-      const aiMessage: Message = {
-        role: "assistant",
-        content: data.response,
-      }
-      setMessages(prev => [...prev, aiMessage])
+  
+      const data = await response.json();
+  
+      setMessages(prev => [
+        ...prev,
+        { role: "assistant", content: data.response }
+      ]);
     } catch (error) {
-      console.error("Error communicating with AI API:", error)
-      const errorMessage: Message = {
-        role: "assistant",
-        content: "Something went wrong while communicating with the AI.",
-      }
-      setMessages(prev => [...prev, errorMessage])
+      console.error("Error communicating with AI API:", error);
+      setMessages(prev => [
+        ...prev,
+        { role: "assistant", content: "Something went wrong while communicating with the AI." }
+      ]);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+    console.log("FormData contents:");
+    for (let pair of formData.entries()) {
+    console.log(pair[0] + ': ' + pair[1]);
+}
+  };
 
   const removeFile = (fileToRemove: File) => {
     setFiles(files.filter(file => file !== fileToRemove))
