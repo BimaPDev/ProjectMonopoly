@@ -48,7 +48,7 @@ const data = {
     },
     {
       title: "DogWood AI",
-      url: "/Ai",
+      url: "/dashboard/ai",
       icon: BotIcon,
     },
 
@@ -59,7 +59,7 @@ const data = {
       items: [
         {
           title: "Posts",
-          url: "/posts",
+          url: "/dashboard/posts",
         },
         // {
         //   title: "Scheduler",
@@ -122,7 +122,7 @@ const data = {
     // },
     {
       title: "Competitors",
-      url: "dashboard/competitors",
+      url: "/dashboard/competitors",
       icon: Users2,
     },
     // {
