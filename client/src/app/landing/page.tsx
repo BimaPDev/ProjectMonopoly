@@ -3,7 +3,7 @@ export default function LandingPage() {
     <div
       className="flex flex-col items-center justify-center min-h-screen text-white px-6"
       style={{
-        background: "linear-gradient(-60deg, rgb(189, 189, 189),rgb(175, 148, 237), rgb(79, 79, 79))",
+        background: "linear-gradient(-60deg, rgb(72, 72, 72), rgb(0, 0, 0))",
       }}
     >
       <div>
@@ -15,12 +15,23 @@ export default function LandingPage() {
       </div>
       <h1 className="text-4xl font-extrabold tracking-wide">Welcome to Dogwood Gaming's marketing tool.</h1>
       
+      <div className="flex flex-col items-left">
       <a
         href="/login"
         className="mt-6 px-6 py-3 bg-white text-black font-semibold rounded-md shadow-md transition hover:bg-gray-300 hover:shadow-lg"
       >
         Get Started
       </a>
+
+      <a
+        href="/register"
+        className="mt-6 px-6 py-3 bg-white text-black font-semibold rounded-md shadow-md transition hover:bg-gray-300 hover:shadow-lg text-center"
+      >
+        Register
+      </a>
+
+      </div>
+
     </div>
   );
 }

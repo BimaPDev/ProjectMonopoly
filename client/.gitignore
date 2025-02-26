@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/myenv/
+/server/python/ai_web/output/
+/client/package-lock.json/
+/client/package.json/
+.myenv/
+client/.env/

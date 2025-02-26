@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GoogleLogin } from "@react-oauth/google"; // Import Google Login
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const [error, setError] = useState("");
   const navigate = useNavigate(); // ✅ Initialize React Router Navigation
 
+  // Handle regular login (email + password)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -45,8 +47,37 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     }
   };
 
+  // Handle Google login
+  const handleGoogleLoginSuccess = async (response: any) => {
+    const googleToken = response.credential;
+
+    try {
+      const loginResponse = await fetch("http://127.0.0.1:8080/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ googleToken }),
+      });
+
+      if (!loginResponse.ok) {
+        throw new Error("Google login failed.");
+      }
+
+      const data = await loginResponse.json();
+
+      // ✅ Store token and session ID
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("sessionId", data.sessionId);
+
+      // ✅ Redirect to the dashboard after successful login
+      navigate("/dashboard");
+
+    } catch (err) {
+      setError("Google login failed. Please try again.");
+    }
+  };
+
   return (
-<div className="flex flex-col items-center justify-center min-h-screen overflow-hidden">
+    <div className="flex flex-col items-center justify-center min-h-screen overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0 animate-gradient bg-gradient"></div>
 
@@ -89,6 +120,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 <Button type="submit" className="w-full bg-white text-black font-semibold hover:bg-gray-200">
                   Login
                 </Button>
+
+                {/* Google Login Button */}
+                <div className="flex justify-center items-center mt-4">
+                  <GoogleLogin
+                    onSuccess={handleGoogleLoginSuccess}  // Handle Google login success
+                    onError={() => setError("Google login failed.")}
+                    useOneTap
+                    theme="outline"
+                  />
+                </div>
               </div>
             </form>
 
@@ -119,6 +160,5 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
         }
       `}</style>
     </div>
-
   );
 }
