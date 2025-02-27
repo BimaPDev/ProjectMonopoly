@@ -1,23 +1,48 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useEffect, useState, useRef } from "react"
-import { Bot, Send, User, Upload } from "lucide-react"
-import { Typewriter, Cursor } from 'react-simple-typewriter'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import * as React from "react";
+import { useEffect, useState, useRef } from "react";
+import { Bot, Send, User, Upload, Loader2 } from "lucide-react";
+import { Typewriter } from "react-simple-typewriter";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
-const models = [
-  { id: "DeepSeek", name: "DeepSeek" },
- 
-]
+const models = [{ id: "DeepSeek", name: "DeepSeek" }];
+
+const thinkingMessages = [
+  "Analyzing your request...",
+  "Consulting the AI minds...",
+  "Processing data...",
+  "Crafting a response...",
+  "Gathering information...",
+  "Formulating a plan...",
+  "Thinking deeply...",
+  "Please wait, the AI is working hard...",
+  "Fetching relevant data...",
+  "Generating insights...",
+];
 
 interface Message {
-  role: "user" | "assistant"
-  content: string
-  attachments?: string[]
+  role: "user" | "assistant";
+  content: string;
+  attachments?: string[];
 }
 
 export function AIPage() {
@@ -29,7 +54,7 @@ export function AIPage() {
   const [files, setFiles] = useState<File[]>([])
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
-
+  const [thinkingMessage, setThinkingMessage] = useState("");
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -62,6 +87,10 @@ export function AIPage() {
     setInput("");
     setFiles([]);
     setIsLoading(true);
+    setMessageSent(true);
+    setThinkingMessage(
+      thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)]
+    );
   
     try {
       // Let fetch set the Content-Type header automatically for FormData
@@ -101,7 +130,6 @@ export function AIPage() {
   const removeFile = (fileToRemove: File) => {
     setFiles(files.filter(file => file !== fileToRemove))
   }
-
   return (
     <div className="flex-1 space-y-5 p-6 pt-6">
       <div className="flex items-center justify-between">
@@ -132,7 +160,7 @@ export function AIPage() {
           <div className="flex flex-1 items-center justify-center">
             <span className="text-4xl font-bold">
               <Typewriter
-                words={['Welcome To', 'DogWood Gaming\'s', 'Ai Marketing Tool']}
+                words={["Welcome To", "DogWood Gaming's", "Ai Marketing Tool"]}
                 loop={true}
                 cursor
                 cursorStyle="|"
@@ -150,17 +178,17 @@ export function AIPage() {
               <div
                 key={index}
                 className={`flex items-start gap-3 ${
-                  message.role === 'assistant' ? 'flex-row' : 'flex-row-reverse'
+                  message.role === "assistant" ? "flex-row" : "flex-row-reverse"
                 }`}
               >
                 <div
                   className={`rounded-full p-2 ${
-                    message.role === 'assistant'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
+                    message.role === "assistant"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
                   }`}
                 >
-                  {message.role === 'assistant' ? (
+                  {message.role === "assistant" ? (
                     <Bot className="h-4 w-4" />
                   ) : (
                     <User className="h-4 w-4" />
@@ -168,12 +196,14 @@ export function AIPage() {
                 </div>
                 <div
                   className={`rounded-lg px-3 py-2 ${
-                    message.role === 'assistant'
-                      ? 'bg-muted'
-                      : 'bg-primary text-primary-foreground'
+                    message.role === "assistant"
+                      ? "bg-muted"
+                      : "bg-primary text-primary-foreground"
                   }`}
                 >
-                  {message.content}
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
                   {message.attachments && message.attachments.length > 0 && (
                     <div className="mt-2 text-sm">
                       <p className="font-semibold">Attached files:</p>
@@ -192,7 +222,10 @@ export function AIPage() {
                 <div className="rounded-full bg-primary p-2 text-primary-foreground">
                   <Bot className="h-4 w-4" />
                 </div>
-                <div className="rounded-lg bg-muted px-3 py-2">Thinking...</div>
+                <div className="rounded-lg bg-muted px-3 py-2 flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Typewriter words={[thinkingMessage]} typeSpeed={50} />
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -255,5 +288,5 @@ export function AIPage() {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }
