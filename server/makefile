@@ -16,4 +16,14 @@ migratedown:
 sqlc:
 	sqlc generate
 
-.PHONY: createdb dropdb postgres migrateup migratedown sqlc
+rungo:
+	go run cmd/api/main.go
+
+runpy:
+	python3 python/manager.py
+
+server:
+	$(MAKE) -j2 rungo runpy
+
+
+.PHONY: createdb dropdb postgres migrateup migratedown sqlc rungo runpy
