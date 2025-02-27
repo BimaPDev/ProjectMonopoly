@@ -48,7 +48,11 @@ const data = {
     },
     {
       title: "DogWood AI",
+<<<<<<< Updated upstream
       url: "/dashboard/ai",
+=======
+      url: "/dashboard/Ai",
+>>>>>>> Stashed changes
       icon: BotIcon,
     },
 
