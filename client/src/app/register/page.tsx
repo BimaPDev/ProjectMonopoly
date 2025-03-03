@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { GoogleLogin } from "@react-oauth/google";
+import { redirect } from 'react-router-dom';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -11,7 +12,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
-
+  const [signSuccess, setSuccess] = useState(false);
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
@@ -42,14 +43,13 @@ export default function RegisterPage() {
     }
   
     try {
-      // Using the /api/register endpoint for regular form registration
       const response = await fetch("http://127.0.0.1:8080/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
+          username: formData.email,
           email: formData.email, 
-          password: formData.password,
-          agreeToTerms: agreeToTerms
+          password: formData.password
         }),
       });
   
@@ -64,8 +64,9 @@ export default function RegisterPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("sessionId", data.sessionId);
       
-      alert("Account created successfully!");
-  
+      setSuccess(true);
+      setError("Account created please log in");
+      redirect("/login");
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -128,7 +129,7 @@ export default function RegisterPage() {
       }}
     >
       <div className="w-full max-w-md">
-        
+       
         <div className="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-0"></div>
         
         <div className="relative z-10 flex flex-col items-center mb-8">
@@ -144,6 +145,7 @@ export default function RegisterPage() {
             Create your account to access exclusive gaming tools and resources
           </p>
         </div>
+        
         
         
         <div className="relative z-10 bg-gradient-to-b from-gray-900 to-black p-8 rounded-xl border border-gray-800 shadow-2xl backdrop-blur">
@@ -285,6 +287,13 @@ export default function RegisterPage() {
               ) : 'CREATE ACCOUNT'}
             </button>
             
+            {/* {signSuccess &&(
+          <div className='relative flex'>
+            <div className='bg-black w-full y-full text-center'>
+            <span style={{margin:0, color:"red",fontSize:"25px"}}>&#33;</span> <span style={{fontWeight:"bold"}}> Account has been created, please log in.</span>
+           </div>
+          </div>
+        )} */}
             
             <div className="text-center mt-6 text-sm text-gray-400">
               Already have an account? 

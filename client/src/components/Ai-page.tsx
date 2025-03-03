@@ -175,7 +175,7 @@ export function AIPage() {
   };
   
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
+    <div className="flex flex-col h-screen overflow-hidden bg-black">
       <div className="flex flex-col h-full max-w-6xl mx-auto w-full p-4 md:p-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center">
