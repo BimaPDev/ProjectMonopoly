@@ -48,6 +48,7 @@ func main() {
 	// Middleware (CORS)
 	handlers := middleware.CORSMiddleware(http.DefaultServeMux)
 
+
 	// Start the server
 	port := ":8080"
 	fmt.Printf("✅ API server is running on http://localhost%s\n", port)

@@ -48,7 +48,10 @@ def run(job_id, user_id, video_path):
     print(f"Running job: {job_id} for user: {user_id}, video: {video_path}")
     update_status(job_id, "running")
     
-    time.sleep(5)  # Simulating work (e.g., video processing)
+    #time.sleep(5)  # Simulating work (e.g., video processing)
+    task = upload_video.delay(video_path)
+    update_status(job_id, "running", task.id)
+    print(f"✅ Job {job_id} is now processing (Task ID: {task.id})")
 
     # Mark job as "completed"
     update_status(job_id, "completed")
@@ -67,4 +70,5 @@ def manage_loop():
         time.sleep(5)  # Adjust interval as needed
 
 if __name__ == "__main__":
+    print("Manager is running...")
     manage_loop()

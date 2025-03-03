@@ -1,7 +1,7 @@
 from celery import Celery
 
-# Initialize Celery app
-app = Celery('tasks', broker='pyamqp://guest@localhost//', backend='rpc://')
+# ✅ Use Redis or RabbitMQ as broker
+app = Celery('tasks', broker='redis://localhost:6379/0', backend='rpc://')
 
 @app.task
 def upload_video(video_path):
