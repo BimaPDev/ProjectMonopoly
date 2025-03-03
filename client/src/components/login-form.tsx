@@ -83,6 +83,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       localStorage.setItem("token", data.token);
       localStorage.setItem("sessionId", data.sessionId);
       // ✅ Redirect to the dashboard after successful login
+      localStorage.setItem("user", JSON.stringify({
+        name: data.name,
+        email: data.email,
+        avatar: data.picture, // URL of the Google profile picture
+      }));
       navigate("/dashboard");
 
     } catch (err) {
@@ -120,31 +125,47 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                   <div className="flex-grow border-t border-gray-700"></div>
                 </div>
                 {error && <p className="text-red-500 text-sm">{error}</p>}
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-gray-300">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    className="bg-gray-900 text-white border border-gray-700 focus:ring-gray-500 focus:border-white"
-                    required
-                  />
+                
+                <div className="space-y-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email Address</label>
+              <div className="relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                  </svg>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-gray-300">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    placeholder="Enter your password"
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-gray-900 text-white border border-gray-700 focus:ring-gray-500 focus:border-white"
-                    required
-                  />
+                <input 
+                  type="email" 
+                  id="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-70 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  placeholder="you@example.com"
+                  required
+                />
+              </div>
+            </div>
+                
+                <div className="space-y-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
+              <div className="relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
                 </div>
-                <Button type="submit" className="w-full bg-white text-black font-semibold hover:bg-gray-200">
+                <input 
+                  type="password" 
+                  id="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-70 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              </div>
+                <Button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 transform hover:translate-y-1 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
                   Login
                 </Button>
 
@@ -167,19 +188,23 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       </div>
 
       <style>{`
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
+        
         .bg-gradient {
-          background: linear-gradient(-55deg,rgb(255, 255, 255),rgb(27, 26, 26),rgb(215, 181, 249),rgb(0, 0, 0));
+          background: linear-gradient(0deg,rgb(19, 19, 19),rgb(6, 6, 6));
           background-size: 400% 400%;
         }
-        .animate-gradient {
-          animation: gradient 5s;
-        }
+      
       `}</style>
+      <footer>
+      <div className="relative z-10 mt-8 text-center text-gray-500 text-xs">
+          <p>© 2025 Dogwood Gaming. All rights reserved.</p>
+          <div className="mt-2">
+            <a href="https://dogwoodgaming.com/" className="text-gray-400 hover:text-purple-400 hover:underline transition-all duration-200">Home</a>
+            <span className="mx-2">|</span>
+            <a href="https://dogwoodgaming.com/contact-us/" className="text-gray-400 hover:text-purple-400 hover:underline transition-all duration-200">Contact</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
