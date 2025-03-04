@@ -46,10 +46,11 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 }
 
 const createOAuthUser = `-- name: CreateOAuthUser :one
-INSERT INTO users (username, email, oauth_provider, oauth_id, created_at)
-VALUES ($1, $2, $3, $4, NOW())
-ON CONFLICT (email) DO NOTHING
-RETURNING id, username, email, oauth_provider, oauth_id, created_at
+INSERT INTO users (username, email, oauth_provider, oauth_id, created_at, updated_at)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
+ON CONFLICT (email) 
+DO UPDATE SET username = EXCLUDED.username, updated_at = NOW()
+RETURNING id, username, email, oauth_provider, oauth_id, created_at, updated_at
 `
 
 type CreateOAuthUserParams struct {
@@ -66,9 +67,10 @@ type CreateOAuthUserRow struct {
 	OauthProvider sql.NullString `json:"oauth_provider"`
 	OauthID       sql.NullString `json:"oauth_id"`
 	CreatedAt     sql.NullTime   `json:"created_at"`
+	UpdatedAt     sql.NullTime   `json:"updated_at"`
 }
 
-// Register a new OAuth user (if they don't exist)
+// Register a new OAuth user (if they don't exist, update username if needed)
 func (q *Queries) CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams) (CreateOAuthUserRow, error) {
 	row := q.db.QueryRowContext(ctx, createOAuthUser,
 		arg.Username,
@@ -84,6 +86,7 @@ func (q *Queries) CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -94,8 +97,8 @@ VALUES ($1, NOW() + INTERVAL '24 hours')
 RETURNING id, user_id, created_at, expires_at
 `
 
-// Create a new session
-func (q *Queries) CreateSession(ctx context.Context, userID sql.NullInt32) (Session, error) {
+// Create a new session with configurable expiration
+func (q *Queries) CreateSession(ctx context.Context, userID int32) (Session, error) {
 	row := q.db.QueryRowContext(ctx, createSession, userID)
 	var i Session
 	err := row.Scan(
@@ -108,46 +111,63 @@ func (q *Queries) CreateSession(ctx context.Context, userID sql.NullInt32) (Sess
 }
 
 const createUploadJob = `-- name: CreateUploadJob :one
-INSERT INTO upload_jobs (id, user_id, video_path, storage_type, file_url, status)
-VALUES ($1, $2, $3, $4, $5, $6)  
-RETURNING id, user_id, video_path, storage_type, file_url, status, created_at
+INSERT INTO upload_jobs (id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())  
+RETURNING id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at
 `
 
 type CreateUploadJobParams struct {
 	ID          string         `json:"id"`
 	UserID      int32          `json:"user_id"`
+	Platform    sql.NullString `json:"platform"`
 	VideoPath   sql.NullString `json:"video_path"`
 	StorageType sql.NullString `json:"storage_type"`
 	FileUrl     sql.NullString `json:"file_url"`
 	Status      sql.NullString `json:"status"`
 }
 
-func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams) (UploadJob, error) {
+type CreateUploadJobRow struct {
+	ID          string         `json:"id"`
+	UserID      int32          `json:"user_id"`
+	Platform    sql.NullString `json:"platform"`
+	VideoPath   sql.NullString `json:"video_path"`
+	StorageType sql.NullString `json:"storage_type"`
+	FileUrl     sql.NullString `json:"file_url"`
+	Status      sql.NullString `json:"status"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+}
+
+// Create a new upload job with platform support
+func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams) (CreateUploadJobRow, error) {
 	row := q.db.QueryRowContext(ctx, createUploadJob,
 		arg.ID,
 		arg.UserID,
+		arg.Platform,
 		arg.VideoPath,
 		arg.StorageType,
 		arg.FileUrl,
 		arg.Status,
 	)
-	var i UploadJob
+	var i CreateUploadJobRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.Platform,
 		&i.VideoPath,
 		&i.StorageType,
 		&i.FileUrl,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const createUserWithPassword = `-- name: CreateUserWithPassword :one
-INSERT INTO users (username, email, password_hash, created_at)
-VALUES ($1, $2, $3, NOW())
-RETURNING id, username, email, created_at
+INSERT INTO users (username, email, password_hash, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+RETURNING id, username, email, created_at, updated_at
 `
 
 type CreateUserWithPasswordParams struct {
@@ -161,6 +181,7 @@ type CreateUserWithPasswordRow struct {
 	Username  string       `json:"username"`
 	Email     string       `json:"email"`
 	CreatedAt sql.NullTime `json:"created_at"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
 // Register a new user with a password
@@ -172,6 +193,7 @@ func (q *Queries) CreateUserWithPassword(ctx context.Context, arg CreateUserWith
 		&i.Username,
 		&i.Email,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -198,7 +220,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 }
 
 const getOAuthUserByEmail = `-- name: GetOAuthUserByEmail :one
-SELECT id, username, email, oauth_provider, oauth_id, created_at
+SELECT id, username, email, oauth_provider, oauth_id, created_at, updated_at
 FROM users
 WHERE email = $1
 `
@@ -210,6 +232,7 @@ type GetOAuthUserByEmailRow struct {
 	OauthProvider sql.NullString `json:"oauth_provider"`
 	OauthID       sql.NullString `json:"oauth_id"`
 	CreatedAt     sql.NullTime   `json:"created_at"`
+	UpdatedAt     sql.NullTime   `json:"updated_at"`
 }
 
 // Get user by email (for OAuth login)
@@ -223,12 +246,15 @@ func (q *Queries) GetOAuthUserByEmail(ctx context.Context, email string) (GetOAu
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getSession = `-- name: GetSession :one
-SELECT id, user_id, created_at, expires_at FROM sessions WHERE id = $1
+SELECT id, user_id, created_at, expires_at 
+FROM sessions 
+WHERE id = $1
 `
 
 // Get session by ID
@@ -245,28 +271,43 @@ func (q *Queries) GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 }
 
 const getUploadJob = `-- name: GetUploadJob :one
-SELECT id, user_id, video_path, storage_type, file_url, status, created_at
+SELECT id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at
 FROM upload_jobs
 WHERE id = $1
 `
 
-func (q *Queries) GetUploadJob(ctx context.Context, id string) (UploadJob, error) {
+type GetUploadJobRow struct {
+	ID          string         `json:"id"`
+	UserID      int32          `json:"user_id"`
+	Platform    sql.NullString `json:"platform"`
+	VideoPath   sql.NullString `json:"video_path"`
+	StorageType sql.NullString `json:"storage_type"`
+	FileUrl     sql.NullString `json:"file_url"`
+	Status      sql.NullString `json:"status"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+}
+
+// Get upload job by ID
+func (q *Queries) GetUploadJob(ctx context.Context, id string) (GetUploadJobRow, error) {
 	row := q.db.QueryRowContext(ctx, getUploadJob, id)
-	var i UploadJob
+	var i GetUploadJobRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.Platform,
 		&i.VideoPath,
 		&i.StorageType,
 		&i.FileUrl,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserByEmailWithPassword = `-- name: GetUserByEmailWithPassword :one
-SELECT id, username, email, password_hash, created_at
+SELECT id, username, email, password_hash, created_at, updated_at
 FROM users
 WHERE email = $1
 `
@@ -277,6 +318,7 @@ type GetUserByEmailWithPasswordRow struct {
 	Email        string       `json:"email"`
 	PasswordHash string       `json:"password_hash"`
 	CreatedAt    sql.NullTime `json:"created_at"`
+	UpdatedAt    sql.NullTime `json:"updated_at"`
 }
 
 // Get user by email (for password login)
@@ -289,12 +331,13 @@ func (q *Queries) GetUserByEmailWithPassword(ctx context.Context, email string) 
 		&i.Email,
 		&i.PasswordHash,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, created_at
+SELECT id, username, email, created_at, updated_at
 FROM users
 WHERE id = $1
 `
@@ -304,6 +347,7 @@ type GetUserByIDRow struct {
 	Username  string       `json:"username"`
 	Email     string       `json:"email"`
 	CreatedAt sql.NullTime `json:"created_at"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
 // Get user by ID
@@ -315,12 +359,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 		&i.Username,
 		&i.Email,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const listUserUploadJobs = `-- name: ListUserUploadJobs :many
-SELECT id, video_path, storage_type, file_url, status, created_at
+SELECT id, platform, video_path, platform ,storage_type, file_url, status, created_at, updated_at
 FROM upload_jobs
 WHERE user_id = $1
 ORDER BY created_at DESC
@@ -328,13 +373,17 @@ ORDER BY created_at DESC
 
 type ListUserUploadJobsRow struct {
 	ID          string         `json:"id"`
+	Platform    sql.NullString `json:"platform"`
 	VideoPath   sql.NullString `json:"video_path"`
+	Platform_2  sql.NullString `json:"platform_2"`
 	StorageType sql.NullString `json:"storage_type"`
 	FileUrl     sql.NullString `json:"file_url"`
 	Status      sql.NullString `json:"status"`
 	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }
 
+// List all upload jobs for a user
 func (q *Queries) ListUserUploadJobs(ctx context.Context, userID int32) ([]ListUserUploadJobsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listUserUploadJobs, userID)
 	if err != nil {
@@ -346,11 +395,14 @@ func (q *Queries) ListUserUploadJobs(ctx context.Context, userID int32) ([]ListU
 		var i ListUserUploadJobsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Platform,
 			&i.VideoPath,
+			&i.Platform_2,
 			&i.StorageType,
 			&i.FileUrl,
 			&i.Status,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -366,7 +418,7 @@ func (q *Queries) ListUserUploadJobs(ctx context.Context, userID int32) ([]ListU
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, email, created_at
+SELECT id, username, email, created_at, updated_at
 FROM users
 ORDER BY created_at DESC
 `
@@ -376,6 +428,7 @@ type ListUsersRow struct {
 	Username  string       `json:"username"`
 	Email     string       `json:"email"`
 	CreatedAt sql.NullTime `json:"created_at"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
 // List all users
@@ -393,6 +446,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 			&i.Username,
 			&i.Email,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -409,7 +463,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 
 const updateUploadJobFileURL = `-- name: UpdateUploadJobFileURL :exec
 UPDATE upload_jobs
-SET file_url = $2
+SET file_url = $2,
+    updated_at = NOW()
 WHERE id = $1
 `
 
@@ -418,6 +473,7 @@ type UpdateUploadJobFileURLParams struct {
 	FileUrl sql.NullString `json:"file_url"`
 }
 
+// Update upload job file URL
 func (q *Queries) UpdateUploadJobFileURL(ctx context.Context, arg UpdateUploadJobFileURLParams) error {
 	_, err := q.db.ExecContext(ctx, updateUploadJobFileURL, arg.ID, arg.FileUrl)
 	return err
@@ -425,7 +481,8 @@ func (q *Queries) UpdateUploadJobFileURL(ctx context.Context, arg UpdateUploadJo
 
 const updateUploadJobStatus = `-- name: UpdateUploadJobStatus :exec
 UPDATE upload_jobs
-SET status = $2
+SET status = $2,
+    updated_at = NOW()
 WHERE id = $1
 `
 
@@ -434,6 +491,7 @@ type UpdateUploadJobStatusParams struct {
 	Status sql.NullString `json:"status"`
 }
 
+// Update upload job status
 func (q *Queries) UpdateUploadJobStatus(ctx context.Context, arg UpdateUploadJobStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateUploadJobStatus, arg.ID, arg.Status)
 	return err
@@ -442,9 +500,10 @@ func (q *Queries) UpdateUploadJobStatus(ctx context.Context, arg UpdateUploadJob
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET username = $2,
-    email = $3
+    email = $3,
+    updated_at = NOW()
 WHERE id = $1
-RETURNING id, username, email, created_at
+RETURNING id, username, email, created_at, updated_at
 `
 
 type UpdateUserParams struct {
@@ -458,6 +517,7 @@ type UpdateUserRow struct {
 	Username  string       `json:"username"`
 	Email     string       `json:"email"`
 	CreatedAt sql.NullTime `json:"created_at"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
 // Update user details
@@ -469,6 +529,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateU
 		&i.Username,
 		&i.Email,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

@@ -25,5 +25,17 @@ runpy:
 server:
 	$(MAKE) -j2 rungo runpy
 
+redis:
+	redis-server
+
+celery:
+	celery -A python.celery boss --loglevel=info
+	celery -A python.celery task --loglevel=info
+	celery -A tasks worker --loglevel=info -Q boss_queue --concurrency=1
+	celery -A tasks worker --loglevel=info -Q manager_queue --concurrency=4
+	celery -A tasks beat --loglevel=info
+
+
+
 
 .PHONY: createdb dropdb postgres migrateup migratedown sqlc rungo runpy
