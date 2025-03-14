@@ -13,53 +13,60 @@ import (
 )
 
 type Competitor struct {
-	ID              int32         `json:"id"`
-	GroupID         sql.NullInt32 `json:"group_id"`
-	Name            string        `json:"name"`
-	SocialMediaLink string        `json:"social_media_link"`
-	CreatedAt       sql.NullTime  `json:"created_at"`
+	ID              int32        `json:"id"`
+	GroupID         int32        `json:"group_id"`
+	Name            string       `json:"name"`
+	SocialMediaLink string       `json:"social_media_link"`
+	CreatedAt       sql.NullTime `json:"created_at"`
+	UpdatedAt       sql.NullTime `json:"updated_at"`
 }
 
 type Group struct {
 	ID              int32          `json:"id"`
-	UserID          sql.NullInt32  `json:"user_id"`
+	UserID          int32          `json:"user_id"`
 	Name            string         `json:"name"`
 	Description     sql.NullString `json:"description"`
 	SocialMediaLink string         `json:"social_media_link"`
 	CreatedAt       sql.NullTime   `json:"created_at"`
+	UpdatedAt       sql.NullTime   `json:"updated_at"`
 }
 
 type GroupItem struct {
 	ID        int32                 `json:"id"`
-	GroupID   sql.NullInt32         `json:"group_id"`
+	GroupID   int32                 `json:"group_id"`
 	Type      sql.NullString        `json:"type"`
 	Data      pqtype.NullRawMessage `json:"data"`
 	CreatedAt sql.NullTime          `json:"created_at"`
+	UpdatedAt sql.NullTime          `json:"updated_at"`
 }
 
 type Post struct {
-	ID              int32         `json:"id"`
-	GroupID         sql.NullInt32 `json:"group_id"`
-	Title           string        `json:"title"`
-	SocialMediaLink string        `json:"social_media_link"`
-	CreatedAt       sql.NullTime  `json:"created_at"`
+	ID              int32        `json:"id"`
+	GroupID         int32        `json:"group_id"`
+	Title           string       `json:"title"`
+	SocialMediaLink string       `json:"social_media_link"`
+	CreatedAt       sql.NullTime `json:"created_at"`
+	UpdatedAt       sql.NullTime `json:"updated_at"`
 }
 
 type Session struct {
-	ID        uuid.UUID     `json:"id"`
-	UserID    sql.NullInt32 `json:"user_id"`
-	CreatedAt sql.NullTime  `json:"created_at"`
-	ExpiresAt time.Time     `json:"expires_at"`
+	ID        uuid.UUID    `json:"id"`
+	UserID    int32        `json:"user_id"`
+	CreatedAt sql.NullTime `json:"created_at"`
+	ExpiresAt time.Time    `json:"expires_at"`
 }
 
 type UploadJob struct {
 	ID          string         `json:"id"`
 	UserID      int32          `json:"user_id"`
+	Platform    sql.NullString `json:"platform"`
 	VideoPath   sql.NullString `json:"video_path"`
 	StorageType sql.NullString `json:"storage_type"`
 	FileUrl     sql.NullString `json:"file_url"`
 	Status      sql.NullString `json:"status"`
+	Caption     sql.NullString `json:"caption"`
 	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }
 
 type User struct {
@@ -67,7 +74,8 @@ type User struct {
 	Username      string         `json:"username"`
 	Email         string         `json:"email"`
 	PasswordHash  string         `json:"password_hash"`
-	CreatedAt     sql.NullTime   `json:"created_at"`
 	OauthProvider sql.NullString `json:"oauth_provider"`
 	OauthID       sql.NullString `json:"oauth_id"`
+	CreatedAt     sql.NullTime   `json:"created_at"`
+	UpdatedAt     sql.NullTime   `json:"updated_at"`
 }

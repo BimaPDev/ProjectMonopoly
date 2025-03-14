@@ -1,70 +1,73 @@
-import time
+import subprocess
 import psycopg2
-from celery.result import AsyncResult
+from psycopg2 import pool
 from celery import Celery
-from tasks import upload_video
 
-# Database connection configuration
-DB_CONFIG = {
-    "dbname": "project_monopoly",
-    "user": "root",
-    "password": "secret",
-    "host": "localhost",
-    "port": "5432",
-}
+app = Celery("tasks", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0")
 
-def connect_db():
-    #"""Connect to the PostgreSQL database."""
-    #try:
-    #    conn = psycopg2.connect(**DB_CONFIG)
-    #    return conn
-    #except Exception as e:
-    #    print(f"Error connecting to database: {e}")
-    #    return None
-    return psycopg2.connect(**DB_CONFIG)
+# Database Connection Pool
+DB_POOL = pool.SimpleConnectionPool(
+    minconn=1, maxconn=10,
+    dbname="project_monopoly",
+    user="root",
+    password="secret",
+    host="localhost",
+    port="5432",
+)
 
-def get_task():
-    connect = psycopg2.connect(**DB_CONFIG)
-    cursor = connect.cursor()
-    cursor.execute("SELECT id, user_id, video_path FROM upload_jobs WHERE status = 'pending'")
-    jobs = cursor.fetchall() 
-    cursor.close()
-    connect.close()
-    return jobs
+def get_db_connection():
+    return DB_POOL.getconn()
 
-def update_status(job_id, status, task_id=None):
-    connect = psycopg2.connect(**DB_CONFIG)
-    cursor = connect.cursor()
-    cursor.execute(
-        "UPDATE upload_jobs SET status = %s WHERE id = %s",
-        (status, job_id),
-    )
-    connect.commit()
-    cursor.close()
-    connect.close()
-    
-def run(job_id, user_id, video_path):
-    """Check running jobs and update their statuses."""
-    print(f"Running job: {job_id} for user: {user_id}, video: {video_path}")
-    update_status(job_id, "running")
-    
-    time.sleep(5)  # Simulating work (e.g., video processing)
+def release_db_connection(conn):
+    DB_POOL.putconn(conn)
 
-    # Mark job as "completed"
-    update_status(job_id, "completed")
-    print(f"Job {job_id} completed!")
-    
+@app.task(queue="manager_queue")
+def manager(job_id, user_id, video_path, caption):
+    """Fetch session token and execute TikTok script."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
-def manage_loop():
-    """Continuously checks for new jobs and assigns them."""
-    while True:
-        jobs = get_task()  # Get pending jobs
-        if jobs:
-            for job in jobs:
-                job_id, user_id, video_path = job
-                run(job_id, user_id, video_path)
-        
-        time.sleep(5)  # Adjust interval as needed
+    try:
+        # Fetch session token
+        cursor.execute("SELECT session_token FROM users WHERE id = %s", (user_id,))
+        result = cursor.fetchone()
+        if not result:
+            raise Exception(f"No session token found for user {user_id}")
 
-if __name__ == "__main__":
-    manage_loop()
+        session_id = result[0]
+
+        # Update job status to "processing"
+        cursor.execute("UPDATE upload_jobs SET status = 'processing' WHERE id = %s", (job_id,))
+        conn.commit()
+        release_db_connection(conn)  # Release DB before calling script
+
+        # Run the standalone TikTok script
+        print(f"📢 Running TikTok upload script for job {job_id}...")
+        process = subprocess.run(
+            ["python3", "tiktok_uploader.py", "--sessionid", session_id, "--video", video_path, "--caption", caption],
+            capture_output=True,
+            text=True
+        )
+
+        # Capture script output
+        print(f"📜 TikTok script output: {process.stdout}")
+        print(f"⚠️ TikTok script errors: {process.stderr}")
+
+        # Check if script succeeded
+        if process.returncode == 0:
+            status = "completed"
+        else:
+            status = "failed"
+
+        # Update job status
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE upload_jobs SET status = %s WHERE id = %s", (status, job_id))
+        conn.commit()
+
+    except Exception as e:
+        print(f"❌ Error in Manager for job {job_id}: {str(e)}")
+
+    finally:
+        cursor.close()
+        release_db_connection(conn)

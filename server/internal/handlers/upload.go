@@ -38,6 +38,13 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		return
 	}
 
+	// ✅ Get platform (TikTok, Instagram, Facebook, etc.)
+	platform := r.FormValue("platform")
+	if platform == "" {
+		http.Error(w, "Platform is required", http.StatusBadRequest)
+		return
+	}
+
 	// ✅ Get the uploaded file
 	file, handler, err := r.FormFile("file") // 🔹 Ensure field name is "file"
 	if err != nil {
@@ -75,9 +82,9 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		return
 	}
 
-	// ✅ Save file info in the database
+	// ✅ Save file info in the database (Include Platform!)
 	jobID := fmt.Sprintf("%s-%d", userID, os.Getpid()) // Unique Job ID
-	err = saveJobToDB(queries, int32(userIDInt), jobID, filePath, "", "local")
+	err = saveJobToDB(queries, int32(userIDInt), jobID, platform, filePath, "", "local")
 	if err != nil {
 		http.Error(w, "Failed to save job to database", http.StatusInternalServerError)
 		return
@@ -90,11 +97,13 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		"message":   "File uploaded successfully",
 		"file_path": filePath,
 		"job_id":    jobID,
+		"platform":  platform,
 	})
 }
 
 
-func saveJobToDB(queries *db.Queries, userID int32, jobID, videoPath, fileURL, storageType string) error {
+
+func saveJobToDB(queries *db.Queries, userID int32, jobID, platform, videoPath, fileURL, storageType string) error {
 	_, err := queries.CreateUploadJob(context.TODO(), db.CreateUploadJobParams{
 		ID:          jobID,
 		UserID:      userID,
@@ -102,6 +111,7 @@ func saveJobToDB(queries *db.Queries, userID int32, jobID, videoPath, fileURL, s
 		FileUrl:     sql.NullString{String: fileURL, Valid: fileURL != ""},
 		StorageType: sql.NullString{String: storageType, Valid: storageType != ""},
 		Status:      sql.NullString{String: "pending", Valid: true},
+		Platform:    sql.NullString{String: platform, Valid: true},
 	})
 	return err
 }
