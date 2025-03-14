@@ -128,7 +128,7 @@ export function AIPage() {
     try {
       const endpoint = model === "DeepSeek" ? "deepseek" : 
                       model === "GPT-4" ? "gpt4" : "claude";
-      const response = await fetch(`/api/ai/${endpoint}`, {
+      const response = await fetch("http://localhost:8080/ai/deepseek", {
         method: "POST",
         body: formData,
       });
@@ -248,7 +248,7 @@ export function AIPage() {
                     Your AI assistant for marketing strategy, content creation, and customer engagement
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
-                    <div className="bg-primary/5 p-3 rounded-lg border">
+                    <div className="bg-secondary/10 p-3 rounded-lg border">
                       <p className="font-medium mb-1">Try asking about:</p>
                       <ul className="text-sm text-muted-foreground space-y-1">
                         <li>• Marketing strategy for a game launch</li>
