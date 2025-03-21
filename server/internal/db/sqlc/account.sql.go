@@ -45,6 +45,32 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 	return exists, err
 }
 
+const createGroup = `-- name: CreateGroup :one
+INSERT INTO groups (user_id, name, description, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+RETURNING id, user_id, name, description, created_at, updated_at
+`
+
+type CreateGroupParams struct {
+	UserID      int32          `json:"user_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+}
+
+func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
+	row := q.db.QueryRowContext(ctx, createGroup, arg.UserID, arg.Name, arg.Description)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createOAuthUser = `-- name: CreateOAuthUser :one
 INSERT INTO users (username, email, oauth_provider, oauth_id, created_at, updated_at)
 VALUES ($1, $2, $3, $4, NOW(), NOW())
@@ -219,6 +245,26 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	return err
 }
 
+const getGroupByID = `-- name: GetGroupByID :one
+SELECT id, user_id, name, description, created_at, updated_at
+FROM groups
+WHERE id = $1
+`
+
+func (q *Queries) GetGroupByID(ctx context.Context, id int32) (Group, error) {
+	row := q.db.QueryRowContext(ctx, getGroupByID, id)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getOAuthUserByEmail = `-- name: GetOAuthUserByEmail :one
 SELECT id, username, email, oauth_provider, oauth_id, created_at, updated_at
 FROM users
@@ -364,6 +410,24 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 	return i, err
 }
 
+const insertTikTokGroupItemIfNotExists = `-- name: InsertTikTokGroupItemIfNotExists :exec
+INSERT INTO group_items (group_id, type, data, created_at, updated_at)
+SELECT $1, 'tiktok', $2::text, NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM group_items WHERE group_id = $1 AND type = 'tiktok'
+)
+`
+
+type InsertTikTokGroupItemIfNotExistsParams struct {
+	GroupID int32  `json:"group_id"`
+	Column2 string `json:"column_2"`
+}
+
+func (q *Queries) InsertTikTokGroupItemIfNotExists(ctx context.Context, arg InsertTikTokGroupItemIfNotExistsParams) error {
+	_, err := q.db.ExecContext(ctx, insertTikTokGroupItemIfNotExists, arg.GroupID, arg.Column2)
+	return err
+}
+
 const listUserUploadJobs = `-- name: ListUserUploadJobs :many
 SELECT id, platform, video_path, platform ,storage_type, file_url, status, created_at, updated_at
 FROM upload_jobs
@@ -459,6 +523,23 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateTikTokSessionID = `-- name: UpdateTikTokSessionID :exec
+UPDATE group_items
+SET data = $2::text,
+    updated_at = NOW()
+WHERE group_id = $1 AND type = 'tiktok'
+`
+
+type UpdateTikTokSessionIDParams struct {
+	GroupID int32  `json:"group_id"`
+	Column2 string `json:"column_2"`
+}
+
+func (q *Queries) UpdateTikTokSessionID(ctx context.Context, arg UpdateTikTokSessionIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateTikTokSessionID, arg.GroupID, arg.Column2)
+	return err
 }
 
 const updateUploadJobFileURL = `-- name: UpdateUploadJobFileURL :exec

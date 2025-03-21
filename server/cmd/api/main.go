@@ -45,6 +45,15 @@ func main() {
 		handlers.UploadVideoHandler(w, r, queries)
 	})
 
+	
+	http.HandleFunc("/tiktok_session", func(w http.ResponseWriter, r *http.Request) {
+		handlers.TikTokSession(w, r, queries)
+	})
+
+	http.HandleFunc("/createGroup", func(w http.ResponseWriter, r *http.Request) {
+		handlers.CreateGroup(w, r, queries)
+	})
+
 	// Middleware (CORS)
 	handlers := middleware.CORSMiddleware(http.DefaultServeMux)
 
