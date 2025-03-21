@@ -15,6 +15,7 @@ import Competitors from "@/app/competitors/page";
 import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import Test from "@/app/test/page";
 
 // Add your Google Client ID here
 const googleClientId = "1054535744463-vofp68rffke3c3m9r1o4vaq6ss0iggt1.apps.googleusercontent.com"
@@ -37,6 +38,7 @@ function App() {
             <Route path="/dashboard/competitors" element={<Competitors />} />
             <Route path="/dashboard/competitors/live" element={<LiveFeedPage />} />
             <Route path="/dashboard/ai" element={<Ai />} />
+            <Route path="/dashboard/test" element={<Test />} />
           </Route>
 
           {/* 🔹 Catch-all Route for 404s */}

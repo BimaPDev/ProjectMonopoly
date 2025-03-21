@@ -14,7 +14,6 @@ CREATE TABLE "groups" (
   "user_id" INT NOT NULL,
   "name" VARCHAR(255) NOT NULL,
   "description" TEXT,
-  "social_media_link" VARCHAR(255) NOT NULL,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
@@ -71,3 +70,6 @@ CREATE TABLE "upload_jobs" (
   "updated_at" TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
+
+ALTER TABLE group_items
+ADD CONSTRAINT group_items_group_id_type_key UNIQUE (group_id, type);

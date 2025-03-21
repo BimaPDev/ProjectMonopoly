@@ -110,3 +110,27 @@ SELECT id, platform, video_path, platform ,storage_type, file_url, status, creat
 FROM upload_jobs
 WHERE user_id = $1
 ORDER BY created_at DESC;
+
+-- name: InsertGroupItemIfNotExists :execrows
+INSERT INTO group_items (group_id, type, data)
+VALUES (@group_id, @type, @data::jsonb)
+ON CONFLICT (group_id, type) DO NOTHING;
+
+-- name: UpdateGroupItemData :execrows
+UPDATE group_items
+SET data = @data::jsonb, updated_at = NOW()
+WHERE group_id = @group_id AND type = @type;
+
+-- name: GetGroupByID :one
+SELECT id, user_id, name, description, created_at, updated_at
+FROM groups
+WHERE id = $1;
+
+-- name: CreateGroup :one
+INSERT INTO groups (user_id, name, description, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+RETURNING id, user_id, name, description, created_at, updated_at;
+
+
+
+

@@ -22,13 +22,12 @@ type Competitor struct {
 }
 
 type Group struct {
-	ID              int32          `json:"id"`
-	UserID          int32          `json:"user_id"`
-	Name            string         `json:"name"`
-	Description     sql.NullString `json:"description"`
-	SocialMediaLink string         `json:"social_media_link"`
-	CreatedAt       sql.NullTime   `json:"created_at"`
-	UpdatedAt       sql.NullTime   `json:"updated_at"`
+	ID          int32          `json:"id"`
+	UserID      int32          `json:"user_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }
 
 type GroupItem struct {

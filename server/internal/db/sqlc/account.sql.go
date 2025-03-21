@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/google/uuid"
 )
@@ -43,6 +44,32 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const createGroup = `-- name: CreateGroup :one
+INSERT INTO groups (user_id, name, description, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+RETURNING id, user_id, name, description, created_at, updated_at
+`
+
+type CreateGroupParams struct {
+	UserID      int32          `json:"user_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+}
+
+func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
+	row := q.db.QueryRowContext(ctx, createGroup, arg.UserID, arg.Name, arg.Description)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createOAuthUser = `-- name: CreateOAuthUser :one
@@ -219,6 +246,26 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	return err
 }
 
+const getGroupByID = `-- name: GetGroupByID :one
+SELECT id, user_id, name, description, created_at, updated_at
+FROM groups
+WHERE id = $1
+`
+
+func (q *Queries) GetGroupByID(ctx context.Context, id int32) (Group, error) {
+	row := q.db.QueryRowContext(ctx, getGroupByID, id)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getOAuthUserByEmail = `-- name: GetOAuthUserByEmail :one
 SELECT id, username, email, oauth_provider, oauth_id, created_at, updated_at
 FROM users
@@ -364,6 +411,26 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 	return i, err
 }
 
+const insertGroupItemIfNotExists = `-- name: InsertGroupItemIfNotExists :execrows
+INSERT INTO group_items (group_id, type, data)
+VALUES ($1, $2, $3::jsonb)
+ON CONFLICT (group_id, type) DO NOTHING
+`
+
+type InsertGroupItemIfNotExistsParams struct {
+	GroupID int32           `json:"group_id"`
+	Type    sql.NullString  `json:"type"`
+	Data    json.RawMessage `json:"data"`
+}
+
+func (q *Queries) InsertGroupItemIfNotExists(ctx context.Context, arg InsertGroupItemIfNotExistsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertGroupItemIfNotExists, arg.GroupID, arg.Type, arg.Data)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const listUserUploadJobs = `-- name: ListUserUploadJobs :many
 SELECT id, platform, video_path, platform ,storage_type, file_url, status, created_at, updated_at
 FROM upload_jobs
@@ -459,6 +526,26 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateGroupItemData = `-- name: UpdateGroupItemData :execrows
+UPDATE group_items
+SET data = $1::jsonb, updated_at = NOW()
+WHERE group_id = $2 AND type = $3
+`
+
+type UpdateGroupItemDataParams struct {
+	Data    json.RawMessage `json:"data"`
+	GroupID int32           `json:"group_id"`
+	Type    sql.NullString  `json:"type"`
+}
+
+func (q *Queries) UpdateGroupItemData(ctx context.Context, arg UpdateGroupItemDataParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateGroupItemData, arg.Data, arg.GroupID, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateUploadJobFileURL = `-- name: UpdateUploadJobFileURL :exec
