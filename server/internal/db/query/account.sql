@@ -111,18 +111,15 @@ FROM upload_jobs
 WHERE user_id = $1
 ORDER BY created_at DESC;
 
--- name: InsertTikTokGroupItemIfNotExists :exec
-INSERT INTO group_items (group_id, type, data, created_at, updated_at)
-SELECT $1, 'tiktok', to_jsonb($2::text), NOW(), NOW()
-WHERE NOT EXISTS (
-    SELECT 1 FROM group_items WHERE group_id = $1 AND type = 'tiktok'
-);
+-- name: InsertGroupItemIfNotExists :execrows
+INSERT INTO group_items (group_id, type, data)
+VALUES (@group_id, @type, @data::jsonb)
+ON CONFLICT (group_id, type) DO NOTHING;
 
--- name: UpdateTikTokSessionID :exec
+-- name: UpdateGroupItemData :execrows
 UPDATE group_items
-SET data = to_jsonb($2::text),
-    updated_at = NOW()
-WHERE group_id = $1 AND type = 'tiktok';
+SET data = @data::jsonb, updated_at = NOW()
+WHERE group_id = @group_id AND type = @type;
 
 -- name: GetGroupByID :one
 SELECT id, user_id, name, description, created_at, updated_at

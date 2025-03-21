@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/google/uuid"
 )
@@ -410,22 +411,24 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 	return i, err
 }
 
-const insertTikTokGroupItemIfNotExists = `-- name: InsertTikTokGroupItemIfNotExists :exec
-INSERT INTO group_items (group_id, type, data, created_at, updated_at)
-SELECT $1, 'tiktok', $2::text, NOW(), NOW()
-WHERE NOT EXISTS (
-    SELECT 1 FROM group_items WHERE group_id = $1 AND type = 'tiktok'
-)
+const insertGroupItemIfNotExists = `-- name: InsertGroupItemIfNotExists :execrows
+INSERT INTO group_items (group_id, type, data)
+VALUES ($1, $2, $3::jsonb)
+ON CONFLICT (group_id, type) DO NOTHING
 `
 
-type InsertTikTokGroupItemIfNotExistsParams struct {
-	GroupID int32  `json:"group_id"`
-	Column2 string `json:"column_2"`
+type InsertGroupItemIfNotExistsParams struct {
+	GroupID int32           `json:"group_id"`
+	Type    sql.NullString  `json:"type"`
+	Data    json.RawMessage `json:"data"`
 }
 
-func (q *Queries) InsertTikTokGroupItemIfNotExists(ctx context.Context, arg InsertTikTokGroupItemIfNotExistsParams) error {
-	_, err := q.db.ExecContext(ctx, insertTikTokGroupItemIfNotExists, arg.GroupID, arg.Column2)
-	return err
+func (q *Queries) InsertGroupItemIfNotExists(ctx context.Context, arg InsertGroupItemIfNotExistsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertGroupItemIfNotExists, arg.GroupID, arg.Type, arg.Data)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const listUserUploadJobs = `-- name: ListUserUploadJobs :many
@@ -525,21 +528,24 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	return items, nil
 }
 
-const updateTikTokSessionID = `-- name: UpdateTikTokSessionID :exec
+const updateGroupItemData = `-- name: UpdateGroupItemData :execrows
 UPDATE group_items
-SET data = $2::text,
-    updated_at = NOW()
-WHERE group_id = $1 AND type = 'tiktok'
+SET data = $1::jsonb, updated_at = NOW()
+WHERE group_id = $2 AND type = $3
 `
 
-type UpdateTikTokSessionIDParams struct {
-	GroupID int32  `json:"group_id"`
-	Column2 string `json:"column_2"`
+type UpdateGroupItemDataParams struct {
+	Data    json.RawMessage `json:"data"`
+	GroupID int32           `json:"group_id"`
+	Type    sql.NullString  `json:"type"`
 }
 
-func (q *Queries) UpdateTikTokSessionID(ctx context.Context, arg UpdateTikTokSessionIDParams) error {
-	_, err := q.db.ExecContext(ctx, updateTikTokSessionID, arg.GroupID, arg.Column2)
-	return err
+func (q *Queries) UpdateGroupItemData(ctx context.Context, arg UpdateGroupItemDataParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateGroupItemData, arg.Data, arg.GroupID, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateUploadJobFileURL = `-- name: UpdateUploadJobFileURL :exec

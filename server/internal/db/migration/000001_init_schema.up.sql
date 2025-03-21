@@ -70,3 +70,6 @@ CREATE TABLE "upload_jobs" (
   "updated_at" TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
+
+ALTER TABLE group_items
+ADD CONSTRAINT group_items_group_id_type_key UNIQUE (group_id, type);

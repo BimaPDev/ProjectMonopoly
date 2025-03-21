@@ -47,7 +47,7 @@ func main() {
 
 	
 	http.HandleFunc("/tiktok_session", func(w http.ResponseWriter, r *http.Request) {
-		handlers.TikTokSession(w, r, queries)
+		handlers.SaveSocialToken(w, r, queries)
 	})
 
 	http.HandleFunc("/createGroup", func(w http.ResponseWriter, r *http.Request) {
