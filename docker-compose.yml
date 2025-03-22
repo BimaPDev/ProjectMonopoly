@@ -30,9 +30,9 @@ services:
     container_name: postgres
     restart: always
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: project_monopoly
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

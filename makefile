@@ -1,6 +1,6 @@
 # Makefile
 
-.PHONY: rebuild build down
+.PHONY: rebuild build down nuke frontend
 
 rebuild:
 	docker compose down -v --remove-orphans
@@ -13,4 +13,12 @@ build:
 
 down:
 	docker compose down -v --remove-orphans
+
+nuke:
+	docker system prune -a --volumes
+
+frontend:
+	docker compose build frontend
+	docker compose up -d frontend
+
 

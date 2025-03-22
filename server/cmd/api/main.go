@@ -16,7 +16,8 @@ import (
 
 func main() {
 	// Database connection
-	connStr := "user=root password=secret dbname=project_monopoly sslmode=disable"
+	//connStr := "user=root password=secret dbname=project_monopoly sslmode=disable"
+	connStr := "host=db user=root password=secret dbname=project_monopoly sslmode=disable"
 	dbConn, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
