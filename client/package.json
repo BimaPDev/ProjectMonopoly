@@ -47,6 +47,7 @@
     "react-router-dom": "^7.1.1",
     "react-simple-typewriter": "^5.0.1",
     "recharts": "^2.15.0",
+    "remark-gfm": "^4.0.1",
     "styled-components": "^6.1.14",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
