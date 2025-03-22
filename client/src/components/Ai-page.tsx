@@ -128,7 +128,7 @@ export function AIPage() {
     try {
       const endpoint = model === "DeepSeek" ? "deepseek" : 
                       model === "GPT-4" ? "gpt4" : "claude";
-      const response = await fetch("http://localhost:8080/ai/deepseek", {
+      const response = await fetch("http://67.217.246.210:8080/ai/deepseek", {
         method: "POST",
         body: formData,
       });

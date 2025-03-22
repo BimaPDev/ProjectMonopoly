@@ -26,7 +26,7 @@ const TestPage: React.FC = () => {
     };
 
     try {
-      const res = await fetch("http://localhost:8080/tiktok_session", {
+      const res = await fetch("http://67.217.246.210:8080/tiktok_session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
