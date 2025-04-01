@@ -25,7 +25,7 @@ func MainDeep(prompt string, uploadedFile *multipart.FileHeader) (string, error)
 	}
 
 	systemPrompt := fmt.Sprintf(
-		"You are a helpful assistant. Use the following data as context for answering questions. "+
+		"You are a helpful assistant. GIVE SHORT AND CONSISE RESPONSE TO ANY QUESTIONS GIVEN. Use the following data as context for answering questions. "+
 			"MAKE SURE TO RETURN OUTPUT IN Markdown format. Use marketing or normal formatting based on the request:\n%s",
 		jsonData,
 	)
