@@ -101,7 +101,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(false);
   async function fetchFollowers() {
     try {
-      const response = await fetch("http://127.0.0.1:8080/followers");
+      const response = await fetch(`${import.meta.env.API_CALL}/followers`);
       const data = await response.json();
       setFollowers(data.data.total_followers);
     } catch (error) {

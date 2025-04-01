@@ -28,3 +28,4 @@ dist-ssr
 /client/package.json/
 .myenv/
 client/.env/
+.env

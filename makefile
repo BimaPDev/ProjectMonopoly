@@ -17,8 +17,13 @@ down:
 nuke:
 	docker system prune -a --volumes
 
-frontend:
+buildfrontend:
 	docker compose build frontend
 	docker compose up -d frontend
 
+buildbackend:
+	docker compose build backend
+	docker compose up -d backend
 
+backendlogs:
+	docker logs projectmonopoly-backend-1
