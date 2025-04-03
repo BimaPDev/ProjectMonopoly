@@ -3,15 +3,17 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 
-	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc" // Your SQLC-generated package
+	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Register a new user
 func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
 		var creds struct {
 			Username string `json:"username"`
 			Email    string `json:"email"`
@@ -20,25 +22,28 @@ func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 
 		err := json.NewDecoder(r.Body).Decode(&creds)
 		if err != nil {
-			http.Error(w, "Invalid request format", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request format"})
 			return
 		}
 
-		// Hash the password before storing
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
 		if err != nil {
-			http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+			log.Printf("❌ Password hash error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to hash password"})
 			return
 		}
 
-		// Store user in DB using SQLC
 		_, err = queries.CreateUserWithPassword(context.Background(), db.CreateUserWithPasswordParams{
-			Username:    creds.Username,
-			Email:       creds.Email,
+			Username:     creds.Username,
+			Email:        creds.Email,
 			PasswordHash: string(hashedPassword),
 		})
 		if err != nil {
-			http.Error(w, "Failed to create user", http.StatusInternalServerError)
+			log.Printf("❌ Register error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create user"})
 			return
 		}
 

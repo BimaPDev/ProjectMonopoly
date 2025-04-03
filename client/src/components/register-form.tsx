@@ -19,7 +19,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8080/api/login", {
+      const response = await fetch(`${import.meta.env.API_CALL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
