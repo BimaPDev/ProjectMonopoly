@@ -55,8 +55,13 @@ func main() {
 		handlers.CreateGroup(w, r, queries)
 	})
 
+	http.HandleFunc("/api/groups/", func(w http.ResponseWriter, r *http.Request) {
+		handlers.CreateCompetitor(w, r, queries) // ✅ Now this refers to the package again
+	})
+
 	// Middleware (CORS)
 	handlers := middleware.CORSMiddleware(http.DefaultServeMux)
+
 
 
 	// Start the server

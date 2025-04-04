@@ -29,15 +29,16 @@ CREATE TABLE "group_items" (
   FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "competitors" (
-  "id" SERIAL PRIMARY KEY,
-  "group_id" INT NOT NULL,
-  "name" VARCHAR(255) NOT NULL,
-  "social_media_link" VARCHAR(255) NOT NULL,
-  "created_at" TIMESTAMP DEFAULT NOW(),
-  "updated_at" TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE CASCADE
+CREATE TABLE competitors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  platform VARCHAR(50) NOT NULL,
+  username VARCHAR(100) NOT NULL,
+  profile_url TEXT NOT NULL,
+  last_checked TIMESTAMP DEFAULT NOW(),
+  UNIQUE (group_id, platform, username)
 );
+
 
 CREATE TABLE "posts" (
   "id" SERIAL PRIMARY KEY,
@@ -69,6 +70,20 @@ CREATE TABLE "upload_jobs" (
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+);
+
+CREATE TABLE competitor_posts (
+  id SERIAL PRIMARY KEY,
+  competitor_id UUID REFERENCES competitors(id) ON DELETE CASCADE,
+  platform VARCHAR(50) NOT NULL,
+  post_id VARCHAR(100) NOT NULL,
+  content TEXT,
+  media JSONB DEFAULT '{}'::jsonb,
+  posted_at TIMESTAMP,
+  engagement JSONB DEFAULT '{}'::jsonb,
+  hashtags TEXT[] DEFAULT '{}',
+  scraped_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (platform, post_id)
 );
 
 ALTER TABLE group_items
