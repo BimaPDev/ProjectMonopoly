@@ -9,6 +9,7 @@ import {
   User,
 } from "lucide-react";
 import { Sun, Moon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -39,6 +40,8 @@ interface NavUserProps {
 export function NavUser({ user }: NavUserProps) {
   const { isMobile } = useSidebar();
   const { setTheme, theme } = useTheme();
+  const navigate = useNavigate();
+
 
   return (
     <SidebarMenu>
@@ -80,7 +83,7 @@ export function NavUser({ user }: NavUserProps) {
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/dashboard/settings")}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
