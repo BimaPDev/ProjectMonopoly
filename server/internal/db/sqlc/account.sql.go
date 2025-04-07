@@ -46,6 +46,29 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 	return exists, err
 }
 
+const createCompetitor = `-- name: CreateCompetitor :exec
+INSERT INTO competitors (group_id, platform, username, profile_url)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (group_id, platform, username) DO NOTHING
+`
+
+type CreateCompetitorParams struct {
+	GroupID    int32  `json:"group_id"`
+	Platform   string `json:"platform"`
+	Username   string `json:"username"`
+	ProfileUrl string `json:"profile_url"`
+}
+
+func (q *Queries) CreateCompetitor(ctx context.Context, arg CreateCompetitorParams) error {
+	_, err := q.db.ExecContext(ctx, createCompetitor,
+		arg.GroupID,
+		arg.Platform,
+		arg.Username,
+		arg.ProfileUrl,
+	)
+	return err
+}
+
 const createGroup = `-- name: CreateGroup :one
 INSERT INTO groups (user_id, name, description, created_at, updated_at)
 VALUES ($1, $2, $3, NOW(), NOW())

@@ -13,12 +13,25 @@ import (
 )
 
 type Competitor struct {
-	ID              int32        `json:"id"`
-	GroupID         int32        `json:"group_id"`
-	Name            string       `json:"name"`
-	SocialMediaLink string       `json:"social_media_link"`
-	CreatedAt       sql.NullTime `json:"created_at"`
-	UpdatedAt       sql.NullTime `json:"updated_at"`
+	ID          uuid.UUID    `json:"id"`
+	GroupID     int32        `json:"group_id"`
+	Platform    string       `json:"platform"`
+	Username    string       `json:"username"`
+	ProfileUrl  string       `json:"profile_url"`
+	LastChecked sql.NullTime `json:"last_checked"`
+}
+
+type CompetitorPost struct {
+	ID           int32                 `json:"id"`
+	CompetitorID uuid.NullUUID         `json:"competitor_id"`
+	Platform     string                `json:"platform"`
+	PostID       string                `json:"post_id"`
+	Content      sql.NullString        `json:"content"`
+	Media        pqtype.NullRawMessage `json:"media"`
+	PostedAt     sql.NullTime          `json:"posted_at"`
+	Engagement   pqtype.NullRawMessage `json:"engagement"`
+	Hashtags     []string              `json:"hashtags"`
+	ScrapedAt    sql.NullTime          `json:"scraped_at"`
 }
 
 type Group struct {
