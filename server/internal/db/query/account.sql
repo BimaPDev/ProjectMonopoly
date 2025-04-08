@@ -130,11 +130,3 @@ WHERE id = $1;
 INSERT INTO groups (user_id, name, description, created_at, updated_at)
 VALUES ($1, $2, $3, NOW(), NOW())
 RETURNING id, user_id, name, description, created_at, updated_at;
-
--- name: CreateCompetitor :exec
-INSERT INTO competitors (group_id, platform, username, profile_url)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (group_id, platform, username) DO NOTHING;
-
-
-

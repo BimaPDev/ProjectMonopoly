@@ -61,16 +61,26 @@ CREATE TABLE "sessions" (
 CREATE TABLE "upload_jobs" (
   "id" TEXT PRIMARY KEY,
   "user_id" INT NOT NULL,
-  "platform" VARCHAR(50),
-  "video_path" TEXT DEFAULT '',
-  "storage_type" VARCHAR(50) DEFAULT 'local',
+  "group_id" INT,  -- Nullable, but can be linked to groups table
+  "platform" VARCHAR(50) NOT NULL,  -- e.g., 'tiktok', 'youtube'
+  "video_path" TEXT NOT NULL,
+  "storage_type" VARCHAR(50) NOT NULL DEFAULT 'local',
   "file_url" TEXT DEFAULT '',
-  "status" TEXT DEFAULT 'pending',
+  "status" TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'uploading', 'done', 'failed')),
   "caption" TEXT DEFAULT '',
+  "user_title" TEXT DEFAULT '',
+  "user_hashtags" TEXT[] DEFAULT '{}',
+  "ai_title" TEXT DEFAULT '',
+  "ai_hashtags" TEXT[] DEFAULT '{}',
+  "ai_post_time" TIMESTAMP,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+
+  FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
+  FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE SET NULL
 );
+
+
 
 CREATE TABLE competitor_posts (
   id SERIAL PRIMARY KEY,

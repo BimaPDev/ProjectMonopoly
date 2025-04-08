@@ -10,108 +10,116 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
-const uploadDir = "uploads/" // ✅ Directory where files will be stored
+const baseUploadDir = "uploads" // Base upload directory
 
 func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	// ✅ Ensure it's a POST request
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// ✅ Parse the form data (50MB limit)
-	err := r.ParseMultipartForm(50 << 20) // 50MB limit
+	err := r.ParseMultipartForm(50 << 20) // 50MB max
 	if err != nil {
 		http.Error(w, "Failed to parse form data", http.StatusBadRequest)
 		return
 	}
 
-	// ✅ Get user ID
+	// Required fields
 	userID := r.FormValue("user_id")
-	if userID == "" {
-		http.Error(w, "User ID is required", http.StatusBadRequest)
-		return
-	}
+	// groupID := r.FormValue("group_id") // 💤 not used for now
 
-	// ✅ Get platform (TikTok, Instagram, Facebook, etc.)
 	platform := r.FormValue("platform")
-	if platform == "" {
-		http.Error(w, "Platform is required", http.StatusBadRequest)
+	if userID == "" || platform == "" {
+		http.Error(w, "user_id and platform are required", http.StatusBadRequest)
 		return
 	}
 
-	// ✅ Get the uploaded file
-	file, handler, err := r.FormFile("file") // 🔹 Ensure field name is "file"
+	// File
+	file, handler, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "File is required", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	// ✅ Create uploads directory if it doesn't exist
-	uploadDir := "uploads/"
-	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
-		os.MkdirAll(uploadDir, os.ModePerm)
-	}
-
-	// ✅ Save the uploaded file locally
-	filePath := filepath.Join(uploadDir, handler.Filename)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		http.Error(w, "Failed to save file", http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-
-	// ✅ Copy the file to the new location
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		http.Error(w, "Failed to copy file", http.StatusInternalServerError)
-		return
-	}
-
-	// ✅ Convert user ID to int32
+	// Parse user ID to int
 	userIDInt, err := strconv.Atoi(userID)
 	if err != nil {
 		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
 		return
 	}
 
-	// ✅ Save file info in the database (Include Platform!)
-	jobID := fmt.Sprintf("%s-%d", userID, os.Getpid()) // Unique Job ID
-	err = saveJobToDB(queries, int32(userIDInt), jobID, platform, filePath, "", "local")
+	// 📁 Create user upload directory (simple version, no group yet)
+	uploadPath := filepath.Join(baseUploadDir, userID)
+	// uploadPath := filepath.Join(baseUploadDir, userID, groupID) // 🔒 for future use
+
+	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
+		http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
+		return
+	}
+
+	// Generate unique filename
+	safeFilename := generateSafeFilename(handler.Filename)
+	fullFilePath := filepath.Join(uploadPath, safeFilename)
+
+	// Save file
+	dst, err := os.Create(fullFilePath)
+	if err != nil {
+		http.Error(w, "Failed to save file", http.StatusInternalServerError)
+		return
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, file); err != nil {
+		http.Error(w, "Failed to write file to disk", http.StatusInternalServerError)
+		return
+	}
+
+	// Create job ID and save to DB
+	jobID := fmt.Sprintf("%s-%s", userID, uuid.New().String())
+
+	err = saveJobToDB(queries, int32(userIDInt), jobID, platform, fullFilePath, "", "local")
 	if err != nil {
 		http.Error(w, "Failed to save job to database", http.StatusInternalServerError)
 		return
 	}
 
-	// ✅ Respond with success message
+	// Success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message":   "File uploaded successfully",
-		"file_path": filePath,
+		"file_path": fullFilePath,
 		"job_id":    jobID,
 		"platform":  platform,
 	})
 }
 
-
-
+// Save job record to DB
 func saveJobToDB(queries *db.Queries, userID int32, jobID, platform, videoPath, fileURL, storageType string) error {
 	_, err := queries.CreateUploadJob(context.TODO(), db.CreateUploadJobParams{
 		ID:          jobID,
 		UserID:      userID,
-		VideoPath:   sql.NullString{String: videoPath, Valid: videoPath != ""}, // ✅ Store file path
+		VideoPath:   sql.NullString{String: videoPath, Valid: videoPath != ""},
 		FileUrl:     sql.NullString{String: fileURL, Valid: fileURL != ""},
 		StorageType: sql.NullString{String: storageType, Valid: storageType != ""},
 		Status:      sql.NullString{String: "pending", Valid: true},
 		Platform:    sql.NullString{String: platform, Valid: true},
 	})
 	return err
+}
+
+// Generate a safe, unique filename
+func generateSafeFilename(originalName string) string {
+	ext := filepath.Ext(originalName)
+	id := uuid.New().String()
+	timestamp := time.Now().Format("20060102T150405")
+	return fmt.Sprintf("%s-%s%s", id, timestamp, ext)
 }
