@@ -31,7 +31,7 @@ var (
 // MainDeep reads a JSON file and uses it as context for AI responses.
 // If a file is uploaded, its contents are read and appended to the user prompt.
 func MainDeep(prompt string, uploadedFile *multipart.FileHeader) (string, error) {
-	apiKey := "sk-2a0bb6456b094dddaca045fb70557ca2" // Get API key from environment variable
+	apiKey := "sk-" // Get API key from environment variable
 	if apiKey == "" {
 		return "", fmt.Errorf("missing DEEPAPI_KEY environment variable")
 	}
