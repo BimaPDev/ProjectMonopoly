@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const checkEmailExists = `-- name: CheckEmailExists :one
@@ -46,10 +47,10 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 	return exists, err
 }
 
-const createCompetitor = `-- name: CreateCompetitor :exec
-INSERT INTO competitors (group_id, platform, username, profile_url)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (group_id, platform, username) DO NOTHING
+const createCompetitor = `-- name: CreateCompetitor :one
+INSERT INTO competitors (group_id, platform, username, profile_url, last_checked)
+VALUES ($1, $2, $3, $4, NOW())
+RETURNING id, group_id, platform, username, profile_url, last_checked
 `
 
 type CreateCompetitorParams struct {
@@ -59,14 +60,23 @@ type CreateCompetitorParams struct {
 	ProfileUrl string `json:"profile_url"`
 }
 
-func (q *Queries) CreateCompetitor(ctx context.Context, arg CreateCompetitorParams) error {
-	_, err := q.db.ExecContext(ctx, createCompetitor,
+func (q *Queries) CreateCompetitor(ctx context.Context, arg CreateCompetitorParams) (Competitor, error) {
+	row := q.db.QueryRowContext(ctx, createCompetitor,
 		arg.GroupID,
 		arg.Platform,
 		arg.Username,
 		arg.ProfileUrl,
 	)
-	return err
+	var i Competitor
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.Platform,
+		&i.Username,
+		&i.ProfileUrl,
+		&i.LastChecked,
+	)
+	return i, err
 }
 
 const createGroup = `-- name: CreateGroup :one
@@ -161,34 +171,51 @@ func (q *Queries) CreateSession(ctx context.Context, userID int32) (Session, err
 }
 
 const createUploadJob = `-- name: CreateUploadJob :one
-INSERT INTO upload_jobs (id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())  
-RETURNING id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at
+INSERT INTO upload_jobs (
+  id,
+  user_id,
+  platform,
+  video_path,
+  storage_type,
+  file_url,
+  status,
+  user_title,
+  user_hashtags,
+  created_at,
+  updated_at
+)
+VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+)
+RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at
 `
 
 type CreateUploadJobParams struct {
-	ID          string         `json:"id"`
-	UserID      int32          `json:"user_id"`
-	Platform    sql.NullString `json:"platform"`
-	VideoPath   sql.NullString `json:"video_path"`
-	StorageType sql.NullString `json:"storage_type"`
-	FileUrl     sql.NullString `json:"file_url"`
-	Status      sql.NullString `json:"status"`
+	ID           string         `json:"id"`
+	UserID       int32          `json:"user_id"`
+	Platform     string         `json:"platform"`
+	VideoPath    string         `json:"video_path"`
+	StorageType  string         `json:"storage_type"`
+	FileUrl      sql.NullString `json:"file_url"`
+	Status       string         `json:"status"`
+	UserTitle    sql.NullString `json:"user_title"`
+	UserHashtags []string       `json:"user_hashtags"`
 }
 
 type CreateUploadJobRow struct {
-	ID          string         `json:"id"`
-	UserID      int32          `json:"user_id"`
-	Platform    sql.NullString `json:"platform"`
-	VideoPath   sql.NullString `json:"video_path"`
-	StorageType sql.NullString `json:"storage_type"`
-	FileUrl     sql.NullString `json:"file_url"`
-	Status      sql.NullString `json:"status"`
-	CreatedAt   sql.NullTime   `json:"created_at"`
-	UpdatedAt   sql.NullTime   `json:"updated_at"`
+	ID           string         `json:"id"`
+	UserID       int32          `json:"user_id"`
+	Platform     string         `json:"platform"`
+	VideoPath    string         `json:"video_path"`
+	StorageType  string         `json:"storage_type"`
+	FileUrl      sql.NullString `json:"file_url"`
+	Status       string         `json:"status"`
+	UserTitle    sql.NullString `json:"user_title"`
+	UserHashtags []string       `json:"user_hashtags"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+	UpdatedAt    sql.NullTime   `json:"updated_at"`
 }
 
-// Create a new upload job with platform support
 func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams) (CreateUploadJobRow, error) {
 	row := q.db.QueryRowContext(ctx, createUploadJob,
 		arg.ID,
@@ -198,6 +225,8 @@ func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams
 		arg.StorageType,
 		arg.FileUrl,
 		arg.Status,
+		arg.UserTitle,
+		pq.Array(arg.UserHashtags),
 	)
 	var i CreateUploadJobRow
 	err := row.Scan(
@@ -208,6 +237,8 @@ func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams
 		&i.StorageType,
 		&i.FileUrl,
 		&i.Status,
+		&i.UserTitle,
+		pq.Array(&i.UserHashtags),
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -267,6 +298,43 @@ WHERE id = $1
 func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
+}
+
+const fetchNextPendingJob = `-- name: FetchNextPendingJob :one
+UPDATE upload_jobs
+SET status = 'processing'
+WHERE id = (
+    SELECT id FROM upload_jobs
+    WHERE status = 'pending' AND session_id IS NOT NULL
+    ORDER BY created_at
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at
+`
+
+func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
+	row := q.db.QueryRowContext(ctx, fetchNextPendingJob)
+	var i UploadJob
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.Platform,
+		&i.VideoPath,
+		&i.StorageType,
+		&i.FileUrl,
+		&i.Status,
+		&i.Caption,
+		&i.UserTitle,
+		pq.Array(&i.UserHashtags),
+		&i.AiTitle,
+		pq.Array(&i.AiHashtags),
+		&i.AiPostTime,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getGroupByID = `-- name: GetGroupByID :one
@@ -349,11 +417,11 @@ WHERE id = $1
 type GetUploadJobRow struct {
 	ID          string         `json:"id"`
 	UserID      int32          `json:"user_id"`
-	Platform    sql.NullString `json:"platform"`
-	VideoPath   sql.NullString `json:"video_path"`
-	StorageType sql.NullString `json:"storage_type"`
+	Platform    string         `json:"platform"`
+	VideoPath   string         `json:"video_path"`
+	StorageType string         `json:"storage_type"`
 	FileUrl     sql.NullString `json:"file_url"`
-	Status      sql.NullString `json:"status"`
+	Status      string         `json:"status"`
 	CreatedAt   sql.NullTime   `json:"created_at"`
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }
@@ -463,12 +531,12 @@ ORDER BY created_at DESC
 
 type ListUserUploadJobsRow struct {
 	ID          string         `json:"id"`
-	Platform    sql.NullString `json:"platform"`
-	VideoPath   sql.NullString `json:"video_path"`
-	Platform_2  sql.NullString `json:"platform_2"`
-	StorageType sql.NullString `json:"storage_type"`
+	Platform    string         `json:"platform"`
+	VideoPath   string         `json:"video_path"`
+	Platform_2  string         `json:"platform_2"`
+	StorageType string         `json:"storage_type"`
 	FileUrl     sql.NullString `json:"file_url"`
-	Status      sql.NullString `json:"status"`
+	Status      string         `json:"status"`
 	CreatedAt   sql.NullTime   `json:"created_at"`
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }
@@ -597,8 +665,8 @@ WHERE id = $1
 `
 
 type UpdateUploadJobStatusParams struct {
-	ID     string         `json:"id"`
-	Status sql.NullString `json:"status"`
+	ID     string `json:"id"`
+	Status string `json:"status"`
 }
 
 // Update upload job status

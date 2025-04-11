@@ -42,7 +42,7 @@ func main() {
 	}))
 
 	// 🔒 POST API Request
-	http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/upload", func(w http.ResponseWriter, r *http.Request) {
 		handlers.UploadVideoHandler(w, r, queries)
 	})
 

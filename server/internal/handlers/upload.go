@@ -10,11 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 )
 
 const baseUploadDir = "uploads" // Base upload directory
@@ -33,9 +33,12 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 
 	// Required fields
 	userID := r.FormValue("user_id")
-	// groupID := r.FormValue("group_id") // 💤 not used for now
-
 	platform := r.FormValue("platform")
+
+	// Optional fields
+	title := r.FormValue("title")
+	hashtagsRaw := r.FormValue("hashtags")
+
 	if userID == "" || platform == "" {
 		http.Error(w, "user_id and platform are required", http.StatusBadRequest)
 		return
@@ -49,23 +52,21 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	}
 	defer file.Close()
 
-	// Parse user ID to int
+	// Parse user ID
 	userIDInt, err := strconv.Atoi(userID)
 	if err != nil {
 		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
 		return
 	}
 
-	// 📁 Create user upload directory (simple version, no group yet)
+	// Create upload directory
 	uploadPath := filepath.Join(baseUploadDir, userID)
-	// uploadPath := filepath.Join(baseUploadDir, userID, groupID) // 🔒 for future use
-
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
 		http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
 		return
 	}
 
-	// Generate unique filename
+	// Generate safe filename
 	safeFilename := generateSafeFilename(handler.Filename)
 	fullFilePath := filepath.Join(uploadPath, safeFilename)
 
@@ -82,37 +83,51 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		return
 	}
 
-	// Create job ID and save to DB
+	// Generate Job ID
 	jobID := fmt.Sprintf("%s-%s", userID, uuid.New().String())
 
-	err = saveJobToDB(queries, int32(userIDInt), jobID, platform, fullFilePath, "", "local")
+	// Parse hashtags from raw string to []string
+	hashtags := parseHashtags(hashtagsRaw)
+
+	// Save job to DB
+	err = saveJobToDB(queries, int32(userIDInt), jobID, platform, fullFilePath, "", "local", title, hashtags)
 	if err != nil {
-		http.Error(w, "Failed to save job to database", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to save job to database: %v", err), http.StatusInternalServerError)
+		fmt.Printf("❌ Upload error: %v\n", err) // Also logs to your terminal
 		return
 	}
 
-	// Success response
+	// Respond
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message":   "File uploaded successfully",
-		"file_path": fullFilePath,
-		"job_id":    jobID,
-		"platform":  platform,
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":    "File uploaded successfully",
+		"file_path":  fullFilePath,
+		"job_id":     jobID,
+		"platform":   platform,
+		"title":      title,
+		"hashtags":   hashtags,
 	})
 }
 
-// Save job record to DB
-func saveJobToDB(queries *db.Queries, userID int32, jobID, platform, videoPath, fileURL, storageType string) error {
+// Save job to database
+func saveJobToDB(
+	queries *db.Queries,
+	userID int32,
+	jobID, platform, videoPath, fileURL, storageType, title string,
+	hashtags []string,
+) error {
 	_, err := queries.CreateUploadJob(context.TODO(), db.CreateUploadJobParams{
-		ID:          jobID,
-		UserID:      userID,
-		VideoPath:   sql.NullString{String: videoPath, Valid: videoPath != ""},
-		FileUrl:     sql.NullString{String: fileURL, Valid: fileURL != ""},
-		StorageType: sql.NullString{String: storageType, Valid: storageType != ""},
-		Status:      sql.NullString{String: "pending", Valid: true},
-		Platform:    sql.NullString{String: platform, Valid: true},
-	})
+		ID:           jobID,                                // $1
+		UserID:       userID,                               // $2
+		Platform:     platform,                             // $3
+		VideoPath:    videoPath,                            // $4
+		StorageType:  storageType,                          // $5 
+		FileUrl:      sql.NullString{String: fileURL, Valid: fileURL != ""}, 
+		Status:       "pending",                            
+		UserTitle:    sql.NullString{String: title, Valid: title != ""},
+		UserHashtags: hashtags,
+	})	
 	return err
 }
 
@@ -122,4 +137,18 @@ func generateSafeFilename(originalName string) string {
 	id := uuid.New().String()
 	timestamp := time.Now().Format("20060102T150405")
 	return fmt.Sprintf("%s-%s%s", id, timestamp, ext)
+}
+
+// Convert space-separated hashtags to []string
+func parseHashtags(raw string) []string {
+	// Split on whitespace and remove empty values
+	fields := strings.Fields(raw)
+	var clean []string
+	for _, tag := range fields {
+		trimmed := strings.TrimSpace(tag)
+		if trimmed != "" {
+			clean = append(clean, trimmed)
+		}
+	}
+	return clean
 }

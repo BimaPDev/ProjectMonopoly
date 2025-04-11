@@ -3,58 +3,87 @@ import psycopg2
 from worker.config import DB_CONFIG
 from worker.tasks import process_upload_job
 import time
+import traceback
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-def fetch_pending_jobs():
+def fetch_next_job_atomically(conn):
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                WITH next_job AS (
+                    SELECT j.id
+                    FROM upload_jobs j
+                    JOIN groups g ON g.id = j.group_id AND g.user_id = j.user_id
+                    JOIN group_items gi ON gi.group_id = j.group_id AND LOWER(gi.type) = LOWER(j.platform)
+                    WHERE j.status = 'pending'
+                      AND gi.data->>'token' IS NOT NULL
+                    ORDER BY j.created_at
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                )
+                UPDATE upload_jobs
+                SET status = 'uploading',
+                    updated_at = NOW()
+                WHERE id = (SELECT id FROM next_job)
+                RETURNING id, user_id, group_id, platform, video_path, user_hashtags, user_title;
+            """)
+            job = cur.fetchone()
+            if not job:
+                return None
+
+            job_id, user_id, group_id, platform, video_path, hashtags, user_title = job
+
+            # Fetch session_id separately
+            cur.execute("""
+                SELECT data->>'token'
+                FROM group_items
+                WHERE group_id = %s AND LOWER(type) = LOWER(%s)
+                LIMIT 1;
+            """, (group_id, platform))
+            result = cur.fetchone()
+            session_id = result[0] if result else None
+
+            return {
+                "id": job_id,
+                "user_id": user_id,
+                "group_id": group_id,
+                "video_path": video_path,
+                "user_hashtags": hashtags,
+                "user_title": user_title,
+                "platform": platform,
+                "session_id": session_id
+            }
+
+
+def run_dispatch_loop():
     conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
 
-    cur.execute("""
-        SELECT
-            j.id,
-            j.user_id,
-            j.group_id,
-            j.video_path,
-            j.caption,
-            j.platform,
-            gi.data->>'token' AS session_id
-        FROM upload_jobs j
-        JOIN groups g
-          ON j.group_id = g.id AND j.user_id = g.user_id
-        JOIN group_items gi
-          ON gi.group_id = j.group_id AND gi.type = j.platform
-        WHERE j.status = 'pending';
-    """)
+    try:
+        while True:
+            try:
+                job = fetch_next_job_atomically(conn)
+                if not job:
+                    print("📭 No jobs to dispatch. Sleeping...")
+                    time.sleep(10)
+                    continue
 
-    jobs = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jobs
+                print(f"🚀 Dispatching job {job['id']} for user {job['user_id']} on platform {job['platform']}")
+                result = process_upload_job.delay(job)
+                print(f"📨 Task sent to Celery: task_id={result.id}")
 
+            except Exception as inner_e:
+                print(f"🔥 Error dispatching a job: {inner_e}")
+                print(traceback.format_exc())
 
+    except Exception as e:
+        print(f"❌ Dispatcher crashed: {e}")
+        print(traceback.format_exc())
 
-def dispatch_jobs():
-    jobs = fetch_pending_jobs()
-    print(f"📦 Found {len(jobs)} pending jobs with valid session_id.")
+    finally:
+        conn.close()
 
-    for job in jobs:
-        job_data = {
-        "id": job[0],
-        "user_id": job[1],
-        "group_id": job[2],
-        "video_path": job[3],
-        "caption": job[4],
-        "platform": job[5],
-        "session_id": job[6],  # <- from group_items.data
-    }
-
-
-        print(f"🚀 Dispatching job {job_data['id']} for user {job_data['user_id']}")
-        process_upload_job.delay(job_data)
 
 if __name__ == "__main__":
     print("🔁 Auto-dispatcher running...")
-    while True:
-        dispatch_jobs()
-        print("🕒 Sleeping for 10 seconds...")
-        time.sleep(10)
+    run_dispatch_loop()

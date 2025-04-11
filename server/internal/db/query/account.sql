@@ -78,11 +78,24 @@ WHERE id = $1;
 -- name: DeleteSession :exec
 DELETE FROM sessions WHERE id = $1;
 
--- Create a new upload job with platform support
 -- name: CreateUploadJob :one
-INSERT INTO upload_jobs (id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())  
-RETURNING id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at;
+INSERT INTO upload_jobs (
+  id,
+  user_id,
+  platform,
+  video_path,
+  storage_type,
+  file_url,
+  status,
+  user_title,
+  user_hashtags,
+  created_at,
+  updated_at
+)
+VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+)
+RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at;
 
 -- Get upload job by ID
 -- name: GetUploadJob :one
@@ -130,3 +143,21 @@ WHERE id = $1;
 INSERT INTO groups (user_id, name, description, created_at, updated_at)
 VALUES ($1, $2, $3, NOW(), NOW())
 RETURNING id, user_id, name, description, created_at, updated_at;
+
+
+-- name: CreateCompetitor :one
+INSERT INTO competitors (group_id, platform, username, profile_url, last_checked)
+VALUES ($1, $2, $3, $4, NOW())
+RETURNING id, group_id, platform, username, profile_url, last_checked;    
+
+-- name: FetchNextPendingJob :one
+UPDATE upload_jobs
+SET status = 'processing'
+WHERE id = (
+    SELECT id FROM upload_jobs
+    WHERE status = 'pending' AND session_id IS NOT NULL
+    ORDER BY created_at
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING *;
