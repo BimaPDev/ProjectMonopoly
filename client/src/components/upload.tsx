@@ -39,10 +39,11 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 
+// Updated schema to match the backend's expectations
 const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string(),
-  platforms: z.array(z.string()).min(1, "Select at least one platform"),
+  title: z.string().optional(),
+  hashtags: z.string().optional(),
+  platform: z.string().min(1, "Platform is required"),
   scheduledDate: z.date().optional(),
 });
 
@@ -54,7 +55,7 @@ const socialPlatforms = [
     color: "bg-gradient-to-br from-purple-600 to-pink-500",
   },
   {
-    id: "tiktok",
+    id: "facebook",
     label: "Facebook",
     icon: Facebook,
     color: "bg-blue-600",
@@ -80,25 +81,84 @@ export default function UploadPage() {
   const [step, setStep] = React.useState(1);
   const [progress, setProgress] = React.useState(33);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  
+  // We'd typically get this from authentication context
+  const userId = "1"; // Replace with actual user ID from your auth system
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      description: "",
-      platforms: [],
+      hashtags: "",
+      platform: "",
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log(values);
-    setLoading(false);
-    toast({
-      title: "Success",
-      description: "Your content has been scheduled for posting.",
-    });
+    
+    try {
+      // Check if file exists
+      if (!selectedFile) {
+        toast({
+          title: "Error",
+          description: "Please select a file to upload",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Create FormData to match the expected format in your Go handler
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("user_id", userId);
+      formData.append("platform", values.platform);
+      
+      if (values.title) {
+        formData.append("title", values.title);
+      }
+      
+      if (values.hashtags) {
+        formData.append("hashtags", values.hashtags);
+      }
+      
+      // Send request to backend
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || `Upload failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      toast({
+        title: "Success",
+        description: "Your content has been uploaded successfully.",
+      });
+      
+      // Reset the form on success if desired
+      // form.reset();
+      // setPreview(undefined);
+      // setSelectedFile(null);
+      // setStep(1);
+      // setProgress(33);
+      
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -108,6 +168,10 @@ export default function UploadPage() {
 
   function handleFile(file: File | undefined) {
     if (file) {
+      // Save the file
+      setSelectedFile(file);
+      
+      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -199,7 +263,7 @@ export default function UploadPage() {
                               Drop your image here, or click to browse
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              Supports JPG, PNG, MP4 or MOV (max. 100MB)
+                              Supports JPG, PNG, MP4 or MOV (max. 50MB)
                             </p>
                           </div>
                         </div>
@@ -227,6 +291,7 @@ export default function UploadPage() {
                           className="absolute right-2 top-2 z-10"
                           onClick={() => {
                             setPreview(undefined);
+                            setSelectedFile(null);
                             setStep(1);
                             setProgress(33);
                           }}
@@ -276,17 +341,20 @@ export default function UploadPage() {
                       />
                       <FormField
                         control={form.control}
-                        name="description"
+                        name="hashtags"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Description</FormLabel>
+                            <FormLabel>Hashtags</FormLabel>
                             <FormControl>
                               <Textarea
-                                placeholder="Write a detailed description..."
+                                placeholder="Add hashtags separated by spaces (e.g. #trending #viral)"
                                 className="min-h-[100px] resize-none"
                                 {...field}
                               />
                             </FormControl>
+                            <FormDescription>
+                              Add hashtags to increase visibility of your post
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -298,44 +366,40 @@ export default function UploadPage() {
                     <CardContent className="p-6 space-y-6">
                       <FormField
                         control={form.control}
-                        name="platforms"
+                        name="platform"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Platforms</FormLabel>
-                            <div className="grid grid-cols-2 gap-4">
-                              {socialPlatforms.map((platform) => (
-                                <div
-                                  key={`platform-${platform.id}`}
-                                  className={cn(
-                                    "flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-accent",
-                                    field.value?.includes(platform.id) &&
-                                      "border-primary bg-primary/5"
-                                  )}
-                                  onClick={() => {
-                                    const newValue = field.value?.includes(
-                                      platform.id
-                                    )
-                                      ? field.value.filter(
-                                          (id) => id !== platform.id
-                                        )
-                                      : [...(field.value || []), platform.id];
-                                    field.onChange(newValue);
-                                  }}
-                                >
-                                  <div
-                                    className={cn(
-                                      "flex h-10 w-10 items-center justify-center rounded-full text-white",
-                                      platform.color
-                                    )}
+                            <FormLabel>Platform</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a platform" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {socialPlatforms.map((platform) => (
+                                  <SelectItem 
+                                    key={platform.id} 
+                                    value={platform.id}
                                   >
-                                    <platform.icon className="h-5 w-5" />
-                                  </div>
-                                  <span className="font-medium">
-                                    {platform.label}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className={cn(
+                                          "flex h-6 w-6 items-center justify-center rounded-full text-white",
+                                          platform.color
+                                        )}
+                                      >
+                                        <platform.icon className="h-3 w-3" />
+                                      </div>
+                                      {platform.label}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -346,7 +410,7 @@ export default function UploadPage() {
                         name="scheduledDate"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
-                            <FormLabel>Schedule</FormLabel>
+                            <FormLabel>Schedule (Optional)</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
@@ -360,7 +424,7 @@ export default function UploadPage() {
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {field.value
                                       ? format(field.value, "PPP")
-                                      : "Pick a date"}
+                                      : "Pick a date (optional)"}
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -379,6 +443,9 @@ export default function UploadPage() {
                                 />
                               </PopoverContent>
                             </Popover>
+                            <FormDescription>
+                              Schedule your post for a future date (optional)
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -391,7 +458,7 @@ export default function UploadPage() {
                       {loading && (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       )}
-                      {loading ? "Scheduling..." : "Schedule Post"}
+                      {loading ? "Uploading..." : "Upload Post"}
                     </Button>
                   </div>
                 </form>
