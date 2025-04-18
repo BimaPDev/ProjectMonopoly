@@ -120,6 +120,7 @@ export default function UploadPage() {
         formData.append("title", values.title);
       }
       
+      
       if (values.hashtags) {
         formData.append("hashtags", values.hashtags);
       }
