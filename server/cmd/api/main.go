@@ -64,10 +64,9 @@ func main() {
 	groupsHandler := func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			fmt.Println("GET /api/groups called")
+
 			handlers.GetGroups(w, r, queries)
 		case http.MethodPost:
-			fmt.Println("POST /api/groups called")
 			handlers.CreateGroup(w, r, queries)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

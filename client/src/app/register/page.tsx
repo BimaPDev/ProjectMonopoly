@@ -43,7 +43,7 @@ export default function RegisterPage() {
     }
   
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
+      const response = await fetch(`http://localhost:8080/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -84,7 +84,7 @@ export default function RegisterPage() {
     const googleToken = credentialResponse.credential;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
+      const response = await fetch(`http://localhost:8080/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

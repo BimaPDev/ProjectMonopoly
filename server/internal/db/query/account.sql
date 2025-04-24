@@ -119,7 +119,7 @@ WHERE id = $1;
 
 -- List all upload jobs for a user
 -- name: ListUserUploadJobs :many
-SELECT id, platform, video_path, platform ,storage_type, file_url, status, created_at, updated_at
+SELECT id, platform, video_path, storage_type, file_url, status, created_at, updated_at
 FROM upload_jobs
 WHERE user_id = $1
 ORDER BY created_at DESC;
@@ -144,13 +144,6 @@ INSERT INTO groups (user_id, name, description, created_at, updated_at)
 VALUES ($1, $2, $3, NOW(), NOW())
 RETURNING id, user_id, name, description, created_at, updated_at;
 
-
--- name: CreateCompetitor :one
-INSERT INTO competitors (group_id, platform, username, profile_url, last_checked)
-VALUES ($1, $2, $3, $4, NOW())
-RETURNING id, group_id, platform, username, profile_url, last_checked;    
-
-
 -- name: ListGroupsByUser :many
 SELECT
   id,
@@ -163,6 +156,10 @@ FROM groups
 WHERE user_id = $1
 ORDER BY id;
 
+-- name: CreateCompetitor :one
+INSERT INTO competitors (group_id, platform, username, profile_url, last_checked)
+VALUES ($1, $2, $3, $4, NOW())
+RETURNING id, group_id, platform, username, profile_url, last_checked;
 
 -- name: FetchNextPendingJob :one
 UPDATE upload_jobs
