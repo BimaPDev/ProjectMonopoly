@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarIcon, ImageIcon, Loader2, Upload, X } from "lucide-react";
+import { CalendarIcon, ImageIcon, Loader2, Upload, X, Info } from "lucide-react";
 import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -34,16 +34,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 
-// Updated schema to match the backend's expectations
+// Updated schema to include group selection
 const formSchema = z.object({
   title: z.string().optional(),
   hashtags: z.string().optional(),
   platform: z.string().min(1, "Platform is required"),
+  groupId: z.string().min(1, "Group is required"),
   scheduledDate: z.date().optional(),
 });
 
@@ -82,6 +89,8 @@ export default function UploadPage() {
   const [progress, setProgress] = React.useState(33);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [groups, setGroups] = React.useState<{ id: string; name: string }[]>([]);
+  const [groupsLoading, setGroupsLoading] = React.useState(false);
   
   // We'd typically get this from authentication context
   const userId = "1"; // Replace with actual user ID from your auth system
@@ -92,8 +101,41 @@ export default function UploadPage() {
       title: "",
       hashtags: "",
       platform: "",
+      groupId: "",
     },
   });
+
+  // Fetch user groups when component mounts
+  React.useEffect(() => {
+    async function fetchGroups() {
+      setGroupsLoading(true);
+      try {
+        console.log(`Fetching groups for user ${userId}...`);
+        const res = await fetch(`http://localhost:8080/api/groups?user_id=${userId}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" }
+        });
+        
+        if (!res.ok) {
+          throw new Error(`Failed to fetch groups: ${res.statusText}`);
+        }
+        
+        const data = await res.json();
+        setGroups(data.groups || []);
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your groups. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setGroupsLoading(false);
+      }
+    }
+    
+    fetchGroups();
+  }, [userId]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
@@ -115,12 +157,11 @@ export default function UploadPage() {
       formData.append("file", selectedFile);
       formData.append("user_id", userId);
       formData.append("platform", values.platform);
-      formData.append("group_id","1");
+      formData.append("group_id", values.groupId);
       
       if (values.title) {
         formData.append("title", values.title);
       }
-      
       
       if (values.hashtags) {
         formData.append("hashtags", values.hashtags);
@@ -184,6 +225,7 @@ export default function UploadPage() {
     }
   }
 
+  
   function handleDrag(e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -205,273 +247,362 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Create New Post</h1>
-          <p className="text-muted-foreground">
-            Upload and schedule your content across multiple platforms
-          </p>
-        </div>
+    <TooltipProvider>
+      <div className="container mx-auto py-10">
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">Create New Post</h1>
+            <p className="text-muted-foreground">
+              Upload and schedule your content across multiple platforms. Visit <span className="text-blue-500 underline"><a href="/dashboard/settings">settings</a></span> to add login info before upload.
+            </p>
+          </div>
 
-        <Progress value={progress} className="w-full" />
+          <Progress value={progress} className="w-full" />
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <AnimatePresence mode="sync">
-            {step === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col gap-6"
-              >
-                <Card>
-                  <CardContent className="p-6">
-                    <div
-                      className={cn(
-                        "relative flex min-h-[400px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
-                        dragActive
-                          ? "border-primary bg-primary/10"
-                          : "border-muted-foreground/25 hover:border-primary hover:bg-primary/5",
-                        preview && "border-none"
-                      )}
-                      onClick={() => fileRef.current?.click()}
-                      onDragEnter={handleDrag}
-                      onDragLeave={handleDrag}
-                      onDragOver={handleDrag}
-                      onDrop={handleDrop}
-                    >
-                      <Input
-                        ref={fileRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        className="hidden"
-                        onChange={onFileChange}
-                      />
-                      {preview ? (
-                        <img
-                          src={preview}
-                          alt="Preview"
-                          className="absolute h-full w-full rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center space-y-4 p-4 text-center">
-                          <div className="rounded-full bg-primary/10 p-4">
-                            <Upload className="h-8 w-8 text-primary" />
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-lg font-medium">
-                              Drop your image here, or click to browse
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Supports JPG, PNG, MP4 or MOV (max. 50MB)
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            {step === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Card className="relative">
-                  <CardContent className="p-6">
-                    {preview && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-2 top-2 z-10"
-                          onClick={() => {
-                            setPreview(undefined);
-                            setSelectedFile(null);
-                            setStep(1);
-                            setProgress(33);
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                        <img
-                          src={preview}
-                          alt="Preview"
-                          className="aspect-square w-full rounded-lg object-cover"
-                        />
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            <motion.div
-              key="form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-6"
-            >
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-6"
+          <div className="grid gap-8 lg:grid-cols-2">
+            <AnimatePresence mode="sync">
+              {step === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col gap-6"
                 >
                   <Card>
-                    <CardContent className="p-6 space-y-6">
-                      <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Title</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter a title for your post"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                    <CardContent className="p-6">
+                      <div
+                        className={cn(
+                          "relative flex min-h-[400px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
+                          dragActive
+                            ? "border-primary bg-primary/10"
+                            : "border-muted-foreground/25 hover:border-primary hover:bg-primary/5",
+                          preview && "border-none"
                         )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="hashtags"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Hashtags</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Add hashtags separated by spaces (e.g. #trending #viral)"
-                                className="min-h-[100px] resize-none"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Add hashtags to increase visibility of your post
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
+                        onClick={() => fileRef.current?.click()}
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                      >
+                        <Input
+                          ref={fileRef}
+                          type="file"
+                          accept="image/*,video/*"
+                          className="hidden"
+                          onChange={onFileChange}
+                        />
+                        {preview ? (
+                          <img
+                            src={preview}
+                            alt="Preview"
+                            className="absolute h-full w-full rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center space-y-4 p-4 text-center">
+                            <div className="rounded-full bg-primary/10 p-4">
+                              <Upload className="h-8 w-8 text-primary" />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-lg font-medium">
+                                Drop your image here, or click to browse
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Supports JPG, PNG, MP4 or MOV (max. 50MB)
+                              </p>
+                            </div>
+                          </div>
                         )}
-                      />
+                      </div>
                     </CardContent>
                   </Card>
+                </motion.div>
+              )}
 
-                  <Card>
-                    <CardContent className="p-6 space-y-6">
-                      <FormField
-                        control={form.control}
-                        name="platform"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Platform</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a platform" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {socialPlatforms.map((platform) => (
-                                  <SelectItem 
-                                    key={platform.id} 
-                                    value={platform.id}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <div
-                                        className={cn(
-                                          "flex h-6 w-6 items-center justify-center rounded-full text-white",
-                                          platform.color
-                                        )}
-                                      >
-                                        <platform.icon className="h-3 w-3" />
-                                      </div>
-                                      {platform.label}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="scheduledDate"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Schedule (Optional)</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                      "w-full pl-3 text-left font-normal",
-                                      !field.value && "text-muted-foreground"
-                                    )}
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {field.value
-                                      ? format(field.value, "PPP")
-                                      : "Pick a date (optional)"}
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-auto p-0"
-                                align="start"
-                              >
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={(date) => {
-                                    field.onChange(date);
-                                    setProgress(100);
-                                  }}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormDescription>
-                              Schedule your post for a future date (optional)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </CardContent>
-                  </Card>
-
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={loading} size="lg">
-                      {loading && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {step === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className="relative">
+                    <CardContent className="p-6">
+                      {preview && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-2 top-2 z-10"
+                            onClick={() => {
+                              setPreview(undefined);
+                              setSelectedFile(null);
+                              setStep(1);
+                              setProgress(33);
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                          <img
+                            src={preview}
+                            alt="Preview"
+                            className="aspect-square w-full rounded-lg object-cover"
+                          />
+                        </>
                       )}
-                      {loading ? "Uploading..." : "Upload Post"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </motion.div>
-          </AnimatePresence>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6"
+              >
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-6"
+                  >
+                    <Card>
+                      <CardContent className="p-6 space-y-6">
+                        <FormField
+                          control={form.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Title</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter a title for your post"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="hashtags"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center space-x-2">
+                                <FormLabel>Hashtags</FormLabel>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help">
+                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p>Add hashtags to increase the visibility of your post. Separate hashtags with spaces (e.g. #trending #viral)</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Add hashtags separated by spaces (e.g. #trending #viral)"
+                                  className="min-h-[100px] resize-none"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Add hashtags to increase visibility of your post
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-6 space-y-6">
+                        {/* Group selection with tooltip */}
+                        <FormField
+                          control={form.control}
+                          name="groupId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center space-x-2">
+                                <FormLabel>Group</FormLabel>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help">
+                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Select which group this content belongs to. Be sure to check out <span className="text-blue-500 underline"><a href="/dashboard/settings">settings</a></span> to add login info.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                                disabled={groupsLoading}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={groupsLoading ? "Loading groups..." : "Select a group"} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {groups.map((group) => (
+                                    <SelectItem 
+                                      key={group.id} 
+                                      value={group.id}
+                                    >
+                                      {group.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {groupsLoading && (
+                                <div className="flex items-center mt-2">
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  <p className="text-sm text-muted-foreground">Loading your groups...</p>
+                                </div>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="platform"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center space-x-2">
+                                <FormLabel>Platform</FormLabel>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help">
+                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Choose the social media platform where you want to publish this content</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a platform" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {socialPlatforms.map((platform) => (
+                                    <SelectItem 
+                                      key={platform.id} 
+                                      value={platform.id}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className={cn(
+                                            "flex h-6 w-6 items-center justify-center rounded-full text-white",
+                                            platform.color
+                                          )}
+                                        >
+                                          <platform.icon className="h-3 w-3" />
+                                        </div>
+                                        {platform.label}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="scheduledDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <div className="flex items-center space-x-2">
+                                <FormLabel>Schedule (Optional)</FormLabel>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help">
+                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Choose a future date to schedule your post automatically</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-full pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {field.value
+                                        ? format(field.value, "PPP")
+                                        : "Pick a date (optional)"}
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={(date) => {
+                                      field.onChange(date);
+                                      setProgress(100);
+                                    }}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormDescription>
+                                Schedule your post for a future date (optional)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end">
+                      <Button type="submit" disabled={loading} size="lg">
+                        {loading && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {loading ? "Uploading..." : "Upload Post"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
