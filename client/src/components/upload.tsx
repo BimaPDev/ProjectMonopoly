@@ -92,9 +92,13 @@ export default function UploadPage() {
   const [groups, setGroups] = React.useState<{ id: string; name: string }[]>([]);
   const [groupsLoading, setGroupsLoading] = React.useState(false);
   
-  // We'd typically get this from authentication context
-  const userId = "1"; // Replace with actual user ID from your auth system
-
+  
+  const userId = 1;
+  interface Group {
+    id: number;
+    name: string;
+    description: string;
+  }
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -111,17 +115,25 @@ export default function UploadPage() {
       setGroupsLoading(true);
       try {
         console.log(`Fetching groups for user ${userId}...`);
-        const res = await fetch(`http://localhost:8080/api/groups?user_id=${userId}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" }
-        });
-        
-        if (!res.ok) {
-          throw new Error(`Failed to fetch groups: ${res.statusText}`);
-        }
-        
-        const data = await res.json();
-        setGroups(data.groups || []);
+      const res = await fetch(`http://localhost:8080/api/groups?user_id=${userId}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to fetch groups");
+      }
+      
+      const data = await res.json() as Group[];
+      console.log("API response:", data);
+      
+      if (!Array.isArray(data)) {
+        console.error("Expected array response, got:", typeof data);
+        throw new Error("Invalid response format from server");
+      }
+      
+      setGroups(data);
       } catch (error) {
         console.error("Error fetching groups:", error);
         toast({
@@ -453,13 +465,15 @@ export default function UploadPage() {
                                     <SelectValue placeholder={groupsLoading ? "Loading groups..." : "Select a group"} />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="text-white">
                                   {groups.map((group) => (
                                     <SelectItem 
                                       key={group.id} 
-                                      value={group.id}
+                                      value={group.name}
                                     >
-                                      {group.name}
+                                      <div>
+                                        {group.name}
+                                      </div>
                                     </SelectItem>
                                   ))}
                                 </SelectContent>

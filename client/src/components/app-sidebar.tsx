@@ -161,6 +161,16 @@ const data = {
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  interface User {
+    id: number;
+    userName: string; 
+  }
+  try{
+    
+  }catch(e){
+
+  }
+  
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
