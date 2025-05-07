@@ -170,6 +170,62 @@ func (q *Queries) CreateSession(ctx context.Context, userID int32) (Session, err
 	return i, err
 }
 
+const createSocialMediaData = `-- name: CreateSocialMediaData :one
+
+INSERT INTO socialmedia_data (
+  group_id,
+  platform,
+  type,
+  data,
+  created_at,
+  updated_at
+)
+VALUES (
+  $1,       -- group_id    (INT)
+  $2,       -- platform    (VARCHAR)
+  $3,       -- type        (VARCHAR)
+  $4::jsonb,-- data        (JSONB)
+  NOW(),
+  NOW()
+)
+RETURNING
+  id,
+  group_id,
+  platform,
+  type,
+  data,
+  created_at,
+  updated_at
+`
+
+type CreateSocialMediaDataParams struct {
+	GroupID  int32           `json:"group_id"`
+	Platform string          `json:"platform"`
+	Type     string          `json:"type"`
+	Column4  json.RawMessage `json:"column_4"`
+}
+
+// uploding group items
+func (q *Queries) CreateSocialMediaData(ctx context.Context, arg CreateSocialMediaDataParams) (SocialmediaDatum, error) {
+	row := q.db.QueryRowContext(ctx, createSocialMediaData,
+		arg.GroupID,
+		arg.Platform,
+		arg.Type,
+		arg.Column4,
+	)
+	var i SocialmediaDatum
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.Platform,
+		&i.Type,
+		&i.Data,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createUploadJob = `-- name: CreateUploadJob :one
 INSERT INTO upload_jobs (
   id,
@@ -286,6 +342,16 @@ DELETE FROM sessions WHERE id = $1
 // Delete a session (logout)
 func (q *Queries) DeleteSession(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteSession, id)
+	return err
+}
+
+const deleteSocialMediaData = `-- name: DeleteSocialMediaData :exec
+DELETE FROM socialmedia_data
+WHERE id = $1
+`
+
+func (q *Queries) DeleteSocialMediaData(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteSocialMediaData, id)
 	return err
 }
 
@@ -502,6 +568,25 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 	return i, err
 }
 
+const getUserIDByUsernameEmail = `-- name: GetUserIDByUsernameEmail :one
+SELECT id
+FROM users
+WHERE username = $1
+  AND email    = $2
+`
+
+type GetUserIDByUsernameEmailParams struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+func (q *Queries) GetUserIDByUsernameEmail(ctx context.Context, arg GetUserIDByUsernameEmailParams) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getUserIDByUsernameEmail, arg.Username, arg.Email)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertGroupItemIfNotExists = `-- name: InsertGroupItemIfNotExists :execrows
 INSERT INTO group_items (group_id, type, data)
 VALUES ($1, $2, $3::jsonb)
@@ -565,8 +650,53 @@ func (q *Queries) ListGroupsByUser(ctx context.Context, userID int32) ([]Group, 
 	return items, nil
 }
 
+const listSocialMediaDataByGroup = `-- name: ListSocialMediaDataByGroup :many
+SELECT
+  id,
+  group_id,
+  platform,
+  type,
+  data,
+  created_at,
+  updated_at
+FROM socialmedia_data
+WHERE group_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListSocialMediaDataByGroup(ctx context.Context, groupID int32) ([]SocialmediaDatum, error) {
+	rows, err := q.db.QueryContext(ctx, listSocialMediaDataByGroup, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SocialmediaDatum
+	for rows.Next() {
+		var i SocialmediaDatum
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.Platform,
+			&i.Type,
+			&i.Data,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUserUploadJobs = `-- name: ListUserUploadJobs :many
-SELECT id, platform, video_path, platform ,storage_type, file_url, status, created_at, updated_at
+SELECT id, platform, video_path, storage_type, file_url, status, created_at, updated_at
 FROM upload_jobs
 WHERE user_id = $1
 ORDER BY created_at DESC
@@ -576,7 +706,6 @@ type ListUserUploadJobsRow struct {
 	ID          string         `json:"id"`
 	Platform    string         `json:"platform"`
 	VideoPath   string         `json:"video_path"`
-	Platform_2  string         `json:"platform_2"`
 	StorageType string         `json:"storage_type"`
 	FileUrl     sql.NullString `json:"file_url"`
 	Status      string         `json:"status"`
@@ -598,7 +727,6 @@ func (q *Queries) ListUserUploadJobs(ctx context.Context, userID int32) ([]ListU
 			&i.ID,
 			&i.Platform,
 			&i.VideoPath,
-			&i.Platform_2,
 			&i.StorageType,
 			&i.FileUrl,
 			&i.Status,
@@ -680,6 +808,33 @@ func (q *Queries) UpdateGroupItemData(ctx context.Context, arg UpdateGroupItemDa
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const updateSocialMediaData = `-- name: UpdateSocialMediaData :exec
+UPDATE socialmedia_data
+SET
+  platform   = $2,
+  type       = $3,
+  data       = $4::jsonb,
+  updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateSocialMediaDataParams struct {
+	ID       int32           `json:"id"`
+	Platform string          `json:"platform"`
+	Type     string          `json:"type"`
+	Column4  json.RawMessage `json:"column_4"`
+}
+
+func (q *Queries) UpdateSocialMediaData(ctx context.Context, arg UpdateSocialMediaDataParams) error {
+	_, err := q.db.ExecContext(ctx, updateSocialMediaData,
+		arg.ID,
+		arg.Platform,
+		arg.Type,
+		arg.Column4,
+	)
+	return err
 }
 
 const updateUploadJobFileURL = `-- name: UpdateUploadJobFileURL :exec

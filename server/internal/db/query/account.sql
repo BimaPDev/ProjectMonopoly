@@ -172,3 +172,64 @@ WHERE id = (
     FOR UPDATE SKIP LOCKED
 )
 RETURNING *;
+
+--uploding group items
+
+-- name: CreateSocialMediaData :one
+INSERT INTO socialmedia_data (
+  group_id,
+  platform,
+  type,
+  data,
+  created_at,
+  updated_at
+)
+VALUES (
+  $1,       -- group_id    (INT)
+  $2,       -- platform    (VARCHAR)
+  $3,       -- type        (VARCHAR)
+  $4::jsonb,-- data        (JSONB)
+  NOW(),
+  NOW()
+)
+RETURNING
+  id,
+  group_id,
+  platform,
+  type,
+  data,
+  created_at,
+  updated_at;
+
+-- name: ListSocialMediaDataByGroup :many
+SELECT
+  id,
+  group_id,
+  platform,
+  type,
+  data,
+  created_at,
+  updated_at
+FROM socialmedia_data
+WHERE group_id = $1
+ORDER BY created_at DESC;
+
+-- name: UpdateSocialMediaData :exec
+UPDATE socialmedia_data
+SET
+  platform   = $2,
+  type       = $3,
+  data       = $4::jsonb,
+  updated_at = NOW()
+WHERE id = $1;
+
+-- name: DeleteSocialMediaData :exec
+DELETE FROM socialmedia_data
+WHERE id = $1;
+
+
+-- name: GetUserIDByUsernameEmail :one
+SELECT id
+FROM users
+WHERE username = $1
+  AND email    = $2;

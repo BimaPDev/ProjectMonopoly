@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ChevronsUpDown, Plus, Users } from "lucide-react";
-
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,11 +17,11 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 
-// Match the structure returned by your GetGroups handler
+// This is what we'll actually keep in React state:
 interface Group {
-  id: number;
-  name: string;
-  description: string;
+  ID: number;
+  Name: string;
+  Description: string;
 }
 
 export function TeamSwitcher() {
@@ -29,91 +29,55 @@ export function TeamSwitcher() {
   const [activeGroup, setActiveGroup] = React.useState<Group | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-
+  const [userID, setUserID] = useState(0);
   
-  // In a real app you'd get this from your auth context/JWT
-  const userId = 1;
 
-  // Fetch groups on mount
   React.useEffect(() => {
     fetchGroups();
   }, []);
 
-  // Function to fetch groups
   const fetchGroups = async () => {
+    setUserID(Number(localStorage.getItem("userID")));
     setLoading(true);
     setError(null);
-    
     try {
-      console.log(`Fetching groups for user ${userId}...`);
-      const res = await fetch(`http://localhost:8080/api/groups?user_id=${userId}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Failed to fetch groups");
-      }
-      
-      const data = await res.json() as Group[];
-      console.log("API response:", data);
-      
+      const res = await fetch(
+        `http://localhost:8080/api/groups?userID=${userID}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        } 
+      );
+      const data = await res.json();
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
         throw new Error("Invalid response format from server");
       }
       
       setGroups(data);
-      
-      if (data.length > 0) {
-        setActiveGroup(data[0]);
-      }
-    } catch (err: any) {
-      console.error("Error fetching groups:", err);
-      setError(err.message || "An error occurred while fetching groups");
-    } finally {
+     
+      setActiveGroup(groups[0]);// Set the first group as active by default
       setLoading(false);
-    }
+      
+    } catch (e: any) {
+      setError(e.message || "Error fetching groups");
+    } 
   };
 
-  // Create a new group
   const createGroup = async () => {
-    const name = window.prompt("Enter new group name:")?.trim();
+    const name = window.prompt("New group name:")?.trim();
     if (!name) return;
-    
-    const description = window.prompt("Enter group description (optional):")?.trim() || "";
-    
+    const description = window.prompt("Description (optional):")?.trim() || "";
     try {
-      console.log("Creating group with data:", { user_id: userId, name, description });
       const res = await fetch("http://localhost:8080/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          name,
-          description,
-        }),
+        body: JSON.stringify({ user_id: Number(userID), name, description }),
       });
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Failed to create group");
-      }
-      
-      const newGroup = await res.json() as Group;
-      console.log("Created group:", newGroup);
-      
-      // Add the new group to the list and set it as active
-      setGroups(prev => [...prev, newGroup]);
-      setActiveGroup(newGroup);
-      
-      // Refresh the group list to ensure everything is in sync
-      fetchGroups();
-      
-    } catch (err: any) {
-      console.error("Error creating group:", err);
-      setError(err.message || "An error occurred while creating the group");
+      if (!res.ok) throw new Error((await res.text()) || "Create failed");
+      await fetchGroups();
+    } catch (e: any) {
+      setError(e.message || "Error creating group");
     }
   };
 
@@ -128,13 +92,17 @@ export function TeamSwitcher() {
               </div>
               <div className="flex-1 text-left text-sm leading-tight">
                 <span className="font-semibold">
-                  {loading ? "Loading..." : 
-                   error ? "Error loading groups" :
-                   activeGroup ? activeGroup.name : "No Groups"}
+                  {loading
+                    ? "Loading..."
+                    : error
+                    ? "Error"
+                    : activeGroup
+                    ? activeGroup.Name
+                    : "No Groups"}
                 </span>
-                {activeGroup && activeGroup.description && (
+                {activeGroup?.Description && (
                   <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                    {activeGroup.description}
+                    {activeGroup.Description}
                   </span>
                 )}
               </div>
@@ -150,32 +118,36 @@ export function TeamSwitcher() {
             <DropdownMenuLabel>Groups</DropdownMenuLabel>
 
             {error && (
-              <DropdownMenuItem>
+              <DropdownMenuItem disabled key="error">
                 <div className="text-red-500">{error}</div>
               </DropdownMenuItem>
             )}
 
             {loading ? (
-              <DropdownMenuItem disabled>Loading groups...</DropdownMenuItem>
+              <DropdownMenuItem disabled key="loading">
+                Loading groups...
+              </DropdownMenuItem>
             ) : groups.length === 0 ? (
-              <DropdownMenuItem disabled>No groups found</DropdownMenuItem>
+              <DropdownMenuItem disabled key="no-groups">
+                No groups found
+              </DropdownMenuItem>
             ) : (
-              groups.map((group) => (
+              groups.map((g) => (
                 <DropdownMenuItem
-                  key={group.id}
-                  onClick={() => setActiveGroup(group)}
+                  key={g.ID}
+                  onClick={() => setActiveGroup(g)}
                 >
                   <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
                     <Users className="h-4 w-4" />
                   </div>
-                  <span className="ml-2">{group.name}</span>
+                  <span className="ml-2">{g.Name || "Unnamed Group"}</span>
                 </DropdownMenuItem>
               ))
             )}
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={createGroup}>
+            <DropdownMenuItem onClick={createGroup} key="create">
               <Plus className="mr-2 h-4 w-4" />
               Create Group
             </DropdownMenuItem>
@@ -185,3 +157,5 @@ export function TeamSwitcher() {
     </SidebarMenu>
   );
 }
+
+export default TeamSwitcher;

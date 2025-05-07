@@ -20,6 +20,7 @@ import (
 const baseUploadDir = "uploads" // Base upload directory
 
 func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
+	print("upload called")
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -101,12 +102,12 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message":    "File uploaded successfully",
-		"file_path":  fullFilePath,
-		"job_id":     jobID,
-		"platform":   platform,
-		"title":      title,
-		"hashtags":   hashtags,
+		"message":   "File uploaded successfully",
+		"file_path": fullFilePath,
+		"job_id":    jobID,
+		"platform":  platform,
+		"title":     title,
+		"hashtags":  hashtags,
 	})
 }
 
@@ -118,16 +119,16 @@ func saveJobToDB(
 	hashtags []string,
 ) error {
 	_, err := queries.CreateUploadJob(context.TODO(), db.CreateUploadJobParams{
-		ID:           jobID,                                // $1
-		UserID:       userID,                               // $2
-		Platform:     platform,                             // $3
-		VideoPath:    videoPath,                            // $4
-		StorageType:  storageType,                          // $5 
-		FileUrl:      sql.NullString{String: fileURL, Valid: fileURL != ""}, 
-		Status:       "pending",                            
+		ID:           jobID,       // $1
+		UserID:       userID,      // $2
+		Platform:     platform,    // $3
+		VideoPath:    videoPath,   // $4
+		StorageType:  storageType, // $5
+		FileUrl:      sql.NullString{String: fileURL, Valid: fileURL != ""},
+		Status:       "pending",
 		UserTitle:    sql.NullString{String: title, Valid: title != ""},
 		UserHashtags: hashtags,
-	})	
+	})
 	return err
 }
 

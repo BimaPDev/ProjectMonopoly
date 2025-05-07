@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
-
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -82,18 +82,18 @@ const socialPlatforms = [
 ];
 
 export default function UploadPage() {
-  const [loading, setLoading] = React.useState(false);
-  const [preview, setPreview] = React.useState<string>();
-  const [dragActive, setDragActive] = React.useState(false);
-  const [step, setStep] = React.useState(1);
-  const [progress, setProgress] = React.useState(33);
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState("");
+  const [dragActive, setDragActive] = useState(false);
+  const [step, setStep] = useState(1);
+  const [progress, setProgress] = useState(33);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [groups, setGroups] = React.useState<{ id: string; name: string }[]>([]);
   const [groupsLoading, setGroupsLoading] = React.useState(false);
+  const [userID, setUserID] = React.useState(0);
+  const [groupEmptyErr, setGroupEmptyErr] = useState(false);
   
-  
-  const userId = 1;
   interface Group {
     id: number;
     name: string;
@@ -108,14 +108,19 @@ export default function UploadPage() {
       groupId: "",
     },
   });
-
-  // Fetch user groups when component mounts
-  React.useEffect(() => {
-    async function fetchGroups() {
-      setGroupsLoading(true);
-      try {
-        console.log(`Fetching groups for user ${userId}...`);
-      const res = await fetch(`http://localhost:8080/api/groups?user_id=${userId}`, {
+// Fetch user ID first, then fetch groups once we have the ID
+React.useEffect(() => {
+  async function fetchGroups() {
+    const userID = Number(localStorage.getItem("userID"));
+    if (!userID) {
+      console.log("Cannot fetch groups: userID is undefined");
+      return;
+    }else
+    
+    setGroupsLoading(true);
+    try {
+      console.log(`Fetching groups for user ${userID}...`);
+      const res = await fetch(`http://localhost:8080/api/groups?userID=${userID}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -125,8 +130,8 @@ export default function UploadPage() {
         throw new Error(errorText || "Failed to fetch groups");
       }
       
-      const data = await res.json() as Group[];
-      console.log("API response:", data);
+      const data = await res.json();
+     
       
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
@@ -134,21 +139,19 @@ export default function UploadPage() {
       }
       
       setGroups(data);
-      } catch (error) {
-        console.error("Error fetching groups:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load your groups. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setGroupsLoading(false);
-      }
+    } catch (error) {
+      console.error("Error fetching groups:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load your groups. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGroupsLoading(false);
     }
-    
-    fetchGroups();
-  }, [userId]);
-
+  }
+  fetchGroups();
+}, []); // No dependency on userID anymore
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     
@@ -167,7 +170,7 @@ export default function UploadPage() {
       // Create FormData to match the expected format in your Go handler
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("user_id", userId);
+      formData.append("user_id", parseInt(values.platform, 10).toString());
       formData.append("platform", values.platform);
       formData.append("group_id", values.groupId);
       
@@ -197,12 +200,12 @@ export default function UploadPage() {
         description: "Your content has been uploaded successfully.",
       });
       
-      // Reset the form on success if desired
-      // form.reset();
-      // setPreview(undefined);
-      // setSelectedFile(null);
-      // setStep(1);
-      // setProgress(33);
+      //Reset the form on success if desired
+      form.reset();
+      setPreview(undefined);
+      setSelectedFile(null);
+      setStep(1);
+      setProgress(33);
       
     } catch (error) {
       console.error("Upload error:", error);
@@ -385,6 +388,7 @@ export default function UploadPage() {
                       <CardContent className="p-6 space-y-6">
                         <FormField
                           control={form.control}
+                        
                           name="title"
                           render={({ field }) => (
                             <FormItem>
@@ -401,6 +405,7 @@ export default function UploadPage() {
                         />
                         <FormField
                           control={form.control}
+                      
                           name="hashtags"
                           render={({ field }) => (
                             <FormItem>
@@ -442,48 +447,27 @@ export default function UploadPage() {
                           name="groupId"
                           render={({ field }) => (
                             <FormItem>
-                              <div className="flex items-center space-x-2">
-                                <FormLabel>Group</FormLabel>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help">
-                                      <Info className="h-4 w-4 text-muted-foreground" />
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Select which group this content belongs to. Be sure to check out <span className="text-blue-500 underline"><a href="/dashboard/settings">settings</a></span> to add login info.</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                              <FormLabel>Group</FormLabel>
+                              <div className="space-y-2 pl-4">
+                                {groups.map((g) => (
+                                  <label key={g.id} className="flex items-center">
+                                    <input
+                                      type="radio"
+                                      className="mr-2"
+                                      value={String(g.id)}
+                                      checked={field.value === String(g.id)}
+                                      onChange={() => field.onChange(String(g.id))}
+                                      disabled={groupsLoading}
+                                    />
+                                    <span>{g.name}</span>
+                                  </label>
+                                ))}
                               </div>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                defaultValue={field.value}
-                                disabled={groupsLoading}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={groupsLoading ? "Loading groups..." : "Select a group"} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="text-white">
-                                  {groups.map((group) => (
-                                    <SelectItem 
-                                      key={group.id} 
-                                      value={group.name}
-                                    >
-                                      <div>
-                                        {group.name}
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            
                               {groupsLoading && (
-                                <div className="flex items-center mt-2">
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  <p className="text-sm text-muted-foreground">Loading your groups...</p>
-                                </div>
+                                <p className="text-sm text-gray-500 mt-1">Loading your groups…</p>
                               )}
+
                               <FormMessage />
                             </FormItem>
                           )}

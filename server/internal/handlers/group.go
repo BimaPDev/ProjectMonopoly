@@ -95,7 +95,7 @@ func SaveSocialToken(w http.ResponseWriter, r *http.Request, queries *db.Queries
 
 // Create a new group
 type CreateGroupRequest struct {
-	UserID      int32  `json:"user_id"`
+	UserID      int32  `json:"userID"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
@@ -112,7 +112,7 @@ func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 		return
 	}
 
-	fmt.Println("user_id =", req.UserID)
+	fmt.Println("userID =", req.UserID)
 	fmt.Println("name =", req.Name)
 	fmt.Println("description =", req.Description)
 
@@ -136,30 +136,35 @@ func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 }
 
 type groupResponse struct {
-	ID          int32  `json:"id"`
+	ID          int32  `json:"ID"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
 func GetGroups(w http.ResponseWriter, r *http.Request, q *db.Queries) {
-	print("get called")
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	uidStr := r.URL.Query().Get("user_id")
+	// 1. Grab as string and validate
+	uidStr := r.URL.Query().Get("userID")
 	if uidStr == "" {
-		http.Error(w, "user_id is required", http.StatusBadRequest)
-		return
-	}
-	uid, err := strconv.Atoi(uidStr)
-	if err != nil {
-		http.Error(w, "invalid user_id", http.StatusBadRequest)
+		http.Error(w, "userID is required", http.StatusBadRequest)
 		return
 	}
 
-	groups, err := q.ListGroupsByUser(r.Context(), int32(uid))
+	// 2. Parse to int
+	uidInt, err := strconv.Atoi(uidStr)
+	if err != nil {
+		http.Error(w, "invalid userID", http.StatusBadRequest)
+		return
+	}
+	userID := int32(uidInt) // 3. Convert to int32
+
+	// 4. Call your generated query
+	groups, err := q.ListGroupsByUser(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "could not list groups", http.StatusInternalServerError)
 		return

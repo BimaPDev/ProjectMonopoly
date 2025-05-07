@@ -33,7 +33,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
       // ✅ Store token and session ID
       localStorage.setItem("token", data.token);
-      localStorage.setItem("sessionId", data.sessionId);
+      //localStorage.setItem("sessionId", data.sessionId);
 
       // ✅ Redirect to the dashboard after successful login
       navigate("/dashboard");
@@ -50,7 +50,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   // Handle Google login
   const handleGoogleLoginSuccess = async (response: any) => {
     const googleToken = response.credential;
-
+    const {email, displayName} = response.user;
+    localStorage.setItem("email", email);
+    localStorage.setItem("username",displayName);
     try {
       // Attempt to log in with the Google token
       const loginResponse = await fetch(`${import.meta.env.VITE_API_CALL}/api/login`, {
