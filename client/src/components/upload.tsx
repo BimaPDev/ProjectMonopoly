@@ -89,16 +89,17 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(33);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-  const [groups, setGroups] = React.useState<{ id: string; name: string }[]>([]);
+  const [groups, setGroups] = React.useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = React.useState(false);
   const [userID, setUserID] = React.useState(0);
   const [groupEmptyErr, setGroupEmptyErr] = useState(false);
   
   interface Group {
-    id: number;
-    name: string;
-    description: string;
+    ID: number;    
+    name: string;  
+    description: string; 
   }
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -111,15 +112,17 @@ export default function UploadPage() {
 // Fetch user ID first, then fetch groups once we have the ID
 React.useEffect(() => {
   async function fetchGroups() {
-    const userID = Number(localStorage.getItem("userID"));
-    if (!userID) {
-      console.log("Cannot fetch groups: userID is undefined");
+    const storedUserID = localStorage.getItem("userID");
+    if (!storedUserID) {
+      
       return;
-    }else
+    }
     
+    const userID = Number(storedUserID);
     setGroupsLoading(true);
+    
     try {
-      console.log(`Fetching groups for user ${userID}...`);
+      
       const res = await fetch(`http://localhost:8080/api/groups?userID=${userID}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
@@ -127,18 +130,24 @@ React.useEffect(() => {
       
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(errorText || "Failed to fetch groups");
+        throw new Error(errorText || `Failed to fetch groups: ${res.status}`);
       }
       
       const data = await res.json();
-     
+      
       
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
         throw new Error("Invalid response format from server");
       }
       
+      
+      
       setGroups(data);
+     
+      if (groups.length === 0) {
+        setGroupEmptyErr(true);
+      }
     } catch (error) {
       console.error("Error fetching groups:", error);
       toast({
@@ -150,8 +159,9 @@ React.useEffect(() => {
       setGroupsLoading(false);
     }
   }
+  
   fetchGroups();
-}, []); // No dependency on userID anymore
+}, []);
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     
@@ -202,7 +212,6 @@ React.useEffect(() => {
       
       //Reset the form on success if desired
       form.reset();
-      setPreview(undefined);
       setSelectedFile(null);
       setStep(1);
       setProgress(33);
@@ -449,21 +458,28 @@ React.useEffect(() => {
                             <FormLabel>Group</FormLabel>
                             <div className="space-y-2 pl-4">
                               {groups.map((g) => (
-                                <div key={g.id} className="flex items-center">
+                                <div key={g.ID} className="flex items-center">
                                   <input
                                     type="radio"
-                                    id={`group-${g.id}`}
+                                    id={`group-${g.ID}`}
                                     className="mr-2"
-                                    value={String(g.id)}
-                                    checked={field.value === String(g.id)}
-                                    onChange={() => field.onChange(String(g.id))}
+                                    value={String(g.ID)}
+                                    checked={field.value === String(g.ID)}
+                                    onChange={() => field.onChange(String(g.ID))}
                                     disabled={groupsLoading}
                                   />
-                                  <label htmlFor={`group-${g.id}`}>{g.name}</label>
+                                  <span>{g.name || "No Groups"}</span>
+                                  <span className="block text-xs text-zinc-500 dark:text-zinc-400 pl-2"> ({g.description || "Please add a group"})</span>
                                 </div>
                               ))}
                             </div>
-                          
+                              {groupEmptyErr && (
+                                <p className="text-sm text-red-500 mt-1">
+                                  No groups found. Please create a group in the settings.
+                                </p>
+                              )}
+
+                              
                             {groupsLoading && (
                               <p className="text-sm text-gray-500 mt-1">Loading your groups…</p>
                             )}

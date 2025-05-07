@@ -18,8 +18,8 @@ import {
 
 interface Group {
   ID: number;
-  Name: string;
-  Description: string;
+  name: string;
+  description: string;
 }
 
 export function TeamSwitcher() {
@@ -34,16 +34,15 @@ export function TeamSwitcher() {
   React.useEffect(() => {
     try {
       const storedUserID = localStorage.getItem("userID");
-      console.log('Retrieved userID from localStorage:', storedUserID);
+     
       
       if (storedUserID) {
-        // For testing purposes, set a default userID if none exists
+
         const parsedUserID = Number(storedUserID);
         setUserID(parsedUserID);
-        console.log('Set userID in state:', parsedUserID);
+        
       } else {
-        // For development/testing only - set a default userID if none exists
-        console.log('No userID found in localStorage, using default for testing');
+        
         setUserID(1); // Default testing ID
       }
     } catch (err) {
@@ -65,7 +64,7 @@ export function TeamSwitcher() {
     setLoading(true);
     setError(null);
     try {
-      console.log(`Fetching groups for userID: ${userID}`);
+      
       const res = await fetch(
         `http://localhost:8080/api/groups?userID=${userID}`,
         {
@@ -79,20 +78,19 @@ export function TeamSwitcher() {
       }
       
       const data = await res.json();
-      console.log('Raw response data:', data);
+     
       
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
         throw new Error("Invalid response format from server");
       }
       
-      console.log('Groups loaded:', data);
+     
       setGroups(data);
       
       // Set active group if there are groups available
       if (data.length > 0) {
         setActiveGroup(data[0]);
-        console.log('Set active group:', data[0]);
       }
       
     } catch (e: any) {
@@ -152,12 +150,12 @@ export function TeamSwitcher() {
                     : error
                     ? "Error"
                     : activeGroup
-                    ? activeGroup.Name
+                    ? activeGroup.name
                     : "No Groups"}
                 </span>
-                {activeGroup?.Description && (
+                {activeGroup?.description && (
                   <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                    {activeGroup.Description}
+                    {activeGroup.description}
                   </span>
                 )}
               </div>
@@ -188,7 +186,7 @@ export function TeamSwitcher() {
               </DropdownMenuItem>
             ) : (
               <>
-                {console.log('Rendering groups:', groups)}
+                
                 {groups.map((g) => (
                   <DropdownMenuItem
                     key={g.ID}
@@ -200,7 +198,7 @@ export function TeamSwitcher() {
                     <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
                       <Users className="h-4 w-4" />
                     </div>
-                    <span className="ml-2">{g.Name}</span>
+                    <span className="ml-2">{g.name}</span>
                   </DropdownMenuItem>
                 ))}
               </>
