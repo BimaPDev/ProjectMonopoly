@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { ChevronsUpDown, Plus, Users } from "lucide-react";
-import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,7 +16,6 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 
-// This is what we'll actually keep in React state:
 interface Group {
   ID: number;
   Name: string;
@@ -29,18 +27,45 @@ export function TeamSwitcher() {
   const [activeGroup, setActiveGroup] = React.useState<Group | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [userID, setUserID] = useState(0);
+  const [userID, setUserID] = React.useState<number | null>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
   
-
+  // First effect - load userID from localStorage when component mounts
   React.useEffect(() => {
-    fetchGroups();
+    try {
+      const storedUserID = localStorage.getItem("userID");
+      console.log('Retrieved userID from localStorage:', storedUserID);
+      
+      if (storedUserID) {
+        // For testing purposes, set a default userID if none exists
+        const parsedUserID = Number(storedUserID);
+        setUserID(parsedUserID);
+        console.log('Set userID in state:', parsedUserID);
+      } else {
+        // For development/testing only - set a default userID if none exists
+        console.log('No userID found in localStorage, using default for testing');
+        setUserID(1); // Default testing ID
+      }
+    } catch (err) {
+      console.error('Error accessing localStorage:', err);
+      setError('Error accessing user data');
+    }
   }, []);
 
+  // Second effect - fetch groups whenever userID changes
+  React.useEffect(() => {
+    if (userID !== null) {
+      fetchGroups();
+    }
+  }, [userID]);
+
   const fetchGroups = async () => {
-    setUserID(Number(localStorage.getItem("userID")));
+    if (userID === null) return;
+    
     setLoading(true);
     setError(null);
     try {
+      console.log(`Fetching groups for userID: ${userID}`);
       const res = await fetch(
         `http://localhost:8080/api/groups?userID=${userID}`,
         {
@@ -48,35 +73,62 @@ export function TeamSwitcher() {
           headers: { "Content-Type": "application/json" },
         } 
       );
+      
+      if (!res.ok) {
+        throw new Error(`Error fetching groups: ${res.status}`);
+      }
+      
       const data = await res.json();
+      console.log('Raw response data:', data);
+      
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
         throw new Error("Invalid response format from server");
       }
       
+      console.log('Groups loaded:', data);
       setGroups(data);
-     
-      setActiveGroup(groups[0]);// Set the first group as active by default
-      setLoading(false);
+      
+      // Set active group if there are groups available
+      if (data.length > 0) {
+        setActiveGroup(data[0]);
+        console.log('Set active group:', data[0]);
+      }
       
     } catch (e: any) {
+      console.error("Error fetching groups:", e);
       setError(e.message || "Error fetching groups");
-    } 
+    } finally {
+      setLoading(false);
+    }
   };
 
   const createGroup = async () => {
+    if (userID === null) {
+      setError("User ID not found. Please log in again.");
+      return;
+    }
+    
     const name = window.prompt("New group name:")?.trim();
     if (!name) return;
+    
     const description = window.prompt("Description (optional):")?.trim() || "";
+    
     try {
       const res = await fetch("http://localhost:8080/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: Number(userID), name, description }),
+        body: JSON.stringify({ userID, name, description }),
       });
-      if (!res.ok) throw new Error((await res.text()) || "Create failed");
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Create failed with status: ${res.status}`);
+      }
+      
       await fetchGroups();
     } catch (e: any) {
+      console.error("Error creating group:", e);
       setError(e.message || "Error creating group");
     }
   };
@@ -84,8 +136,11 @@ export function TeamSwitcher() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+          <DropdownMenuTrigger asChild onClick={() => {
+            console.log('Dropdown clicked, groups:', groups);
+            setIsOpen(!isOpen);
+          }}>
             <SidebarMenuButton size="lg">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
                 <Users className="h-4 w-4" />
@@ -132,17 +187,23 @@ export function TeamSwitcher() {
                 No groups found
               </DropdownMenuItem>
             ) : (
-              groups.map((g) => (
-                <DropdownMenuItem
-                  key={g.ID}
-                  onClick={() => setActiveGroup(g)}
-                >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-                    <Users className="h-4 w-4" />
-                  </div>
-                  <span className="ml-2">{g.Name || "Unnamed Group"}</span>
-                </DropdownMenuItem>
-              ))
+              <>
+                {console.log('Rendering groups:', groups)}
+                {groups.map((g) => (
+                  <DropdownMenuItem
+                    key={g.ID}
+                    onClick={() => {
+                      console.log('Selected group:', g);
+                      setActiveGroup(g);
+                    }}
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <span className="ml-2">{g.Name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </>
             )}
 
             <DropdownMenuSeparator />
