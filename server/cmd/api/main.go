@@ -64,7 +64,6 @@ func main() {
 	groupsHandler := func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-
 			handlers.GetGroups(w, r, queries)
 		case http.MethodPost:
 			handlers.CreateGroup(w, r, queries)
@@ -74,6 +73,9 @@ func main() {
 	}
 	mux.HandleFunc("/api/groups", groupsHandler)
 	mux.HandleFunc("/api/groups/", groupsHandler)
+
+	// ─── Competitors API: both "/api/groups" and "/api/groups/" ───────────────────────
+	//    so that requests with or without trailing slash work.
 
 	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
 	handlerWithCORS := middleware.CORSMiddleware(mux)

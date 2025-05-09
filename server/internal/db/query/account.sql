@@ -161,6 +161,12 @@ INSERT INTO competitors (group_id, platform, username, profile_url, last_checked
 VALUES ($1, $2, $3, $4, NOW())
 RETURNING id, group_id, platform, username, profile_url, last_checked;
 
+-- name: GetGroupCompetitors :many
+SELECT c.*
+FROM competitors c
+JOIN groups g ON g.id = c.group_id
+WHERE g.user_id = $1;
+
 -- name: FetchNextPendingJob :one
 UPDATE upload_jobs
 SET status = 'processing'
