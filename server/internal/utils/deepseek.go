@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	// Create a shared HTTP client with timeouts
+	// Shared HTTP client with sensible timeouts and connection reuse
 	httpClient = &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 300 * time.Second,
 		Transport: &http.Transport{
 			MaxIdleConns:        100,
 			MaxIdleConnsPerHost: 100,
@@ -23,74 +23,133 @@ var (
 		},
 	}
 
-	// Cache for JSON data
+	// Simple in-memory cache for JSON file contents
 	jsonCache    = make(map[string]string)
 	jsonCacheMux sync.RWMutex
 )
 
-// MainDeep reads a JSON file and uses it as context for AI responses.
-// If a file is uploaded, its contents are read and appended to the user prompt.
+// MainOllama reads your JSON context file (and any uploaded file),
+// constructs an OpenAI-compatible chat payload, and sends it to your
+// local Ollama chat/completions endpoint, defaulting to model "gemma".
 func MainDeep(prompt string, uploadedFile *multipart.FileHeader) (string, error) {
-	apiKey := "sk-" // Get API key from environment variable
-	if apiKey == "" {
-		return "", fmt.Errorf("missing DEEPAPI_KEY environment variable")
+	// 1) Determine Ollama endpoint & model from env (with sensible defaults)
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434/v1/chat/completions"
+	}
+	model := os.Getenv("OLLAMA_MODEL")
+	if model == "" {
+		model = "gemma3"
 	}
 
-	jsonPath := "detailed_data.json"
-	jsonData, err := getCachedJSON(jsonPath)
+	// 2) Load your cached JSON data
+	jsonData, err := getCachedJSON("detailed_data.json")
 	if err != nil {
 		return "", fmt.Errorf("failed to read JSON file: %v", err)
 	}
 
-	// Prepare the user content with file content if provided
+	// 3) Append uploaded file content if present
 	userContent := prompt
 	if uploadedFile != nil {
-		fileContent, err := readFileContent(uploadedFile)
+		fc, err := readFileContent(uploadedFile)
 		if err != nil {
 			return "", err
 		}
-		userContent = fmt.Sprintf("%s\n\n[Attached File Contents]:\n%s", prompt, fileContent)
+		userContent = fmt.Sprintf("%s\n\n[Attached File Contents]:\n%s", prompt, fc)
 	}
 
-	// Construct messages directly as a slice to avoid unnecessary manipulation
+	// 4) Build chat messages in OpenAI format
 	messages := []map[string]interface{}{
 		{
 			"role": "system",
 			"content": fmt.Sprintf(
-				"You are a helpful assistant. GIVE SHORT AND CONSISE RESPONSE TO ANY QUESTIONS GIVEN. Use the following data as context for answering questions. "+
-					"MAKE SURE TO RETURN OUTPUT IN Markdown format. Use marketing or normal formatting based on the request:\n%s",
+				"You are a helpful assistant. GIVE SHORT AND CONCISE RESPONSES. Use the following data as context:\n%s",
 				jsonData,
 			),
 		},
-		{"role": "user", "content": userContent},
+		{
+			"role":    "user",
+			"content": userContent,
+		},
 	}
 
-	// Create request body
+	// 5) Build the request body
 	requestBody := map[string]interface{}{
-		"model":    "deepseek-chat",
+		"model":    model,
 		"messages": messages,
+		"stream":   false,
 	}
 
-	return makeAPIRequest(requestBody, apiKey)
+	// 6) Send to Ollama and return the assistant's reply
+	return makeAPIRequest(requestBody, ollamaURL)
 }
 
-// getCachedJSON retrieves JSON from cache or reads from file if not cached
-func getCachedJSON(filePath string) (string, error) {
-	// Check cache first
-	jsonCacheMux.RLock()
-	cached, exists := jsonCache[filePath]
-	jsonCacheMux.RUnlock()
-
-	if exists {
-		return cached, nil
+// makeAPIRequest sends an OpenAI-style chat request to the given URL,
+// and extracts the assistant’s reply from the JSON response.
+func makeAPIRequest(requestBody map[string]interface{}, apiURL string) (string, error) {
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode request body: %v", err)
 	}
 
-	// If not in cache, read from file
+	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Ollama v1 ignores the API key, but if you want to
+	// pass one for compatibility:
+	if apiKey := os.Getenv("OLLAMA_API_KEY"); apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("HTTP request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, body)
+	}
+
+	// Parse OpenAI-style response
+	var out struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return "", fmt.Errorf("invalid response format: %v", err)
+	}
+	if len(out.Choices) == 0 {
+		return "", fmt.Errorf("no choices in response")
+	}
+
+	return out.Choices[0].Message.Content, nil
+}
+
+// getCachedJSON loads a JSON file from disk, pretty-prints it,
+// and caches the result in memory.
+func getCachedJSON(filePath string) (string, error) {
+	jsonCacheMux.RLock()
+	if cached, ok := jsonCache[filePath]; ok {
+		jsonCacheMux.RUnlock()
+		return cached, nil
+	}
+	jsonCacheMux.RUnlock()
+
 	jsonCacheMux.Lock()
 	defer jsonCacheMux.Unlock()
-
-	// Check again in case another goroutine populated the cache
-	if cached, exists := jsonCache[filePath]; exists {
+	// Double-check in case it was cached during lock wait
+	if cached, ok := jsonCache[filePath]; ok {
 		return cached, nil
 	}
 
@@ -99,100 +158,30 @@ func getCachedJSON(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to read file: %v", err)
 	}
 
-	var formattedJSON interface{}
-	if err := json.Unmarshal(data, &formattedJSON); err != nil {
+	var pretty interface{}
+	if err := json.Unmarshal(data, &pretty); err != nil {
 		return "", fmt.Errorf("failed to parse JSON: %v", err)
 	}
-
-	prettyJSON, err := json.MarshalIndent(formattedJSON, "", "  ")
+	out, err := json.MarshalIndent(pretty, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to format JSON: %v", err)
 	}
 
-	result := string(prettyJSON)
-	jsonCache[filePath] = result
-	return result, nil
+	jsonCache[filePath] = string(out)
+	return string(out), nil
 }
 
-// readFileContent reads the content of an uploaded file
+// readFileContent reads the entire contents of an uploaded multipart file.
 func readFileContent(uploadedFile *multipart.FileHeader) (string, error) {
-	file, err := uploadedFile.Open()
+	f, err := uploadedFile.Open()
 	if err != nil {
 		return "", fmt.Errorf("failed to open uploaded file: %v", err)
 	}
-	defer file.Close()
+	defer f.Close()
 
-	fileContent, err := io.ReadAll(file)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file content: %v", err)
 	}
-
-	return string(fileContent), nil
-}
-
-// makeAPIRequest sends the request to the DeepSeek API
-func makeAPIRequest(requestBody map[string]interface{}, apiKey string) (string, error) {
-	// Convert request body to JSON
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to encode request body: %v", err)
-	}
-
-	// Create HTTP request
-	req, err := http.NewRequest("POST", "https://api.deepseek.com/chat/completions", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to create HTTP request: %v", err)
-	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	// Send request using the shared client
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send HTTP request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, body)
-	}
-
-	return extractResponseContent(body)
-}
-
-// extractResponseContent extracts the content from API response
-func extractResponseContent(responseBody []byte) (string, error) {
-	var response map[string]interface{}
-	if err := json.Unmarshal(responseBody, &response); err != nil {
-		return "", fmt.Errorf("failed to parse response body: %v", err)
-	}
-
-	choices, ok := response["choices"].([]interface{})
-	if !ok || len(choices) == 0 {
-		return "", fmt.Errorf("invalid response format or no choices available")
-	}
-
-	choice, ok := choices[0].(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("unexpected choice format")
-	}
-
-	message, ok := choice["message"].(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("unexpected message format")
-	}
-
-	content, ok := message["content"].(string)
-	if !ok {
-		return "", fmt.Errorf("content is not a string")
-	}
-
-	return content, nil
+	return string(data), nil
 }

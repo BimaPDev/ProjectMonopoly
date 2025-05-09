@@ -114,7 +114,7 @@ React.useEffect(() => {
   async function fetchGroups() {
     const storedUserID = localStorage.getItem("userID");
     if (!storedUserID) {
-      
+  
       return;
     }
     
@@ -144,8 +144,7 @@ React.useEffect(() => {
       
       
       setGroups(data);
-     
-      if (groups.length === 0) {
+      if (data.length == 0) {
         setGroupEmptyErr(true);
       }
     } catch (error) {

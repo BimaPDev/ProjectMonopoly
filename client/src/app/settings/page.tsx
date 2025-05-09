@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
-
+import { useState, useEffect } from 'react';
+import * as React from "react";
 const GroupManagement = () => {
   // State for creating groups
   const [formData, setFormData] = useState({
-    user_id: '',
+    ID: '',
     name: '',
     description: ''
   });
+  interface Group {
+    ID: number;    
+    name: string;  
+    description: string; 
+  }
   
   // State for managing groups
   const [groups, setGroups] = useState([]);
@@ -15,22 +20,54 @@ const GroupManagement = () => {
     username: '',
     password: ''
   });
-  const userId = 1;
+  const [userID, setUserID] = React.useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingGroups, setIsFetchingGroups] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
-
+  
   // Fetch groups on component mount
   useEffect(() => {
+    
     fetchGroups();
   }, []);
-
+   const createGroup = async () => {
+    if (formData.userID === null) {
+      setError("User ID not found. Please log in again.");
+      return;
+    }
+    
+    const name = window.prompt("New group name:")?.trim();
+    if (!name) return;
+    
+    const description = window.prompt("Description (optional):")?.trim() || "";
+    
+    try {
+      const res = await fetch("http://localhost:8080/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userID, name, description }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Create failed with status: ${res.status}`);
+      }
+      setMessage({ text: 'Group created successfully', type: 'success' });
+      await fetchGroups();
+    } catch (e: any) {
+      setMessage({ text: 'Failed to create group', type: 'error' });
+      console.error("Error creating group:", e);
+      setError(e.message || "Error creating group");
+    }
+  };
   const fetchGroups = async () => {
+    const id= localStorage.getItem('userID')
+    setUserID(Number(id))
     setIsFetchingGroups(true);
     try {
-      console.log(`Fetching groups for user ${userId}...`);
-      const res = await fetch(`http://localhost:8080/api/groups?user_id=${userId}`, {
+      
+      const res = await fetch(`http://localhost:8080/api/groups?userID=${userID}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -41,7 +78,7 @@ const GroupManagement = () => {
       }
       
       const data = await res.json() as Group[];
-      console.log("API response:", data);
+  
       
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
@@ -75,7 +112,8 @@ const GroupManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    console.log('Form data:', formData);
+    formData.user_id = userID.toString();
     if (!formData.user_id || !formData.name) {
       setMessage({
         text: 'User ID and group name are required fields',
@@ -94,26 +132,8 @@ const GroupManagement = () => {
     setMessage({ text: '', type: '' });
 
     try {
-      // Simulated API call
-      // const response = await axios.post('/api/createGroup', requestData);
-      const mockResponse = {
-        data: { id: Math.floor(Math.random() * 1000), ...requestData }
-      };
-      
-      setMessage({
-        text: `Group "${mockResponse.data.name}" created successfully!`,
-        type: 'success'
-      });
-      
-      // Update groups list with new group
-      setGroups(prevGroups => [...prevGroups, mockResponse.data]);
-      
-      setFormData({
-        user_id: formData.user_id,
-        name: '',
-        description: ''
-      });
-    } catch (error) {
+      createGroup();
+      } catch (error) {
       const errorMessage = error.response?.data || 'Failed to create group. Please try again.';
       setMessage({ text: errorMessage, type: 'error' });
     } finally {
@@ -190,13 +210,13 @@ const GroupManagement = () => {
             {groups.length === 0 ? (
               <p className="text-gray-500">No groups found</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 m-2px lg:grid-cols-3 gap-4">
                 {groups.map(group => (
                   <div 
-                    key={group.id}
+                    key={group.ID}
                     onClick={() => setSelectedGroup(group)}
                     className={`border rounded-md p-4 cursor-pointer transition ${
-                      selectedGroup?.id === group.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                      selectedGroup?.ID === group.ID ? 'border-blue-500 bg-black-50' : 'border-gray-200 hover:border-blue-300'
                     }`}
                   >
                     <h3 className="font-medium">{group.name}</h3>
@@ -218,31 +238,31 @@ const GroupManagement = () => {
         ) : (
           <form onSubmit={handleAddMember} className="space-y-4">
             <div className="mb-2">
-              <p className="text-sm font-medium text-gray-700">Selected Group: <span className="font-semibold">{selectedGroup.name}</span></p>
+              <p className="text-m font-medium tex-white">Selected Group: <span className="rounded-lg bg-gray-700 px-1 opacity-1">{selectedGroup.name}</span></p>
             </div>
             
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username/Email</label>
+              <label htmlFor="username" className="block text-sm font-medium text-white">Username/Email</label>
               <input
                 type="text"
                 id="username"
                 name="username"
                 value={membershipForm.username}
                 onChange={handleMembershipChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 placeholder="Enter username or email"
               />
             </div>
             
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-white">Password</label>
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={membershipForm.password}
                 onChange={handleMembershipChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 placeholder="Enter password"
               />
             </div>
@@ -262,54 +282,13 @@ const GroupManagement = () => {
       <div className="bg-black shadow rounded-lg p-6">
         <h2 className="text-xl font-semibold mb-4">Create New Group</h2>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="user_id" className="block text-sm font-medium text-gray-700">User ID</label>
-            <input
-              type="text"
-              id="user_id"
-              name="user_id"
-              value={formData.user_id}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter your user ID"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Group Name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter group name"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description (optional)</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows="3"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter group description"
-            ></textarea>
-          </div>
-          
           <button
-            type="submit"
+            onClick={createGroup}
             disabled={isLoading}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
           >
             {isLoading ? 'Creating...' : 'Create Group'}
           </button>
-        </form>
       </div>
     </div>
   );
