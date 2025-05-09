@@ -23,6 +23,7 @@ services:
     build: ./server/python
     depends_on:
       - db
+      - ollama
     restart: always
 
   db:
@@ -38,5 +39,20 @@ services:
     ports:
       - "5432:5432"
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=*
+    command: ["serve"]
+    entrypoint: ["sh", "-c", "ollama pull gemma:latest && ollama serve"]
+
+
 volumes:
   postgres_data:
+  ollama_data:
