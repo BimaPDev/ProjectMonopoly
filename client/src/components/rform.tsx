@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { GoogleLogin } from "@react-oauth/google"; // Import Google Login
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,7 +35,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       // ✅ Store token and session ID
       localStorage.setItem("token", data.token);
       localStorage.setItem("sessionId", data.sessionId);
-
+      localStorage.setItem("username",)
       // ✅ Redirect to the dashboard after successful login
       navigate("/dashboard");
 
@@ -94,6 +95,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 </div>
                 {error && <p className="text-red-500 text-sm">{error}</p>}
                 <div className="space-y-2">
+                  <Label htmlFor="username" className="text-gray-300">Username</Label>
+                  <Input
+                  id="username"
+                  type="text"
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
+                  className="bg-gray-900 text-white border border-gray-700 focus:ring-gray-500 focus:border-white"
+                  required
+                  >
+                  </Input>
                   <Label htmlFor="email" className="text-gray-300">Email</Label>
                   <Input
                     id="email"

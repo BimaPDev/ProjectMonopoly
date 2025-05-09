@@ -98,3 +98,20 @@ CREATE TABLE competitor_posts (
 
 ALTER TABLE group_items
 ADD CONSTRAINT group_items_group_id_type_key UNIQUE (group_id, type);
+--socialmeiad data, id PK, groupsid FK, type, data, created, upadted
+CREATE TABLE socialmedia_data (
+  id SERIAL PRIMARY KEY,
+  group_id   INT NOT NULL
+    REFERENCES groups(id)
+    ON DELETE CASCADE,
+  platform   VARCHAR(50)   NOT NULL,    -- e.g. 'twitter', 'instagram'
+  type       VARCHAR(50)   NOT NULL,    -- e.g. 'followers', 'posts', 'engagement'
+  data       JSONB         NOT NULL,    -- any details you want to store
+  created_at TIMESTAMP     NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP     NOT NULL DEFAULT NOW()
+);
+
+-- (optional) ensure you don’t insert duplicate platform/type per group:
+ALTER TABLE socialmedia_data
+  ADD CONSTRAINT uniq_group_platform_type
+    UNIQUE (group_id, platform, type);

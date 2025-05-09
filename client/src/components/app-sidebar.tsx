@@ -25,22 +25,33 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { RadiobuttonIcon } from "@radix-ui/react-icons";
 
-const data = {
-  user: {
-    name: "Testing User",
-    email: "Testing@Testing.co",
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+ 
+  const [userData, setUserData] = useState({
+    name: "",
+    email: "",
     avatar: "/placeholder.svg?height=32&width=32",
-  },
-  teams: [
+  });
+
+  useEffect(() => {
+    // Only access localStorage after component mounts (client-side)
+    setUserData({
+      name: localStorage.getItem("username") || "",
+      email: localStorage.getItem("email") || "",
+      avatar: "/placeholder.svg?height=32&width=32",
+    });
+  }, []);
+
+  const teams = [
     {
       name: "DoogWood Gaming",
       logo: GalleryHorizontalEnd,
       plan: "Enterprise",
     },
-  ],
-  navMain: [
+  ];
+
+  const navMain = [
     {
       title: "Dashboard",
       url: "/dashboard",
@@ -50,10 +61,8 @@ const data = {
     {
       title: "DogWood AI",
       url: "/dashboard/ai",
-
       icon: BotIcon,
     },
-
     {
       title: "Content",
       url: "#",
@@ -63,127 +72,31 @@ const data = {
           title: "Posts",
           url: "/dashboard/posts",
         },
-        // {
-        //   title: "Scheduler",
-        //   url: "#",
-        // },
-        // {
-        //   title: "Media Library",
-        //   url: "#",
-        // },
       ],
     },
-    // {
-    //   title: "Analytics",
-    //   url: "#",
-    //   icon: TrendingUp,
-    //   items: [
-    //     {
-    //       title: "Overview",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Engagement",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Audience",
-    //       url: "#",
-    //     },
-    //   ],
-    // },
-
-    // {
-    //   title: "Campaigns",
-    //   url: "#",
-    //   icon: Share2,
-    //   items: [
-    //     {
-    //       title: "Active",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Drafts",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Archive",
-    //       url: "#",
-    //     },
-    //   ],
-    // },
-    // {
-    //   title: "Calendar",
-    //   url: "#",
-    //   icon: Calendar,
-    // },
-    // {
-    //   title: "Hashtags",
-    //   url: "#",
-    //   icon: Hash,
-    // },
     {
       title: "Competitors",
       url: "/dashboard/competitors",
       icon: Users2,
     },
-    // {
-    //   title: "Reports",
-    //   url: "#",
-    //   icon: BarChart3,
-    // },
-    // {
-    //   title: "Settings",
-    //   url: "#",
-    //   icon: Settings2,
-    // },
-    
-  ],
-  projects: [
-    // {
-    //   name: "Summer Campaign",
-    //   url: "#",
-    //   icon: Share2,
-    // },
-    // {
-    //   name: "Product Launch",
-    //   url: "#",
-    //   icon: Share2,
-    // },
-    // {
-    //   name: "Holiday Season",
-    //   url: "#",
-    //   icon: Share2,
-    // },
-  ],
-};
+  ];
 
-
-
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  interface User {
-    id: number;
-    userName: string; 
-  }
-  try{
-    
-  }catch(e){
-
-  }
+  const projects = [];
   
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher teams={teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        <NavMain items={navMain} />
+        <NavProjects projects={projects} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
 }
+export default AppSidebar;

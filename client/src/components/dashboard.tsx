@@ -99,6 +99,40 @@ const data = [
 export function Dashboard() {
   const [followers, setFollowers] = useState(0);
   const [loading, setLoading] = useState(false);
+  async function fetchUserID() {
+      const username = localStorage.getItem("username");
+      const email = localStorage.getItem("email");
+      console.log("Attempting authentication with:", { username, email });
+      
+      try {
+        console.log("Fetching userid...");
+        const response = await fetch(`http://localhost:8080/api/getUserID`, {
+          method: "POST",
+          headers: {'Content-Type': "application/json"},
+          body: JSON.stringify({
+            username,
+            email,
+          }),
+        });
+  
+        if (!response.ok) {
+          console.log("Failed to get userID");
+          return; // Exit early if we can't get the userID
+        }
+        
+        const data = await response.json();
+        const userID = data.userID;
+        console.log("Retrieved userID:", userID);
+        localStorage.setItem("userID", userID); 
+        
+        
+        
+      } catch (e) {
+        console.log("Error getting userID:", e);
+      }
+    }
+  
+  
   async function fetchFollowers() {
     try {
       const response = await fetch(`${import.meta.env.API_CALL}/followers`);
@@ -110,7 +144,7 @@ export function Dashboard() {
       setLoading(false);
     }
   }
-
+  fetchUserID();
   return (
     <Tabs defaultValue="overview" className="space-y-4">
       <TabsList>

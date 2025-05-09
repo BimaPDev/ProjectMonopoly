@@ -15,7 +15,6 @@ import Competitors from "@/app/competitors/page";
 import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Test from "@/app/test/page";
 import CreateGroupSettings from "./app/settings/page";
 
 // Add your Google Client ID here
@@ -39,7 +38,6 @@ function App() {
             <Route path="/dashboard/competitors" element={<Competitors />} />
             <Route path="/dashboard/competitors/live" element={<LiveFeedPage />} />
             <Route path="/dashboard/ai" element={<Ai />} />
-            <Route path="/dashboard/test" element={<Test />} />
             <Route path="/dashboard/settings" element={<CreateGroupSettings />} />
           </Route>
 

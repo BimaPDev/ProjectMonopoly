@@ -6,6 +6,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -66,6 +67,16 @@ type Session struct {
 	UserID    int32        `json:"user_id"`
 	CreatedAt sql.NullTime `json:"created_at"`
 	ExpiresAt time.Time    `json:"expires_at"`
+}
+
+type SocialmediaDatum struct {
+	ID        int32           `json:"id"`
+	GroupID   int32           `json:"group_id"`
+	Platform  string          `json:"platform"`
+	Type      string          `json:"type"`
+	Data      json.RawMessage `json:"data"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }
 
 type UploadJob struct {

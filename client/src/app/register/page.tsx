@@ -1,10 +1,11 @@
 "use client";
 import { useState } from 'react';
 import { GoogleLogin } from "@react-oauth/google";
-import { redirect } from 'react-router-dom';
-
+import { useRouter } from "next/navigation"; 
 export default function RegisterPage() {
+  
   const [formData, setFormData] = useState({
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -47,7 +48,7 @@ export default function RegisterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          username: formData.email,
+          username: formData.username,
           email: formData.email, 
           password: formData.password
         }),
@@ -55,18 +56,23 @@ export default function RegisterPage() {
   
       if (!response.ok) {
         const errorData = await response.json();
+
+        throw new Error(errorData.message || "Registration failed. Please try again.");
+      }
+  
+        if (!response.ok) {
+        const errorData = await response.json();
         throw new Error(errorData.message || "Registration failed. Please try again.");
       }
   
       const data = await response.json();
   
-      // Store token and session ID
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("sessionId", data.sessionId);
+      // store email and username
+      localStorage.setItem("username",formData.username)
+      localStorage.setItem("email",formData.email);
       
       setSuccess(true);
       setError("Account created please log in");
-      redirect("/login");
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -101,7 +107,7 @@ export default function RegisterPage() {
   
       // Store token and session ID
       localStorage.setItem("token", data.token);
-      localStorage.setItem("sessionId", data.sessionId);
+      
   
       alert("User registered successfully!");
     } catch (err) {
@@ -189,7 +195,25 @@ export default function RegisterPage() {
               <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
               <div className="flex-grow border-t border-gray-700"></div>
             </div>
-            
+            <div className="space-y-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">Username</label>
+              <div className="relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  id="username" 
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-70 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  placeholder="Username"
+                  required
+                />
+              </div>
+            </div>
             <div className="space-y-1">
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email Address</label>
               <div className="relative rounded-md shadow-sm">
