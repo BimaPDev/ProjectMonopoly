@@ -94,7 +94,6 @@ psycopg2-binary==2.9.10
 pycparser==2.21
 pydantic==2.9.2
 pydantic_core==2.23.4
-pyee==8.2.2
 Pygments==2.19.1
 PyJWT==2.10.1
 pyparsing==3.2.1
@@ -152,4 +151,3 @@ whisper==1.1.10
 wrapt==1.17.2
 wsproto==1.2.0
 zipp==3.17.0
-playwright==1.44.0
