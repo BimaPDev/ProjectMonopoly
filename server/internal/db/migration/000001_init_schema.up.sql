@@ -115,3 +115,9 @@ CREATE TABLE socialmedia_data (
 ALTER TABLE socialmedia_data
   ADD CONSTRAINT uniq_group_platform_type
     UNIQUE (group_id, platform, type);
+-- Daily followers table to track follower counts per day
+CREATE TABLE daily_followers (
+  id              SERIAL      PRIMARY KEY,
+  record_date     DATE        NOT NULL DEFAULT CURRENT_DATE,
+  follower_count  BIGINT      NOT NULL
+);

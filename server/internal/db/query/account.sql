@@ -239,3 +239,19 @@ SELECT id
 FROM users
 WHERE username = $1
   AND email    = $2;
+
+-- name: InsertFollowerCount :one
+insert into daily_followers(
+  record_date,
+  follower_count
+) values (
+  $1, -- record_date (INT)
+  $2  -- date           (timestamp)
+);
+
+-- name: GetFollowerByDate :one
+SELECT *
+FROM daily_followers
+ORDER BY record_date DESC
+LIMIT 1;
+
