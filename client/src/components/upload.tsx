@@ -337,7 +337,7 @@ React.useEffect(() => {
                             </div>
                           </div>
                         )}
-                      </div>
+                 </div>
                     </CardContent>
                   </Card>
                 </motion.div>

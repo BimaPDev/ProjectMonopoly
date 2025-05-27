@@ -112,9 +112,7 @@ func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 		return
 	}
 
-	fmt.Println("userID =", req.UserID)
-	fmt.Println("name =", req.Name)
-	fmt.Println("description =", req.Description)
+	
 
 	if req.UserID == 0 || req.Name == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
