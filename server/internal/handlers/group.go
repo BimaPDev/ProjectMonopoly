@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -111,8 +110,6 @@ func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-
-	
 
 	if req.UserID == 0 || req.Name == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)

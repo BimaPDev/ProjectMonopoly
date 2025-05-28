@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
+	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
 )
 
@@ -64,7 +64,7 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 }
 
 // TriggerFollowersScript handles requests to trigger the followers Python script
-func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
+func TriggerFollowersScript(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	w.Header().Set("Content-Type", "application/json")
 	print("SCRIPT TRIGGERED")
 	// Debug: Log the incoming request (if needed for troubleshooting)
@@ -75,27 +75,10 @@ func TriggerFollowersScript(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("Raw request body: %s\n", string(body))
 
-	// Always run the Python script in headless mode
-	headless := true
-
-	// Run the Python script
-	output, err := utils.GetFollowers(headless)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ResponseBody{
-			Success: false,
-			Message: "Failed to execute Python script",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	// Success response
-	json.NewEncoder(w).Encode(ResponseBody{
-		Success: true,
-		Message: "Python script executed successfully",
-		Output:  output,
-	})
+	// Call the GetFollowers function from utils	
+	utils.GetFollowers(w,r, queries)
+	
+	
 }
 
 // HealthCheck provides a simple health check endpoint

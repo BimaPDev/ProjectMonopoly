@@ -33,7 +33,9 @@ func main() {
 	// ─── Public Routes ────────────────────────────────────────────────────────────
 	mux.HandleFunc("/trigger", handlers.TriggerPythonScript)
 	mux.HandleFunc("/health", handlers.HealthCheck)
-	mux.HandleFunc("/followers", handlers.TriggerFollowersScript)
+	mux.HandleFunc("/followers", func(w http.ResponseWriter, r *http.Request) {
+		handlers.TriggerFollowersScript(w, r, queries)
+	})
 	mux.HandleFunc("/ai/deepseek", handlers.DeepSeekHandler)
 
 	// ─── Authentication ───────────────────────────────────────────────────────────
@@ -49,7 +51,7 @@ func main() {
 
 	// ─── getuserID ─────────────────────────────────────────────
 	mux.HandleFunc("/api/getUserID",
-    	handlers.GetUserIDHandler(queries),)
+		handlers.GetUserIDHandler(queries))
 
 	// ─── Upload Endpoint (Protected) ─────────────────────────────────────────────
 	mux.HandleFunc("/api/upload",

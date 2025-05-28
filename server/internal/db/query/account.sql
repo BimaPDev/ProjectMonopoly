@@ -240,7 +240,7 @@ FROM users
 WHERE username = $1
   AND email    = $2;
 
--- name: InsertFollowerCount :one
+-- name: InsertFollowerCount :exec
 insert into daily_followers(
   record_date,
   follower_count
@@ -250,7 +250,7 @@ insert into daily_followers(
 );
 
 -- name: GetFollowerByDate :one
-SELECT *
+SELECT follower_count
 FROM daily_followers
 ORDER BY record_date DESC
 LIMIT 1;

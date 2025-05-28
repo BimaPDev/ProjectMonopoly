@@ -135,9 +135,9 @@ export function Dashboard() {
   
   async function fetchFollowers() {
     try {
-      const response = await fetch(`${import.meta.env.API_CALL}/followers`);
+      const response = await fetch(`http://localhost:8080/followers`);
       const data = await response.json();
-      setFollowers(data.data.total_followers);
+      setFollowers(data);
     } catch (error) {
       console.error("Error fetching followers:", error);
     }finally{
@@ -156,9 +156,9 @@ export function Dashboard() {
       <TabsContent value="overview" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium">Total Followers</CardTitle>
-              <ArrowUpIcon className="h-4 w-4 text-muted-foreground" />
+              <ArrowUpIcon className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{followers}</div>
@@ -168,7 +168,7 @@ export function Dashboard() {
               <Button onClick={fetchFollowers} disabled={loading}>
                 { loading? (
                 <div className="flex items-center">
-                  <Loader2Icon className="h-4 w-4 mr-2 animate-spin"/>
+                  <Loader2Icon className="w-4 h-4 mr-2 animate-spin"/>
                   <span>Getting Followers..</span>
 
                 </div>
@@ -179,7 +179,7 @@ export function Dashboard() {
             </CardFooter>
           </Card>
           <Card>
-          <CardHeader className="flex flex-row item-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row justify-between pb-2 space-y-0 item-center">
             In development:
           </CardHeader>
           <CardContent>
@@ -190,11 +190,11 @@ export function Dashboard() {
           </CardContent>
           </Card>
           {/* <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium">
                 Engagement Rate
               </CardTitle>
-              <ArrowUpIcon className="h-4 w-4 text-muted-foreground" />
+              <ArrowUpIcon className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">5.2%</div>
@@ -204,11 +204,11 @@ export function Dashboard() {
             </CardContent>
           </Card> */}
           {/* <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium">
                 Scheduled Posts
               </CardTitle>
-              <StopwatchIcon className="h-4 w-4 text-muted-foreground" />
+              <StopwatchIcon className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">12</div>
@@ -216,11 +216,11 @@ export function Dashboard() {
             </CardContent>
           </Card> */}
           {/* <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium">
                 Active Campaigns
               </CardTitle>
-              <CircleIcon className="h-4 w-4 text-muted-foreground" />
+              <CircleIcon className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">3</div>
@@ -266,7 +266,7 @@ export function Dashboard() {
                       }
 
                       return (
-                        <div className="rounded-lg border bg-background p-2 shadow-sm">
+                        <div className="p-2 border rounded-lg shadow-sm bg-background">
                           <div className="grid gap-2">
                             <div className="flex flex-col">
                               <span className="text-[0.70rem] uppercase text-muted-foreground">
@@ -334,7 +334,7 @@ export function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <Avatar className="flex h-9 w-9 items-center justify-center space-y-0 border">
+                  <Avatar className="flex items-center justify-center space-y-0 border h-9 w-9">
                     <AvatarImage src="/placeholder.svg" alt="Avatar" />
                     <AvatarFallback>JL</AvatarFallback>
                   </Avatar>
@@ -384,7 +384,7 @@ export function Dashboard() {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex items-center">
                     <div className="flex items-center justify-center w-10">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <div className="ml-4 space-y-1">
                       <p className="text-sm font-medium leading-none">
@@ -422,7 +422,7 @@ export function Dashboard() {
                   { tag: "#content", count: "3.8K", trend: "down" },
                 ].map((item) => (
                   <div key={item.tag} className="flex items-center">
-                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    <Hash className="w-4 h-4 text-muted-foreground" />
                     <div className="ml-4 space-y-1">
                       <p className="text-sm font-medium leading-none">
                         {item.tag}
@@ -433,9 +433,9 @@ export function Dashboard() {
                     </div>
                     <div className="ml-auto">
                       {item.trend === "up" ? (
-                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                        <ArrowUpIcon className="w-4 h-4 text-green-500" />
                       ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-red-500" />
+                        <ArrowDownIcon className="w-4 h-4 text-red-500" />
                       )}
                     </div>
                   </div>
