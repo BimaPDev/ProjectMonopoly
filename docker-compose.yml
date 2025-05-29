@@ -49,8 +49,7 @@ services:
       - ollama_data:/root/.ollama
     environment:
       - OLLAMA_ORIGINS=*
-    command: ["serve"]
-    entrypoint: ["sh", "-c", "ollama pull gemma:latest && ollama serve"]
+    entrypoint: ["ollama", "serve"]
 
 
 volumes:

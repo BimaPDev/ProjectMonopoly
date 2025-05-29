@@ -1,6 +1,8 @@
 from playwright.sync_api import sync_playwright
 import json
 import re
+import uuid
+import os
 from bs4 import BeautifulSoup
 
 def parse_number(value: str) -> int:
@@ -23,20 +25,7 @@ def scrape_post_with_playwright(post_url: str):
         page.goto(post_url, timeout=15000)
         page.wait_for_timeout(3000)
 
-        # Scroll comments area to ensure all metadata loads
-        try:
-            scroll_container = page.locator(
-                'section main div div:nth-child(1) div div:nth-child(2) div div:nth-child(2)'
-            )
-            for _ in range(10):
-                scroll_container.evaluate("node => node.scrollBy(0, 2000)")
-                page.wait_for_timeout(1000)
-        except Exception as e:
-            print("⚠️ Scroll container not found:", e)
-
         html = page.content()
-        browser.close()
-
         soup = BeautifulSoup(html, "html.parser")
         result = {}
 
@@ -69,18 +58,41 @@ def scrape_post_with_playwright(post_url: str):
             result["comments"] = None
             result["username"] = None
 
-        # Hashtags
         result["hashtags"] = re.findall(r"#\w+", caption_text) if caption_text else []
-
-        # Image URL
         og_image = soup.find("meta", property="og:image")
         result["image_url"] = og_image["content"] if og_image else None
-
-        # Timestamp
         time_tag = soup.find("time")
         result["timestamp"] = time_tag["datetime"] if time_tag and time_tag.has_attr("datetime") else None
-        
-        # Final JSON output (no comments)
+
+        # Scrape profile stats
+        if result.get("username"):
+            try:
+                profile_url = f"https://www.instagram.com/{result['username']}/"
+                print(f"👤 Visiting profile: {profile_url}")
+                page.goto(profile_url, timeout=15000)
+                page.wait_for_timeout(3000)
+
+                stats = page.locator('header section ul li')
+                raw_posts = stats.nth(0).inner_text().split()[0]
+                raw_followers = stats.nth(1).inner_text().split()[0]
+                raw_following = stats.nth(2).inner_text().split()[0]
+
+                def clean_count(text):
+                    return parse_number(text.replace(",", "").replace(" ", ""))
+
+                result["profile"] = {
+                    "url": profile_url,
+                    "followers": clean_count(raw_followers),
+                    "following": clean_count(raw_following),
+                    "posts": clean_count(raw_posts)
+                }
+            except Exception as e:
+                print("⚠️ Could not scrape profile stats:", e)
+                result["profile"] = None
+        else:
+            result["profile"] = None
+
+        # Final result
         final_result = {
             "likes": result.get("likes"),
             "comments": result.get("comments"),
@@ -88,13 +100,19 @@ def scrape_post_with_playwright(post_url: str):
             "caption": result.get("caption", result.get("caption_raw")),
             "hashtags": result.get("hashtags", []),
             "timestamp": result.get("timestamp"),
-            "image_url": result.get("image_url")
+            "image_url": result.get("image_url"),
+            "profile": result.get("profile")
         }
 
-        with open("result.json", "w", encoding="utf-8") as f:
+        os.makedirs("scrape_result", exist_ok=True)
+        filename = f"{uuid.uuid4().hex}.json"
+        filepath = os.path.join("scrape_result", filename)
+
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(final_result, f, indent=2, ensure_ascii=False)
 
-        print("✅ Extracted data saved to result.json")
+        print(f"✅ Extracted data saved to {filepath}")
+        browser.close()
 
-# Run it
-scrape_post_with_playwright("https://www.instagram.com/p/DJDcZmtsNeZ/")
+# Example usage
+scrape_post_with_playwright("https://www.instagram.com/p/DKAKajGg8io/?hl=en")
