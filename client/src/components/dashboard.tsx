@@ -9,6 +9,7 @@ import {
   CheckCircledIcon,
   CircleIcon,
   CrossCircledIcon,
+  LightningBoltIcon,
   QuestionMarkCircledIcon,
   StopwatchIcon,
 } from "@radix-ui/react-icons";
@@ -22,10 +23,7 @@ import {
   Tooltip,
 } from "recharts";
 import { Bar, BarChart } from "recharts";
-import { Calendar, Hash, Loader2Icon } from "lucide-react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Calendar, Hash, Loader2Icon, ChartArea,Users, TrendingUp, CheckCheckIcon, Clock, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,67 +33,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+const developmentItems = [
+{item: "Deployment", status:"c"},
+{item: "Upload Page", status: "ip"},
+{item: "Settings Page", status: "ip"},
+{item: "Log Out", status: "p"},
+{item: "Analytics", status: "p"},
+]
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const data = [
-  {
-    name: "Jan",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Feb",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Mar",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Apr",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "May",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Jun",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Jul",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Aug",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Sep",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Oct",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Nov",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Dec",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-];
-
+import { Arrow } from "@radix-ui/react-tooltip";
 export function Dashboard() {
   const [followers, setFollowers] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -134,6 +81,7 @@ export function Dashboard() {
   
   
   async function fetchFollowers() {
+    setLoading(true)
     try {
       const response = await fetch(`http://localhost:8080/followers`);
       const data = await response.json();
@@ -146,308 +94,88 @@ export function Dashboard() {
   }
   fetchUserID();
   return (
-    <Tabs defaultValue="overview" className="space-y-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <Tabs defaultValue="overview" className="">
       <TabsList>
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        {/* <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        <TabsTrigger value="reports">Reports</TabsTrigger>
-        <TabsTrigger value="notifications">Notifications</TabsTrigger> */}
+        <TabsTrigger value="overview" >Overview</TabsTrigger>
+        <TabsTrigger value="analytics" >Analytics</TabsTrigger>
+        <TabsTrigger value="reports" >Reports</TabsTrigger>
+        <TabsTrigger value="notifications">Notifications</TabsTrigger>
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Total Followers</CardTitle>
-              <ArrowUpIcon className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{followers}</div>
-              <p className={`text-xs text-green-500`}>+{20.1}% from last month</p>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={fetchFollowers} disabled={loading}>
-                { loading? (
-                <div className="flex items-center">
-                  <Loader2Icon className="w-4 h-4 mr-2 animate-spin"/>
-                  <span>Getting Followers..</span>
-
-                </div>
-                ):(
-                "Update Followers"
-                )}
-                </Button>
-            </CardFooter>
-          </Card>
-          <Card>
-          <CardHeader className="flex flex-row justify-between pb-2 space-y-0 item-center">
-            In development:
-          </CardHeader>
-          <CardContent>
-            <p>Deployment</p>
-            <p>Getting Popular Hashtags</p>
-            <p>File upload</p>
-            <p>Login page (FINISHED)</p>
-          </CardContent>
-          </Card>
-          {/* <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">
-                Engagement Rate
-              </CardTitle>
-              <ArrowUpIcon className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">5.2%</div>
-              <p className={`text-xs text-green-500`}>
-                +{1.2}% from last month
-              </p>
-            </CardContent>
-          </Card> */}
-          {/* <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">
-                Scheduled Posts
-              </CardTitle>
-              <StopwatchIcon className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className={`text-xs text-red-500`}>-{5.2}% from last month</p>
-            </CardContent>
-          </Card> */}
-          {/* <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">
-                Active Campaigns
-              </CardTitle>
-              <CircleIcon className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className={`text-xs text-green-500`}>
-                +{8.1}% from last month
-              </p>
-            </CardContent>
-          </Card> */}
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          {/* <Card className="col-span-4">
-            <CardHeader>
-              <CardTitle>Engagement Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="pl-2">
-              <ResponsiveContainer width="100%" height={350}>
-                <AreaChart
-                  data={data}
-                  stackOffset="none"
-                  margin={{
-                    top: 10,
-                    right: 30,
-                    left: 0,
-                    bottom: 0,
-                  }}
-                >
-                  <XAxis
-                    dataKey="name"
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (
-                        !active ||
-                        !payload ||
-                        !payload[0]?.payload?.name ||
-                        !payload[0]?.value
-                      ) {
-                        return null;
-                      }
-
-                      return (
-                        <div className="p-2 border rounded-lg shadow-sm bg-background">
-                          <div className="grid gap-2">
-                            <div className="flex flex-col">
-                              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                {payload[0].payload.name}
-                              </span>
-                              <span className="font-bold text-foreground">
-                                {Number(payload[0].value).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor="hsl(var(--primary))"
-                        stopOpacity={0.8}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor="hsl(var(--primary))"
-                        stopOpacity={0.1}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    type="monotone"
-                    dataKey="total"
-                    stackId="1"
-                    stroke="hsl(var(--primary))"
-                    fill="url(#colorTotal)"
-                    opacity={0.9}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card> */}
-          {/* <Card className="col-span-3">
-            <CardHeader>
-              <CardTitle>Recent Posts</CardTitle>
-              <CardDescription>
-                Your most recent social media posts
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-8">
-                <div className="flex items-center">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>OM</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      New Product Launch
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Instagram • 2 hours ago
-                    </p>
-                  </div>
-                  <div className="ml-auto font-medium">
-                    <Badge>Live</Badge>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Avatar className="flex items-center justify-center space-y-0 border h-9 w-9">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>JL</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      Summer Collection
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Twitter • 5 hours ago
-                    </p>
-                  </div>
-                  <div className="ml-auto font-medium">
-                    <Badge variant="outline">Scheduled</Badge>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>WK</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      Customer Story
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      LinkedIn • 1 day ago
-                    </p>
-                  </div>
-                  <div className="ml-auto font-medium">
-                    <Badge variant="secondary">Draft</Badge>
-                  </div>
-                </div>
+        <div className="w-full px-4 py-5 mx-auto max-w-7xl">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 ">
+        
+        <div className="flex flex-col items-center justify-center p-6 m-5 space-y-4 border rounded-lg border-slate-700/50 bg-slate-800/50 backdrop-blur-sm">
+          <div className="flex items-center space-x-2">
+            <Users className="w-6 h-6 text-blue-400" />
+            <div className="text-sm font-medium text-white">Total Followers</div>
+          </div>
+          <div className="text-2xl font-bold text-white">{followers}</div>
+          <p className="text-xs text-green-500">+{20.1}% from last month</p>
+          <Button onClick={fetchFollowers} disabled={loading} className="w-full">
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
+                <span>Getting Followers..</span>
               </div>
-            </CardContent>
-          </Card> */}
+            ) : (
+              <>
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Update Followers
+              </>
+            )}
+          </Button>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          {/* <Card className="col-span-4">
-            <CardHeader>
-              <CardTitle>Upcoming Content</CardTitle>
-              <CardDescription>
-                Your content calendar for the next 7 days
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-8">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center">
-                    <div className="flex items-center justify-center w-10">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="ml-4 space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {
-                          [
-                            "Product Update",
-                            "Customer Spotlight",
-                            "Tips & Tricks",
-                            "Behind the Scenes",
-                            "Weekend Special",
-                          ][i]
-                        }
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {["Mon", "Tue", "Wed", "Thu", "Fri"][i]}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card> */}
-          {/* <Card className="col-span-3">
-            <CardHeader>
-              <CardTitle>Trending Tags</CardTitle>
-              <CardDescription>Most used hashtags this week</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-8">
-                {[
-                  { tag: "#marketing", count: "12.3K", trend: "up" },
-                  { tag: "#socialmedia", count: "8.7K", trend: "up" },
-                  { tag: "#digital", count: "6.2K", trend: "down" },
-                  { tag: "#strategy", count: "4.5K", trend: "up" },
-                  { tag: "#content", count: "3.8K", trend: "down" },
-                ].map((item) => (
-                  <div key={item.tag} className="flex items-center">
-                    <Hash className="w-4 h-4 text-muted-foreground" />
-                    <div className="ml-4 space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {item.tag}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.count} mentions
-                      </p>
-                    </div>
-                    <div className="ml-auto">
-                      {item.trend === "up" ? (
-                        <ArrowUpIcon className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <ArrowDownIcon className="w-4 h-4 text-red-500" />
+
+              
+            
+              <Card>
+                
+              </Card>
+              <Card>
+                
+              </Card>
+              <div className="flex flex-col col-span-3 p-5 border items-left ap-2 bg-slate-800/50 backdrop-blur-sm border-slate-700/50 rounded-t-2xl">
+                <div className="flex item-center ">
+                <div className="p-2 rounded bg-yellow-500/50">
+                  <LightningBoltIcon className="w-6 h-6 text-yellow-300" />
+                </div>
+                 <h1 className="p-2 font-semibold">Development Status</h1>
+                 </div>
+                 <div className="flex flex-wrap gap-4 p-5">
+                  {developmentItems.map((feature,index)=>(
+                    <div key={index} className="w-40 p-3 rounded-lg opacity-50 bg-slate-500">
+                      {feature.status === "c" ? (
+                        <CheckCheckIcon className="w-4 h-4 text-green-400"></CheckCheckIcon>
+
+                      ): feature.status === "ip" ? (
+                        <Clock className="w-4 h-4 text-amber-400"></Clock>
+                      ): (
+                        <Circle className="w-4 h-4 text-slate-400"></Circle>
+                        
                       )}
+                      <span className="text-sm text-white"> {feature.item}</span>
                     </div>
-                  </div>
-                ))}
+                    
+                  ))}
+                 </div>
               </div>
-            </CardContent>
-          </Card> */}
+        </div>
         </div>
       </TabsContent>
-      <TabsContent value="analytics">Analytics</TabsContent>
+      <TabsContent value="analytics">
+        <div className="py-20 text-center">
+            <div className="inline-block p-4 mb-4 rounded-lg bg-blue-500/20">
+              <ChartArea className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="mb-2 text-2xl font-bold text-white">Analytics Coming Soon</h3>
+            <p className="text-slate-400">Advanced analytics and insights will be available here.</p>
+          </div>
+      </TabsContent>
       <TabsContent value="reports">Reports</TabsContent>
       <TabsContent value="notifications">Notifications</TabsContent>
     </Tabs>
+    </div>
   );
 }
