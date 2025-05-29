@@ -1,5 +1,43 @@
 import { useState, useEffect } from 'react';
 import * as React from "react";
+import { ChevronDown, Facebook, Instagram, Linkedin, Twitter, Users, Plus, RefreshCw, UserPlus, AlertCircle, CheckCircle, User2 } from "lucide-react";
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+import { InstagramLogoIcon } from '@radix-ui/react-icons';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+const socialPlatforms = [
+  {
+    id: "instagram",
+    name: "instagram",
+    icon: Instagram,
+    color: "bg-gradient-to-br from-purple-600 to-pink-500",
+  },
+  {
+    id: "facebook",
+    name: "facebook",
+    icon: Facebook,
+    color: "bg-blue-600",
+  },
+  {
+    id: "twitter",
+    name: "twitter",
+    icon: Twitter,
+    color: "bg-sky-500",
+  },
+  {
+    id: "linkedin",
+    name: "linkedIn",
+    icon: Linkedin,
+    color: "bg-blue-700",
+  },
+];
+
 const GroupManagement = () => {
   // State for creating groups
   const [formData, setFormData] = useState({
@@ -18,7 +56,8 @@ const GroupManagement = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [membershipForm, setMembershipForm] = useState({
     username: '',
-    password: ''
+    password: '',
+    platform: ''
   });
   const [userID, setUserID] = React.useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +67,6 @@ const GroupManagement = () => {
   
   // Fetch groups on component mount
   useEffect(() => {
-    
     fetchGroups();
   }, []);
    const createGroup = async () => {
@@ -62,6 +100,7 @@ const GroupManagement = () => {
     }
   };
   const fetchGroups = async () => {
+    setIsLoading(true)
     const id= localStorage.getItem('userID')
     setUserID(Number(id))
     setIsFetchingGroups(true);
@@ -90,6 +129,7 @@ const GroupManagement = () => {
     } catch (error) {
       setMessage({ text: 'Failed to fetch groups', type: 'error' });
     } finally {
+      setIsLoading(false);
       setIsFetchingGroups(false);
     }
   };
@@ -102,13 +142,10 @@ const GroupManagement = () => {
     }));
   };
 
-  const handleMembershipChange = (e) => {
-    const { name, value } = e.target;
-    setMembershipForm(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
-  };
+ const handleMembershipChange = (value: string) => {
+  setMembershipForm(prev => ({ ...prev, platform: value }));
+};
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -174,71 +211,134 @@ const GroupManagement = () => {
       
       setMembershipForm({
         username: '',
-        password: ''
+        password: '',
+        platform: ''
       });
     } catch (error) {
-      setMessage({ text: 'Failed to add user to group', type: 'error' });
+      setMessage({ text: 'Failed to add account(s) to group', type: 'error' });
     } finally {
       setIsAddingMember(false);
     }
   };
 
   return (
-    <div className="space-y-8 p-4">
-      {/* Message display */}
-      {message.text && (
-        <div className={`p-4 rounded-md ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-          {message.text}
+     <div className="min-h-screen p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className='mx-auto space-y-8 max-w-7xl'>
+        
+        <div className="py-8 text-center">
+          <h1 className="mb-4 text-4xl font-bold text-white ">
+            Manage Your Groups
+          </h1>
+          <p className='text-lg text-slate-400'> Manage your social media groups and team members</p>
         </div>
-      )}
-      
-      {/* Group listing section */}
-      <div className="bg-black shadow rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Existing Groups</h2>
-        
-        {isFetchingGroups ? (
-          <div className="text-center py-4">Loading groups...</div>
-        ) : (
-          <div className="space-y-4">
-            <button 
-              onClick={fetchGroups}
-              className="bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-3 rounded text-sm"
-            >
-              Refresh Groups
-            </button>
+          {/* Message display */}
+          {message.text && (
+            <div className={`p-4 rounded-xl border backdrop-blur-sm animate-in slide-in-from-top-2 duration-300 ${
+            message.type === 'error' 
+              ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+              : 'bg-green-500/10 border-green-500/20 text-green-400'
+          }`}>
+             <div className="flex items-center gap-2">
+              {message.type === 'error' ? (
+                <AlertCircle className="w-4 h-4" />
+              ) : (
+                <CheckCircle className="w-4 h-4" />
+              )}
+              {message.text}
+            </div>
+            </div>
+          )}
+          
+        <div className='grid grid-cols-1 gap-8 xl:grid-cols-3'>
             
-            {groups.length === 0 ? (
-              <p className="text-gray-500">No groups found</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 m-2px lg:grid-cols-3 gap-4">
-                {groups.map(group => (
-                  <div 
-                    key={group.ID}
-                    onClick={() => setSelectedGroup(group)}
-                    className={`border rounded-md p-4 cursor-pointer transition ${
-                      selectedGroup?.ID === group.ID ? 'border-blue-500 bg-black-50' : 'border-gray-200 hover:border-blue-300'
-                    }`}
-                  >
-                    <h3 className="font-medium">{group.name}</h3>
-                    <p className="text-sm text-gray-600">{group.description || 'No description'}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className='xl:col-span-2'>
+          {/* Group listing section */}
+          <div className="flex items-center justify-between p-8 dow-2xl fleborder bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50">
+            <div>
+              <User2></User2>
+            <h2 className="mb-4 text-xl font-semibold">Your Groups</h2>
+            </div>
+            <div >
+             <button 
+                  onClick={fetchGroups}
+                  className="flex items-center gap-2 px-4 py-2 transition-all duration-200 border rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border-slate-600/50 hover:border-slate-500/50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isFetchingGroups ? 'animate-spin' : ''}`} />
+                  Refresh Groups
+                </button>
+            </div>
+           
           </div>
-        )}
-      </div>
-      
-      {/* Add user to group section */}
-      <div className="bg-black shadow rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Add User to Group</h2>
+          
+            {isFetchingGroups ? (
+                <div>
+                  <div className="py-12 text-center">
+                    <div className="inline-flex items-center gap-3 text-slate-400">
+                      <div className="w-8 h-8 border-b-2 border-blue-400 rounded-full animate-spin"></div>
+                      Loading groups...
+                    </div>
+                  </div>
+                </div>
+                
+              ):(
+                <div className='space-y-4'>
+                  {groups.length === 0 ? 
+                  (
+                    <div className='py-12 text-center'>
+                      
+                      <Users ></Users>
+                      <p className='text-lg text-slate-400'>No groups found</p>
+                      <p className='text-sm text-slate-400'> Create your first group to get started</p>
+                    </div>
+                    
+                  )
+                  
+                  :(
+                    <div className='grid gap-3 m-2 grid-col-1 md:grid-cols-2'>
+                      {groups.map( group => (
+                        <div
+                        key={group.ID}
+                        onClick={() => setSelectedGroup(group)}
+                      className={`group relative p-6 rounded-xl cursor-pointer transition-all duration-300 border ${
+                              selectedGroup?.ID === group.ID 
+                                ? 'border-blue-500/50 bg-blue-500/10 shadow-lg shadow-blue-500/25' 
+                                : 'border-slate-600/30 bg-slate-700/30 hover:border-slate-500/50 hover:bg-slate-700/50'
+                            }`}
+                        >
+                          <h3 className='font-medium text-slate-400'>{group.name}</h3>
+                          <p className='text-sm text-slate-400'>{group.description || 'No description'}</p>
+                        </div>
+                        
+                      ))}
+                    </div>
+                    
+                  )}
+                </div>
+              )}
         
-        {!selectedGroup ? (
-          <p className="text-amber-600">Please select a group first</p>
-        ) : (
+      </div>
+      <div className="p-8 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50">
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='p-2 rounded-lg bg-green-500/20'>
+              <UserPlus className='text-green-400 '></UserPlus>
+            </div>
+            <p className='font-semibold font-lg'>Add a social media login</p>
+          </div>
+           { !selectedGroup ? (
+            
+            <div className="py-8 text-center">
+                  <div className="inline-block p-3 mb-3 rounded-lg bg-amber-500/20">
+                    <AlertCircle className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <p className="font-medium text-amber-400">Select a group first</p>
+                  <p className="mt-1 text-sm text-slate-500">Choose a group from the list to add members</p>
+                </div>
+            
+            
+           ): (
           <form onSubmit={handleAddMember} className="space-y-4">
             <div className="mb-2">
-              <p className="text-m font-medium tex-white">Selected Group: <span className="rounded-lg bg-gray-700 px-1 opacity-1">{selectedGroup.name}</span></p>
+              <p className="font-medium text-m tex-white">Selected Group: <span className="px-1 bg-gray-700 rounded-lg opacity-1">{selectedGroup.name}</span></p>
             </div>
             
             <div>
@@ -262,34 +362,58 @@ const GroupManagement = () => {
                 name="password"
                 value={membershipForm.password}
                 onChange={handleMembershipChange}
-                className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                className="mb-1 bg-slate-500 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 placeholder="Enter password"
               />
+            </div>
+            {/* Platform select */}
+              <div>
+                <Select 
+                  onValueChange={handleMembershipChange} 
+                  
+                >
+                  
+                    <SelectTrigger >
+                      <SelectValue placeholder="Select a platform" />
+                    </SelectTrigger>
+                  
+                  <SelectContent>
+                    {socialPlatforms.map((platform) => (
+                      <SelectItem 
+                        key={platform.id} 
+                        value={platform.name}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "flex h-6 w-6 items-center justify-center rounded-full text-white",
+                              platform.color
+                            )}
+                          >
+                            <platform.icon className="w-3 h-3" />
+                          </div>
+                          {platform.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
             </div>
             
             <button
               type="submit"
               disabled={isAddingMember}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {isAddingMember ? 'Adding...' : 'Add to Group'}
             </button>
           </form>
-        )}
+          
+          )}   
+              
       </div>
-      
-      {/* Create group section */}
-      <div className="bg-black shadow rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Create New Group</h2>
-        
-          <button
-            onClick={createGroup}
-            disabled={isLoading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-          >
-            {isLoading ? 'Creating...' : 'Create Group'}
-          </button>
-      </div>
+    </div>
+    </div>
     </div>
   );
 };

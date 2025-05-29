@@ -91,7 +91,6 @@ export default function UploadPage() {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [groups, setGroups] = React.useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = React.useState(false);
-  const [userID, setUserID] = React.useState(0);
   const [groupEmptyErr, setGroupEmptyErr] = useState(false);
   
   interface Group {
@@ -271,7 +270,7 @@ React.useEffect(() => {
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto py-10">
+      <div className="container py-10 mx-auto">
         <div className="space-y-8">
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">Create New Post</h1>
@@ -320,12 +319,12 @@ React.useEffect(() => {
                           <img
                             src={preview}
                             alt="Preview"
-                            className="absolute h-full w-full rounded-lg object-cover"
+                            className="absolute object-cover w-full h-full rounded-lg"
                           />
                         ) : (
-                          <div className="flex flex-col items-center justify-center space-y-4 p-4 text-center">
-                            <div className="rounded-full bg-primary/10 p-4">
-                              <Upload className="h-8 w-8 text-primary" />
+                          <div className="flex flex-col items-center justify-center p-4 space-y-4 text-center">
+                            <div className="p-4 rounded-full bg-primary/10">
+                              <Upload className="w-8 h-8 text-primary" />
                             </div>
                             <div className="space-y-2">
                               <p className="text-lg font-medium">
@@ -358,7 +357,7 @@ React.useEffect(() => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="absolute right-2 top-2 z-10"
+                            className="absolute z-10 right-2 top-2"
                             onClick={() => {
                               setPreview(undefined);
                               setSelectedFile(null);
@@ -366,12 +365,12 @@ React.useEffect(() => {
                               setProgress(33);
                             }}
                           >
-                            <X className="h-4 w-4" />
+                            <X className="w-4 h-4" />
                           </Button>
                           <img
                             src={preview}
                             alt="Preview"
-                            className="aspect-square w-full rounded-lg object-cover"
+                            className="object-cover w-full rounded-lg aspect-square"
                           />
                         </>
                       )}
@@ -422,7 +421,7 @@ React.useEffect(() => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="cursor-help">
-                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                      <Info className="w-4 h-4 text-muted-foreground" />
                                     </span>
                                   </TooltipTrigger>
                                   <TooltipContent className="max-w-xs">
@@ -455,7 +454,7 @@ React.useEffect(() => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Group</FormLabel>
-                            <div className="space-y-2 pl-4">
+                            <div className="pl-4 space-y-2">
                               {groups.map((g) => (
                                 <div key={g.ID} className="flex items-center">
                                   <input
@@ -468,19 +467,19 @@ React.useEffect(() => {
                                     disabled={groupsLoading}
                                   />
                                   <span>{g.name || "No Groups"}</span>
-                                  <span className="block text-xs text-zinc-500 dark:text-zinc-400 pl-2"> ({g.description || "Please add a group"})</span>
+                                  <span className="block pl-2 text-xs text-zinc-500 dark:text-zinc-400"> ({g.description || "Please add a group"})</span>
                                 </div>
                               ))}
                             </div>
                               {groupEmptyErr && (
-                                <p className="text-sm text-red-500 mt-1">
+                                <p className="mt-1 text-sm text-red-500">
                                   No groups found. Please create a group in the settings.
                                 </p>
                               )}
 
                               
                             {groupsLoading && (
-                              <p className="text-sm text-gray-500 mt-1">Loading your groups…</p>
+                              <p className="mt-1 text-sm text-gray-500">Loading your groups…</p>
                             )}
 
                             <FormMessage />
@@ -498,7 +497,7 @@ React.useEffect(() => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="cursor-help">
-                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                      <Info className="w-4 h-4 text-muted-foreground" />
                                     </span>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -528,7 +527,7 @@ React.useEffect(() => {
                                             platform.color
                                           )}
                                         >
-                                          <platform.icon className="h-3 w-3" />
+                                          <platform.icon className="w-3 h-3" />
                                         </div>
                                         {platform.label}
                                       </div>
@@ -551,7 +550,7 @@ React.useEffect(() => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="cursor-help">
-                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                      <Info className="w-4 h-4 text-muted-foreground" />
                                     </span>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -569,7 +568,7 @@ React.useEffect(() => {
                                         !field.value && "text-muted-foreground"
                                       )}
                                     >
-                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      <CalendarIcon className="w-4 h-4 mr-2" />
                                       {field.value
                                         ? format(field.value, "PPP")
                                         : "Pick a date (optional)"}
@@ -604,7 +603,7 @@ React.useEffect(() => {
                     <div className="flex justify-end">
                       <Button type="submit" disabled={loading} size="lg">
                         {loading && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         )}
                         {loading ? "Uploading..." : "Upload Post"}
                       </Button>

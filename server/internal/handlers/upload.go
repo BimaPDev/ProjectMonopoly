@@ -20,7 +20,7 @@ import (
 const baseUploadDir = "uploads" // Base upload directory
 
 func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	print("upload called")
+	
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
