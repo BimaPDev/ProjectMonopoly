@@ -467,7 +467,7 @@ React.useEffect(() => {
                                     disabled={groupsLoading}
                                   />
                                   <span>{g.name || "No Groups"}</span>
-                                  <span className="block pl-2 text-xs text-zinc-500 dark:text-zinc-400"> ({g.description || "Please add a group"})</span>
+                                  <span className="block pl-2 text-xs text-zinc-500 dark:text-zinc-400"> ({g.description || "No description"})</span>
                                 </div>
                               ))}
                             </div>

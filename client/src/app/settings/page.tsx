@@ -149,9 +149,8 @@ const GroupManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form data:', formData);
-    formData.user_id = userID.toString();
-    if (!formData.user_id || !formData.name) {
+    console.log('Form data:', membershipForm);
+    if (!formData.ID || !formData.name) {
       setMessage({
         text: 'User ID and group name are required fields',
         type: 'error'
@@ -160,7 +159,7 @@ const GroupManagement = () => {
     }
 
     const requestData = {
-      user_id: parseInt(formData.user_id),
+      user_id: parseInt(formData.ID),
       name: formData.name,
       description: formData.description
     };
@@ -180,7 +179,6 @@ const GroupManagement = () => {
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-    
     if (!selectedGroup) {
       setMessage({ text: 'Please select a group first', type: 'error' });
       return;
@@ -190,22 +188,31 @@ const GroupManagement = () => {
       setMessage({ text: 'Username and password are required', type: 'error' });
       return;
     }
-    
-    setIsAddingMember(true);
+   
+    const requestData = {
+      groupID: selectedGroup.ID,
+      userName: membershipForm.username,
+      password: membershipForm.password,
+      platform: membershipForm.platform
+    };
+
     
     try {
-      // API call would go here
-      // await axios.post('/api/addGroupMember', {
-      //   groupId: selectedGroup.id,
-      //   username: membershipForm.username,
-      //   password: membershipForm.password
-      // });
+      setIsLoading(true);
+      const res = await fetch("http://localhost:8080/api/AddGroupItem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+      });
+      console.log("request happened");
+     if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to fetch groups");
+      }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const data = await res.json;
+      console.log(data);
       setMessage({ 
-        text: `User "${membershipForm.username}" added to group "${selectedGroup.name}"`, 
+        text: `Account "${membershipForm.username}" added to group "${selectedGroup.name}"`, 
         type: 'success' 
       });
       
@@ -214,11 +221,13 @@ const GroupManagement = () => {
         password: '',
         platform: ''
       });
-    } catch (error) {
-      setMessage({ text: 'Failed to add account(s) to group', type: 'error' });
+      } catch (error) {
+      const errorMessage = error.response?.data || 'Failed to create group. Please try again.';
+      setMessage({ text: errorMessage, type: 'error' });
     } finally {
-      setIsAddingMember(false);
+      setIsLoading(false);
     }
+    
   };
 
   return (
@@ -347,8 +356,7 @@ const GroupManagement = () => {
                 type="text"
                 id="username"
                 name="username"
-                value={membershipForm.username}
-                onChange={handleMembershipChange}
+                onChange={(e) => setMembershipForm(prev => ({ ...prev, [e.target.name]: e.target.value }))}
                 className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 placeholder="Enter username or email"
               />
@@ -360,8 +368,7 @@ const GroupManagement = () => {
                 type="password"
                 id="password"
                 name="password"
-                value={membershipForm.password}
-                onChange={handleMembershipChange}
+                onChange={(e) => setMembershipForm(prev => ({ ...prev, [e.target.name]: e.target.value }))}
                 className="mb-1 bg-slate-500 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 placeholder="Enter password"
               />
@@ -369,8 +376,7 @@ const GroupManagement = () => {
             {/* Platform select */}
               <div>
                 <Select 
-                  onValueChange={handleMembershipChange} 
-                  
+                  onValueChange={(value) => setMembershipForm(prev => ({ ...prev, platform: value }))}
                 >
                   
                     <SelectTrigger >
