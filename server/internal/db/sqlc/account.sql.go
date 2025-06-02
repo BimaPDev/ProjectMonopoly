@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const checkEmailExists = `-- name: CheckEmailExists :one
@@ -642,18 +643,19 @@ func (q *Queries) InsertFollowerCount(ctx context.Context, arg InsertFollowerCou
 }
 
 const insertGroupItemIfNotExists = `-- name: InsertGroupItemIfNotExists :execrows
-INSERT INTO group_items (group_id,data, created_at, updated_at)
-VALUES ($1, $2::jsonb, NOW(), NOW())
+INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
+VALUES ($1,$2,$3, NOW(), NOW())
 ON CONFLICT (group_id) DO NOTHING
 `
 
 type InsertGroupItemIfNotExistsParams struct {
-	GroupID int32           `json:"group_id"`
-	Data    json.RawMessage `json:"data"`
+	GroupID  int32                 `json:"group_id"`
+	Platform string                `json:"platform"`
+	Data     pqtype.NullRawMessage `json:"data"`
 }
 
 func (q *Queries) InsertGroupItemIfNotExists(ctx context.Context, arg InsertGroupItemIfNotExistsParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, insertGroupItemIfNotExists, arg.GroupID, arg.Data)
+	result, err := q.db.ExecContext(ctx, insertGroupItemIfNotExists, arg.GroupID, arg.Platform, arg.Data)
 	if err != nil {
 		return 0, err
 	}

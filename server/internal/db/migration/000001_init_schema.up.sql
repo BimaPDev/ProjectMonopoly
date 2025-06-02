@@ -22,11 +22,14 @@ CREATE TABLE "groups" (
 CREATE TABLE "group_items" (
   "id" SERIAL PRIMARY KEY,
   "group_id" INT NOT NULL,
+  "platform" VARCHAR(50) NOT NULL,  -- e.g., 'tiktok', 'youtube'
   "data" JSONB,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE CASCADE
 );
+ALTER TABLE group_items
+ADD CONSTRAINT group_items_group_id_type_key UNIQUE (group_id);
 
 CREATE TABLE competitors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,8 +98,7 @@ CREATE TABLE competitor_posts (
   UNIQUE (platform, post_id)
 );
 
-ALTER TABLE group_items
-ADD CONSTRAINT group_items_group_id_type_key UNIQUE (group_id, type);
+
 --socialmeiad data, id PK, groupsid FK, type, data, created, upadted
 CREATE TABLE socialmedia_data (
   id SERIAL PRIMARY KEY,
