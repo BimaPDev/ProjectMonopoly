@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/sqlc-dev/pqtype"
 )
 
 // Create a new group
@@ -133,10 +134,13 @@ func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 		return
 	}
 
-	response, err := q.GroupItemAdd(r.Context(), db.CreateSocialMediaDataParams{
-		GroupID:   int32(req.groupID),
-		Platform:  req.platform,
-		Data:  dataBytes, 
+	response, err := q.InsertGroupItemIfNotExists(r.Context(), db.InsertGroupItemIfNotExistsParams{
+		GroupID:  int32(req.groupID),
+		Platform: req.platform,
+		Data: pqtype.NullRawMessage{
+			RawMessage: dataBytes,
+			Valid:      true,
+		},
 	})
 
 	if err != nil {

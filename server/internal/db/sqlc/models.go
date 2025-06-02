@@ -53,6 +53,7 @@ type Group struct {
 type GroupItem struct {
 	ID        int32                 `json:"id"`
 	GroupID   int32                 `json:"group_id"`
+	Platform  string                `json:"platform"`
 	Data      pqtype.NullRawMessage `json:"data"`
 	CreatedAt sql.NullTime          `json:"created_at"`
 	UpdatedAt sql.NullTime          `json:"updated_at"`

@@ -125,8 +125,8 @@ WHERE user_id = $1
 ORDER BY created_at DESC;
 
 -- name: InsertGroupItemIfNotExists :execrows
-INSERT INTO group_items (group_id,data, created_at, updated_at)
-VALUES (@group_id, @data::jsonb, NOW(), NOW())
+INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
+VALUES ($1,$2,$3, NOW(), NOW())
 ON CONFLICT (group_id) DO NOTHING;
 
 -- name: UpdateGroupItemData :execrows
