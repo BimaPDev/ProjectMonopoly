@@ -54,11 +54,9 @@ func main() {
 		handlers.GetUserIDHandler(queries))
 
 	// ─── Upload Endpoint (Protected) ─────────────────────────────────────────────
-	mux.HandleFunc("/api/upload",
-		auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			handlers.UploadVideoHandler(w, r, queries)
-		}),
-	)
+	mux.HandleFunc("/api/upload", func(w http.ResponseWriter, r *http.Request) {
+		handlers.UploadVideoHandler(w, r, queries)
+	})
 
 	// ─── Save Social Token ───────────────────────────────────────────────────────
 	mux.HandleFunc("/tiktok_session", func(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +75,12 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
+
+	// ─── addGroupItem ─────────────────────────────────────────────
+	mux.HandleFunc("/api/AddGroupItem", func(w http.ResponseWriter, r *http.Request) {
+		handlers.AddGroupItem(w, r, queries)
+	})
+
 	mux.HandleFunc("/api/groups", groupsHandler)
 	mux.HandleFunc("/api/groups/", groupsHandler)
 

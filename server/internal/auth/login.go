@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -54,7 +55,7 @@ func LoginHandler(queries *db.Queries) http.HandlerFunc {
 			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 			return
 		}
-
+		fmt.Print("login called")
 		// Send token to frontend
 		json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 	}

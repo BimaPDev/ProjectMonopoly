@@ -125,14 +125,14 @@ WHERE user_id = $1
 ORDER BY created_at DESC;
 
 -- name: InsertGroupItemIfNotExists :execrows
-INSERT INTO group_items (group_id, type, data)
-VALUES (@group_id, @type, @data::jsonb)
-ON CONFLICT (group_id, type) DO NOTHING;
+INSERT INTO group_items (group_id,data, created_at, updated_at)
+VALUES (@group_id, @data::jsonb, NOW(), NOW())
+ON CONFLICT (group_id) DO NOTHING;
 
 -- name: UpdateGroupItemData :execrows
 UPDATE group_items
 SET data = @data::jsonb, updated_at = NOW()
-WHERE group_id = @group_id AND type = @type;
+WHERE group_id = @group_id;
 
 -- name: GetGroupByID :one
 SELECT id, user_id, name, description, created_at, updated_at
@@ -181,7 +181,7 @@ RETURNING *;
 
 --uploding group items
 
--- name: CreateSocialMediaData :one
+-- name: CreateSocialMediaData :exec
 INSERT INTO socialmedia_data (
   group_id,
   platform,
@@ -192,20 +192,13 @@ INSERT INTO socialmedia_data (
 )
 VALUES (
   $1,       -- group_id    (INT)
-  $2,       -- platform    (VARCHAR)
+  $2,      -- platform    (VARCHAR)
   $3,       -- type        (VARCHAR)
   $4::jsonb,-- data        (JSONB)
   NOW(),
   NOW()
-)
-RETURNING
-  id,
-  group_id,
-  platform,
-  type,
-  data,
-  created_at,
-  updated_at;
+);
+
 
 -- name: ListSocialMediaDataByGroup :many
 SELECT
@@ -224,8 +217,7 @@ ORDER BY created_at DESC;
 UPDATE socialmedia_data
 SET
   platform   = $2,
-  type       = $3,
-  data       = $4::jsonb,
+  data       = $3::jsonb,
   updated_at = NOW()
 WHERE id = $1;
 

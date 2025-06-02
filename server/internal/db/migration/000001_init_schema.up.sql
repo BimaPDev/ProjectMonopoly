@@ -22,7 +22,6 @@ CREATE TABLE "groups" (
 CREATE TABLE "group_items" (
   "id" SERIAL PRIMARY KEY,
   "group_id" INT NOT NULL,
-  "type" VARCHAR(50),
   "data" JSONB,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
