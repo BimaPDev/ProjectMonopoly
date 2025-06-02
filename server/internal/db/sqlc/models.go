@@ -35,6 +35,12 @@ type CompetitorPost struct {
 	ScrapedAt    sql.NullTime          `json:"scraped_at"`
 }
 
+type DailyFollower struct {
+	ID            int32     `json:"id"`
+	RecordDate    time.Time `json:"record_date"`
+	FollowerCount int64     `json:"follower_count"`
+}
+
 type Group struct {
 	ID          int32          `json:"id"`
 	UserID      int32          `json:"user_id"`
