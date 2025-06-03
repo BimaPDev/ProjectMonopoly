@@ -34,13 +34,16 @@ func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
+	if queries == nil {
+		http.Error(w, "Internal server error: queries is nil", http.StatusInternalServerError)
+		return
+	}
 
 	group, err := queries.CreateGroup(r.Context(), db.CreateGroupParams{
 		UserID:      req.UserID,
 		Name:        req.Name,
 		Description: sql.NullString{String: req.Description, Valid: req.Description != ""},
 	})
-	fmt.Printf(err.Error())
 	if err != nil {
 		http.Error(w, "Failed to create group", http.StatusInternalServerError)
 		return
