@@ -218,6 +218,7 @@ INSERT INTO upload_jobs (
   video_path,
   storage_type,
   file_url,
+  scheduled_date,
   status,
   user_title,
   user_hashtags,
@@ -225,21 +226,22 @@ INSERT INTO upload_jobs (
   updated_at
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, NOW(), NOW()
 )
 RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at
 `
 
 type CreateUploadJobParams struct {
-	ID           string         `json:"id"`
-	UserID       int32          `json:"user_id"`
-	Platform     string         `json:"platform"`
-	VideoPath    string         `json:"video_path"`
-	StorageType  string         `json:"storage_type"`
-	FileUrl      sql.NullString `json:"file_url"`
-	Status       string         `json:"status"`
-	UserTitle    sql.NullString `json:"user_title"`
-	UserHashtags []string       `json:"user_hashtags"`
+	ID            string         `json:"id"`
+	UserID        int32          `json:"user_id"`
+	Platform      string         `json:"platform"`
+	VideoPath     string         `json:"video_path"`
+	StorageType   string         `json:"storage_type"`
+	FileUrl       sql.NullString `json:"file_url"`
+	ScheduledDate sql.NullTime   `json:"scheduled_date"`
+	Status        string         `json:"status"`
+	UserTitle     sql.NullString `json:"user_title"`
+	UserHashtags  []string       `json:"user_hashtags"`
 }
 
 type CreateUploadJobRow struct {
@@ -264,6 +266,7 @@ func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams
 		arg.VideoPath,
 		arg.StorageType,
 		arg.FileUrl,
+		arg.ScheduledDate,
 		arg.Status,
 		arg.UserTitle,
 		pq.Array(arg.UserHashtags),
@@ -360,7 +363,7 @@ WHERE id = (
     LIMIT 1
     FOR UPDATE SKIP LOCKED
 )
-RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at
+RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at, scheduled_date
 `
 
 func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
@@ -383,6 +386,7 @@ func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
 		&i.AiPostTime,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ScheduledDate,
 	)
 	return i, err
 }

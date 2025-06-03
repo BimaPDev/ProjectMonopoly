@@ -86,6 +86,7 @@ INSERT INTO upload_jobs (
   video_path,
   storage_type,
   file_url,
+  scheduled_date,
   status,
   user_title,
   user_hashtags,
@@ -93,7 +94,7 @@ INSERT INTO upload_jobs (
   updated_at
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, NOW(), NOW()
 )
 RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at;
 

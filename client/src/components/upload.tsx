@@ -49,7 +49,7 @@ import { Progress } from "@/components/ui/progress";
 const formSchema = z.object({
   title: z.string().optional(),
   hashtags: z.string().optional(),
-  platform: z.string().min(1, "Platform is required"),
+  platform: z.array(z.string()).min(1, "Platform is required"),
   groupId: z.string().min(1, "Group is required"),
   scheduledDate: z.date().optional(),
 });
@@ -104,7 +104,8 @@ export default function UploadPage() {
     defaultValues: {
       title: "",
       hashtags: "",
-      platform: "",
+      platform: [],
+      scheduledDate: undefined,
       groupId: "",
     },
   });
@@ -162,7 +163,7 @@ React.useEffect(() => {
 }, []);
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-    
+    console.log("Form values:", values);
     try {
       // Check if file exists
       if (!selectedFile) {
@@ -178,10 +179,11 @@ React.useEffect(() => {
       // Create FormData to match the expected format in your Go handler
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("user_id", parseInt(values.platform, 10).toString());
-      formData.append("platform", values.platform);
+      formData.append("user_id", localStorage.getItem("userID") || "");
+      formData.append("platform", values.platform.join(","));
+      formData.append("scheduled_date", values.scheduledDate ? values.scheduledDate.toISOString() : "");
       formData.append("group_id", values.groupId);
-      
+      console.log("PLATFORMS:", values.platform.join(","))
       if (values.title) {
         formData.append("title", values.title);
       }
@@ -501,40 +503,47 @@ React.useEffect(() => {
                                     </span>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>Choose the social media platform where you want to publish this content</p>
+                                    <p>Choose the social media platforms where you want to publish this content</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </div>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a platform" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {socialPlatforms.map((platform) => (
-                                    <SelectItem 
-                                      key={platform.id} 
+                              <div className="space-y-2">
+                                {socialPlatforms.map((platform) => (
+                                  <div key={platform.id} className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`platform-${platform.id}`}
+                                      className="mr-2"
                                       value={platform.id}
+                                      checked={field.value?.includes(platform.id) || false}
+                                      onChange={(e) => {
+                                        const currentValues = field.value || [];
+                                        let newValues;
+                                        
+                                        if (e.target.checked) {
+                                          // Add the platform if checked
+                                          newValues = [...currentValues, platform.id];
+                                        } else {
+                                          // Remove the platform if unchecked
+                                          newValues = currentValues.filter(id => id !== platform.id);
+                                        }
+                                        
+                                        field.onChange(newValues);
+                                        setProgress(66); // Update progress when platform changes
+                                      }}
+                                    />
+                                    <label 
+                                      htmlFor={`platform-${platform.id}`} 
+                                      className="flex items-center space-x-2 cursor-pointer"
                                     >
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className={cn(
-                                            "flex h-6 w-6 items-center justify-center rounded-full text-white",
-                                            platform.color
-                                          )}
-                                        >
-                                          <platform.icon className="w-3 h-3" />
-                                        </div>
-                                        {platform.label}
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${platform.color}`}>
+                                        <platform.icon className="w-4 h-4 text-white" />
+                                      </span>
+                                      <span>{platform.label}</span>
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}

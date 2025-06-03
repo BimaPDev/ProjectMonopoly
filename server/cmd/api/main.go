@@ -58,11 +58,6 @@ func main() {
 		handlers.UploadVideoHandler(w, r, queries)
 	})
 
-	// ─── Save Social Token ───────────────────────────────────────────────────────
-	mux.HandleFunc("/tiktok_session", func(w http.ResponseWriter, r *http.Request) {
-		handlers.SaveSocialToken(w, r, queries)
-	})
-
 	// ─── Groups API: both "/api/groups" and "/api/groups/" ───────────────────────
 	//    so that requests with or without trailing slash work.
 	groupsHandler := func(w http.ResponseWriter, r *http.Request) {
