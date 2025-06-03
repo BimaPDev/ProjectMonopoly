@@ -81,6 +81,7 @@ CREATE TABLE "upload_jobs" (
   "ai_post_time" TIMESTAMP,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
+  "scheduled_date" date DEFAULT NOW(),
 
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
   FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE SET NULL
@@ -116,10 +117,7 @@ CREATE TABLE socialmedia_data (
   updated_at TIMESTAMP     NOT NULL DEFAULT NOW()
 );
 
--- (optional) ensure you don’t insert duplicate platform/type per group:
-ALTER TABLE socialmedia_data
-  ADD CONSTRAINT uniq_group_platform_type
-    UNIQUE (group_id, platform, type);
+
 -- Daily followers table to track follower counts per day
 CREATE TABLE daily_followers (
   id              SERIAL      PRIMARY KEY,

@@ -13,9 +13,9 @@ import (
 
 // Create a new group
 type CreateGroupRequest struct {
-	UserID      int32  `json:"userID"`
-	Name        string `json:"name"`
 	Description string `json:"description"`
+	Name        string `json:"name"`
+	UserID      int32  `json:"userID"`
 }
 
 func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
@@ -40,6 +40,7 @@ func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 		Name:        req.Name,
 		Description: sql.NullString{String: req.Description, Valid: req.Description != ""},
 	})
+	fmt.Printf(err.Error())
 	if err != nil {
 		http.Error(w, "Failed to create group", http.StatusInternalServerError)
 		return
@@ -151,8 +152,5 @@ func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 	// Send success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"id":      response.ID, // Adjust based on what your query returns
-	})
+	json.NewEncoder(w).Encode(response)
 }
