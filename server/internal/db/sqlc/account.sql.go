@@ -462,6 +462,26 @@ func (q *Queries) GetGroupCompetitors(ctx context.Context, userID int32) ([]Comp
 	return items, nil
 }
 
+const getGroupItemByGroupID = `-- name: GetGroupItemByGroupID :one
+SELECT id, group_id, platform, data, created_at, updated_at
+FROM group_items
+WHERE group_id = $1
+`
+
+func (q *Queries) GetGroupItemByGroupID(ctx context.Context, groupID int32) (GroupItem, error) {
+	row := q.db.QueryRowContext(ctx, getGroupItemByGroupID, groupID)
+	var i GroupItem
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.Platform,
+		&i.Data,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getOAuthUserByEmail = `-- name: GetOAuthUserByEmail :one
 SELECT id, username, email, oauth_provider, oauth_id, created_at, updated_at
 FROM users
@@ -649,7 +669,7 @@ func (q *Queries) InsertFollowerCount(ctx context.Context, arg InsertFollowerCou
 const insertGroupItemIfNotExists = `-- name: InsertGroupItemIfNotExists :execrows
 INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
 VALUES ($1,$2,$3, NOW(), NOW())
-ON CONFLICT (group_id) DO NOTHING
+ON CONFLICT (group_id, platform) DO NOTHING
 `
 
 type InsertGroupItemIfNotExistsParams struct {

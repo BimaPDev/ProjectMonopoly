@@ -107,10 +107,10 @@ func GetGroups(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 }
 
 type AddGroupitem struct {
-	groupID  int    `json:"groupID"`
-	username string `json:"userName"`
-	password string `json:"password"`
-	platform string `json:"platform"`
+	GroupID  int    `json:"groupID"`
+	Username string `json:"userName"`
+	Password string `json:"password"`
+	Platform string `json:"platform"`
 }
 
 func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
@@ -127,8 +127,8 @@ func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 
 	// Create the data JSON object
 	dataJSON := map[string]string{
-		"username": req.username,
-		"password": req.password,
+		"username": req.Username,
+		"password": req.Password,
 	}
 
 	// Convert to JSON bytes
@@ -139,8 +139,8 @@ func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 	}
 
 	response, err := q.InsertGroupItemIfNotExists(r.Context(), db.InsertGroupItemIfNotExistsParams{
-		GroupID:  int32(req.groupID),
-		Platform: req.platform,
+		GroupID:  int32(req.GroupID),
+		Platform: req.Platform,
 		Data: pqtype.NullRawMessage{
 			RawMessage: dataBytes,
 			Valid:      true,
@@ -154,6 +154,29 @@ func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 
 	// Send success response
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// GetGroupItems retrieves all items in a group
+func GetGroupItems(w http.ResponseWriter, r *http.Request, q *db.Queries) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allwed", http.StatusBadRequest)
+	}
+	groupIDstr := r.URL.Query().Get("groupID")
+	groupIDInt, err := strconv.Atoi(groupIDstr)
+	if err != nil {
+		http.Error(w, "Invalid groupID, could not convert", http.StatusBadRequest)
+		return
+	}
+	groupID := int32(groupIDInt)
+	items, err := q.GetGroupItemByGroupID(r.Context(), groupID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve group items", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(items)
+
 }
