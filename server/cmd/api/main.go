@@ -58,6 +58,7 @@ func main() {
 		handlers.UploadVideoHandler(w, r, queries)
 	})
 
+	
 	// ─── Groups API: both "/api/groups" and "/api/groups/" ───────────────────────
 	//    so that requests with or without trailing slash work.
 	groupsHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +75,9 @@ func main() {
 	// ─── addGroupItem ─────────────────────────────────────────────
 	mux.HandleFunc("/api/AddGroupItem", func(w http.ResponseWriter, r *http.Request) {
 		handlers.AddGroupItem(w, r, queries)
+	})
+	mux.HandleFunc("/api/GetGroupItem", func(w http.ResponseWriter, r *http.Request) {
+		handlers.GetGroupItems(w,r,queries)
 	})
 
 	mux.HandleFunc("/api/groups", groupsHandler)

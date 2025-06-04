@@ -28,8 +28,7 @@ CREATE TABLE "group_items" (
   "updated_at" TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE CASCADE
 );
-ALTER TABLE group_items
-ADD CONSTRAINT group_items_group_id_type_key UNIQUE (group_id);
+ALTER TABLE group_items ADD CONSTRAINT unique_group_platform UNIQUE (group_id, platform);
 
 CREATE TABLE competitors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

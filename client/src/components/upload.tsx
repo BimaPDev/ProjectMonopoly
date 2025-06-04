@@ -175,15 +175,20 @@ React.useEffect(() => {
         setLoading(false);
         return;
       }
-
+      
       // Create FormData to match the expected format in your Go handler
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("user_id", localStorage.getItem("userID") || "");
       formData.append("platform", values.platform.join(","));
-      formData.append("scheduled_date", values.scheduledDate ? values.scheduledDate.toISOString() : "");
+      formData.append(
+        "scheduled_date",
+        values.scheduledDate
+          ? values.scheduledDate.toISOString()
+          : new Date().toLocaleString()
+      );
       formData.append("group_id", values.groupId);
-      console.log("PLATFORMS:", values.platform.join(","))
+      
       if (values.title) {
         formData.append("title", values.title);
       }

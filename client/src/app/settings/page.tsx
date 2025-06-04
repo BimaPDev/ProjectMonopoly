@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as React from "react";
-import { ChevronDown, Facebook, Instagram, Linkedin, Twitter, Users, Plus, RefreshCw, UserPlus, AlertCircle, CheckCircle, User2 } from "lucide-react";
+import { ChevronDown, Facebook, Instagram, Linkedin, Twitter, Users, Plus, RefreshCw, UserPlus, AlertCircle, CheckCircle, User2, UserRoundPen } from "lucide-react";
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { InstagramLogoIcon } from '@radix-ui/react-icons';
 import {
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { group } from 'node:console';
 const socialPlatforms = [
   {
     id: "instagram",
@@ -50,7 +51,14 @@ const GroupManagement = () => {
     name: string;  
     description: string; 
   }
-  
+  interface GroupItem{
+    ID: number,
+    Platform: string,
+    Updated: string,
+    Username: string,
+    Password: string,
+    
+  }
   // State for managing groups
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -64,11 +72,23 @@ const GroupManagement = () => {
   const [isFetchingGroups, setIsFetchingGroups] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [groupItems, setGroupItems] = useState<GroupItem[]>([]);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+
+
   
   // Fetch groups on component mount
   useEffect(() => {
     fetchGroups();
   }, []);
+  
+  useEffect(() => {
+  if (selectedGroup) {
+    fetchGroupItems();
+  }
+}, [selectedGroup]);
    const createGroup = async () => {
     if (formData.userID === null) {
       setError("User ID not found. Please log in again.");
@@ -99,6 +119,66 @@ const GroupManagement = () => {
       setError(e.message || "Error creating group");
     }
   };
+  const fetchGroupItems = async () => {
+    
+    const res = await fetch(`http://localhost:8080/api/GetGroupItem?groupID=${selectedGroup.ID}`,{
+      method: "GET",
+      headers: {"Content-Type": "application/json"},
+    });
+    
+    if(!res.ok){
+      const errorText = await res.text();
+      throw new Error(errorText || "Error happened when fetching group items");
+    }
+    const Data = await res.json() as GroupItem[];
+    console.log("Data:", Data);
+    const apiGroupID = Data.group_id;
+    const apiPlatform = Data.platform;
+    const apiUsername = Data.data.RawMessage.username;
+    const apiPassword = Data.data.RawMessage.password;
+    const date = new Date(Data.updated_at.Time);
+    const formattedDate:string = date.toLocaleString();
+    
+    setGroupItems(prev => {
+      const isDupe = prev.some(item => item.ID === apiGroupID && item.Platform === apiPlatform);
+      if (isDupe) return prev;
+      return [
+        ...prev,
+        {
+          ID: apiGroupID,
+          Platform: apiPlatform,
+          Updated: formattedDate,
+          Username: apiUsername,
+          Password: apiPassword
+        }
+      ];
+    });
+    
+  }
+  const startEdit = (itemEdited) => {
+    setEditingItem(itemEdited.ID + itemEdited.Platform);
+    setEditForm({
+      Username: itemEdited.Username,
+      Password: itemEdited.Password
+
+    });
+
+  };
+
+  const cancelEdit = () => {
+    setEditingItem(null);
+    setEditForm({});
+
+  };
+
+  const saveEdit = async () =>{
+
+    
+  };
+
+
+
+  
   const fetchGroups = async () => {
     setIsLoading(true)
     const id= localStorage.getItem('userID')
@@ -195,13 +275,14 @@ const GroupManagement = () => {
       password: membershipForm.password,
       platform: membershipForm.platform
     };
-
+    console.log(requestData)
     
     try {
       setIsLoading(true);
       const res = await fetch("http://localhost:8080/api/AddGroupItem", {
       method: "POST",
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestData)
       });
       console.log("request happened");
      if (!res.ok) {
@@ -298,6 +379,12 @@ const GroupManagement = () => {
                       <Users ></Users>
                       <p className='text-lg text-slate-400'>No groups found</p>
                       <p className='text-sm text-slate-400'> Create your first group to get started</p>
+                      <button onClick={createGroup} className='m-5 rounded-lg border-slate-600/30 bg-slate-700/30 hover:shadow-blue-500/25 hover:bg-slate-700/50'>
+                        <span>
+                        <Plus className='w-4 h-4 mr-2' />
+                        Create Group
+                        </span>
+                      </button>
                     </div>
                     
                   )
@@ -307,7 +394,10 @@ const GroupManagement = () => {
                       {groups.map( group => (
                         <div
                         key={group.ID}
-                        onClick={() => setSelectedGroup(group)}
+                       onClick={() => {
+                          setSelectedGroup(prev => prev?.ID === group.ID ? null : group);
+                        }}
+
                       className={`group relative p-6 rounded-xl cursor-pointer transition-all duration-300 border ${
                               selectedGroup?.ID === group.ID 
                                 ? 'border-blue-500/50 bg-blue-500/10 shadow-lg shadow-blue-500/25' 
@@ -326,6 +416,7 @@ const GroupManagement = () => {
               )}
         
       </div>
+      <div className='flex flex-col gap-2'>
       <div className="p-8 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50">
           <div className='flex items-center gap-3 mb-2'>
             <div className='p-2 rounded-lg bg-green-500/20'>
@@ -340,7 +431,7 @@ const GroupManagement = () => {
                     <AlertCircle className="w-6 h-6 text-amber-400" />
                   </div>
                   <p className="font-medium text-amber-400">Select a group first</p>
-                  <p className="mt-1 text-sm text-slate-500">Choose a group from the list to add members</p>
+                  <p className="mt-1 text-sm text-slate-500">Choose a group from the list to add login</p>
                 </div>
             
             
@@ -416,8 +507,51 @@ const GroupManagement = () => {
           </form>
           
           )}   
-              
       </div>
+      
+      <div className='p-8 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50'>
+        <div className='flex items-center gap-2'>
+          <div className='p-2 rounded-lg bg-green-500/20'>
+            <UserRoundPen className='text-green-400'></UserRoundPen>
+            
+          </div>
+          <p className='font-semibold font-lg'>Edit a social media login</p>
+        </div>
+        { !selectedGroup ? (
+            
+            <div className="py-8 text-center">
+                  <p className="mt-1 text-sm text-slate-500">Choose a group from the list to add login</p>
+                </div>
+            
+            
+           ): (
+           <div className='grid gap-3 m-2 grid-col-1 md:grid-cols-2'>
+            {groupItems.map(item => {
+              const isEditing = editingItem === (item.ID + item.Platform);
+              return( 
+                <div
+                  key={item.ID + item.Platform}
+                >
+                  {isEditing ? (
+                    <div>
+                      
+                    </div>
+                    
+                  ): (
+                    <div>
+                      <span>{item.Username}</span>
+                      <span>{item.Password}</span>
+                      <button onClick={() => startEdit(item)}>Edit</button>
+                      
+                    </div>
+                    
+                  )}
+                </div>
+              );
+            })}
+           </div>)}
+      </div>
+     </div>
     </div>
     </div>
     </div>
