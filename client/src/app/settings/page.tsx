@@ -312,10 +312,10 @@ const GroupManagement = () => {
   };
 
   return (
-     <div className="min-h-screen p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+     <div className="h-full pd-3 w-3xl bg-gradient-to-br from-black-900 via-slate-800 to-slate-900">
       <div className='mx-auto space-y-8 max-w-7xl'>
         
-        <div className="py-8 text-center">
+        <div className="py-3 text-center">
           <h1 className="mb-4 text-4xl font-bold text-white ">
             Manage Your Groups
           </h1>
@@ -339,7 +339,7 @@ const GroupManagement = () => {
             </div>
           )}
           
-        <div className='grid grid-cols-1 gap-8 xl:grid-cols-3'>
+        <div className='grid h-full grid-cols-1 xl:grid-cols-3'>
             
           <div className='xl:col-span-2'>
           {/* Group listing section */}
@@ -416,8 +416,8 @@ const GroupManagement = () => {
               )}
         
       </div>
-      <div className='flex flex-col gap-2'>
-      <div className="p-8 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50">
+      
+      <div className="px-3 pt-3 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50">
           <div className='flex items-center gap-3 mb-2'>
             <div className='p-2 rounded-lg bg-green-500/20'>
               <UserPlus className='text-green-400 '></UserPlus>
@@ -507,10 +507,10 @@ const GroupManagement = () => {
           </form>
           
           )}   
-      </div>
       
-      <div className='p-8 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50'>
-        <div className='flex items-center gap-2'>
+      
+      <div className='gap-3 p-3 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50'>
+        <div className='flex items-center gap-3 '>
           <div className='p-2 rounded-lg bg-green-500/20'>
             <UserRoundPen className='text-green-400'></UserRoundPen>
             
@@ -525,7 +525,7 @@ const GroupManagement = () => {
             
             
            ): (
-           <div className='grid gap-3 m-2 grid-col-1 md:grid-cols-2'>
+           <div className='p-3'>
             {groupItems.map(item => {
               const isEditing = editingItem === (item.ID + item.Platform);
               return( 
@@ -533,16 +533,40 @@ const GroupManagement = () => {
                   key={item.ID + item.Platform}
                 >
                   {isEditing ? (
-                    <div>
-                      
+                    <div className='w-lg'>
+                      <div className='flex flex-col w-lg'>
+                        <input
+                          value={editForm.Username}
+                          onChange={(e) => setEditForm(prev => ({...prev, Username: e.target.value}))}
+                          placeholder="Username"
+                          className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        />
+                        <input
+                          value={editForm.Password}
+                          onChange={(e) => setEditForm(prev => ({...prev, Password: e.target.value}))}
+                          placeholder="Password"
+                          type="password"
+                          className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        />
+                        <div className='gap-y-5'>
+                        <button className = "w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={() => saveEdit(item)}>Save</button>
+                        <button className = "w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={cancelEdit}>Cancel</button>
+                        </div>
+                      </div>
                     </div>
                     
                   ): (
                     <div>
-                      <span>{item.Username}</span>
-                      <span>{item.Password}</span>
-                      <button onClick={() => startEdit(item)}>Edit</button>
-                      
+                      <div className='flex flex-col justify-center gap-2'>
+                        <div>
+                          <span className='font-semibold'>Username: {item.Username}</span>
+                        </div>
+                        <div>
+                          <span className='font-semibold'>Password:</span>
+                          <span> {item.Password}</span>
+                        </div>
+                      </div>
+                      <button className= "w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50" onClick={() => startEdit(item)}>Edit</button>
                     </div>
                     
                   )}
