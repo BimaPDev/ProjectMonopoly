@@ -75,7 +75,7 @@ const GroupManagement = () => {
   const [groupItems, setGroupItems] = useState<GroupItem[]>([]);
   const [editingItem, setEditingItem] = useState(null);
   const [editForm, setEditForm] = useState({});
-
+  const [showPass, setShowPass] = useState(false);
 
 
   
@@ -339,7 +339,7 @@ const GroupManagement = () => {
             </div>
           )}
           
-        <div className='grid h-full grid-cols-1 xl:grid-cols-3'>
+        <div className='grid h-full grid-cols-1 gap-2 xl:grid-cols-3'>
             
           <div className='xl:col-span-2'>
           {/* Group listing section */}
@@ -417,7 +417,7 @@ const GroupManagement = () => {
         
       </div>
       
-      <div className="px-3 pt-3 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50">
+      <div className="gap-3 px-3 pt-3 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50">
           <div className='flex items-center gap-3 mb-2'>
             <div className='p-2 rounded-lg bg-green-500/20'>
               <UserPlus className='text-green-400 '></UserPlus>
@@ -509,8 +509,8 @@ const GroupManagement = () => {
           )}   
       
       
-      <div className='gap-3 p-3 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50'>
-        <div className='flex items-center gap-3 '>
+      <div className='gap-3 pb-6 mt-5 mb-3 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50'>
+        <div className='flex items-center gap-3 p-3'>
           <div className='p-2 rounded-lg bg-green-500/20'>
             <UserRoundPen className='text-green-400'></UserRoundPen>
             
@@ -520,7 +520,7 @@ const GroupManagement = () => {
         { !selectedGroup ? (
             
             <div className="py-8 text-center">
-                  <p className="mt-1 text-sm text-slate-500">Choose a group from the list to add login</p>
+                  <p className="mt-1 text-sm text-slate-500">Choose a group from the list to edit login</p>
                 </div>
             
             
@@ -533,37 +533,53 @@ const GroupManagement = () => {
                   key={item.ID + item.Platform}
                 >
                   {isEditing ? (
-                    <div className='w-lg'>
-                      <div className='flex flex-col w-lg'>
+                    <div className='w-md'>
+                      <div className='flex flex-col w-md'>
                         <input
                           value={editForm.Username}
                           onChange={(e) => setEditForm(prev => ({...prev, Username: e.target.value}))}
                           placeholder="Username"
                           className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
                         />
+                        <div className='relative'>
                         <input
                           value={editForm.Password}
                           onChange={(e) => setEditForm(prev => ({...prev, Password: e.target.value}))}
                           placeholder="Password"
-                          type="password"
+                          type={showPass ?'text' : 'password'}
                           className="mb-1 bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
                         />
-                        <div className='gap-y-5'>
-                        <button className = "w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={() => saveEdit(item)}>Save</button>
-                        <button className = "w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={cancelEdit}>Cancel</button>
+                        <button className='absolute text-gray-500 -translate-y-1/2 right-2 top-1/2 hover:text-gray-300'
+                          onClick={() => {
+                          setShowPass(prev => !prev);
+                        }}
+                          >
+                            <span>{showPass ? <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>: <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-eye-closed-icon lucide-eye-closed"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg> }</span>
+                          </button>
+                        </div>
+                        <div className='mt-2'>
+                        <button className = "w-full py-1 mt-2 mb-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={() => saveEdit(item)}>Save</button>
+                        <button className = "w-full px-2 py-1 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={cancelEdit}>Cancel</button>
                         </div>
                       </div>
                     </div>
                     
                   ): (
                     <div>
-                      <div className='flex flex-col justify-center gap-2'>
+                      <div className='flex flex-col justify-center gap-4 mb-4'>
                         <div>
                           <span className='font-semibold'>Username: {item.Username}</span>
                         </div>
-                        <div>
+                        <div className='relative'>
                           <span className='font-semibold'>Password:</span>
-                          <span> {item.Password}</span>
+                          <span > {showPass ? item.Password: '••••••••••'}</span>
+                          <button className='absolute ml-2 text-gray-500 -translate-y-1/2 right-48 top-1/2 hover:text-gray-300'
+                          onClick={() => {
+                          setShowPass(prev => !prev);
+                        }}
+                          >
+                            <span>{showPass ? <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>: <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-eye-closed-icon lucide-eye-closed"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg> }</span>
+                          </button>
                         </div>
                       </div>
                       <button className= "w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50" onClick={() => startEdit(item)}>Edit</button>
