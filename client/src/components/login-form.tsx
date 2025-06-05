@@ -32,6 +32,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       const data = await response.json();
       localStorage.setItem("token", JSON.stringify(data));
       localStorage.setItem("email",email);
+      localStorage.setItem("userID ", data.userID); // Store user ID in localStorage
       // ✅ Redirect to the dashboard after successful login
       navigate("/dashboard");
 

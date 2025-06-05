@@ -50,8 +50,7 @@ func main() {
 	)
 
 	// ─── getuserID ─────────────────────────────────────────────
-	mux.HandleFunc("/api/getUserID",
-		handlers.GetUserIDHandler(queries))
+	mux.HandleFunc("/api/getUserID", auth.JWTMiddleware(handlers.GetUserIDHandler(queries)))
 
 	// ─── Upload Endpoint (Protected) ─────────────────────────────────────────────
 	mux.HandleFunc("/api/upload", func(w http.ResponseWriter, r *http.Request) {
