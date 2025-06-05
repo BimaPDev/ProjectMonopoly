@@ -94,7 +94,7 @@ export function Dashboard() {
   }
   fetchUserID();
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-black-900 via-slate-800 to-slate-900">
     <Tabs defaultValue="overview" className="">
       <TabsList>
         <TabsTrigger value="overview" >Overview</TabsTrigger>
