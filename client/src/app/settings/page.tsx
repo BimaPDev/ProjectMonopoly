@@ -379,12 +379,15 @@ const GroupManagement = () => {
                       <Users ></Users>
                       <p className='text-lg text-slate-400'>No groups found</p>
                       <p className='text-sm text-slate-400'> Create your first group to get started</p>
-                      <button onClick={createGroup} className='m-5 rounded-lg border-slate-600/30 bg-slate-700/30 hover:shadow-blue-500/25 hover:bg-slate-700/50'>
-                        <span>
-                        <Plus className='w-4 h-4 mr-2' />
-                        Create Group
-                        </span>
-                      </button>
+                      <div className="w-full flex justify-center mt-5">
+                        <button 
+                          onClick={createGroup}
+                          className="flex items-center gap-2 px-4 py-2 transition-all duration-200 border rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border-slate-600/50 hover:border-slate-500/50"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Create Group
+                        </button>
+                      </div>
                     </div>
                     
                   )

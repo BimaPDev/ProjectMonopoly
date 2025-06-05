@@ -38,32 +38,21 @@ type getUserIDResponse struct {
 
 // handler
 func GetUserIDHandler(q *db.Queries) http.HandlerFunc {
-	type req struct{ Username, Email string }
-	type resp struct {
-		UserID int32 `json:"userID"`
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		userIDValue := r.Context().Value("userID")
+		if userIDValue == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		var body req
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "invalid JSON", http.StatusBadRequest)
+
+		userID, ok := userIDValue.(int32)
+		if !ok {
+			http.Error(w, "invalid userID in context", http.StatusInternalServerError)
 			return
 		}
-		if body.Username == "" || body.Email == "" {
-			http.Error(w, "username & email required", http.StatusBadRequest)
-			return
-		}
-		id, err := q.GetUserIDByUsernameEmail(r.Context(), db.GetUserIDByUsernameEmailParams{
-			Username: body.Username, Email: body.Email,
-		})
-		if err != nil {
-			http.Error(w, "user not found", http.StatusNotFound)
-			return
-		}
+
+		resp := map[string]int32{"userID": userID}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp{UserID: id})
+		json.NewEncoder(w).Encode(resp)
 	}
 }

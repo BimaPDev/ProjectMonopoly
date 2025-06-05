@@ -37,6 +37,10 @@ CREATE TABLE competitors (
   username VARCHAR(100) NOT NULL,
   profile_url TEXT NOT NULL,
   last_checked TIMESTAMP DEFAULT NOW(),
+  followers BIGINT DEFAULT 0,
+  engagement_rate NUMERIC(4,2) DEFAULT 0.0,
+  growth_rate NUMERIC(4,2) DEFAULT 0.0,
+  posting_frequency NUMERIC(5,2) DEFAULT 0.0,
   UNIQUE (group_id, platform, username)
 );
 
