@@ -101,7 +101,7 @@ const GroupManagement = () => {
     const description = window.prompt("Description (optional):")?.trim() || "";
     
     try {
-      const res = await fetch("http://localhost:8080/api/groups", {
+      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userID, name, description }),
@@ -121,7 +121,7 @@ const GroupManagement = () => {
   };
   const fetchGroupItems = async () => {
     
-    const res = await fetch(`http://localhost:8080/api/GetGroupItem?groupID=${selectedGroup.ID}`,{
+    const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/GetGroupItem?groupID=${selectedGroup.ID}`,{
       method: "GET",
       headers: {"Content-Type": "application/json"},
     });
@@ -186,7 +186,7 @@ const GroupManagement = () => {
     setIsFetchingGroups(true);
     try {
       
-      const res = await fetch(`http://localhost:8080/api/groups?userID=${userID}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -279,7 +279,7 @@ const GroupManagement = () => {
     
     try {
       setIsLoading(true);
-      const res = await fetch("http://localhost:8080/api/AddGroupItem", {
+      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/AddGroupItem`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestData)
@@ -379,7 +379,7 @@ const GroupManagement = () => {
                       <Users ></Users>
                       <p className='text-lg text-slate-400'>No groups found</p>
                       <p className='text-sm text-slate-400'> Create your first group to get started</p>
-                      <div className="w-full flex justify-center mt-5">
+                      <div className="flex justify-center w-full mt-5">
                         <button 
                           onClick={createGroup}
                           className="flex items-center gap-2 px-4 py-2 transition-all duration-200 border rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border-slate-600/50 hover:border-slate-500/50"
@@ -557,7 +557,7 @@ const GroupManagement = () => {
                           setShowPass(prev => !prev);
                         }}
                           >
-                            <span>{showPass ? <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>: <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-eye-closed-icon lucide-eye-closed"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg> }</span>
+                            <span>{showPass ? <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>: <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye-closed-icon lucide-eye-closed"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg> }</span>
                           </button>
                         </div>
                         <div className='mt-2'>
@@ -569,7 +569,7 @@ const GroupManagement = () => {
                     
                   ): (
                     <div>
-                      <div className='flex flex-col justify-center gap-4 mb-4'>
+                      <div className='flex flex-col justify-center gap-3 mb-4'>
                         <div>
                           <span className='font-semibold'>Username: {item.Username}</span>
                         </div>
@@ -581,9 +581,11 @@ const GroupManagement = () => {
                           setShowPass(prev => !prev);
                         }}
                           >
-                            <span>{showPass ? <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>: <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-eye-closed-icon lucide-eye-closed"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg> }</span>
+                            <span>{showPass ? <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>: <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye-closed-icon lucide-eye-closed"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg> }</span>
                           </button>
+                          <span className='absolute text-xs text-slate-400 right-2'>Updated: {item.Updated}</span>  
                         </div>
+                        
                       </div>
                       <button className= "w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50" onClick={() => startEdit(item)}>Edit</button>
                     </div>

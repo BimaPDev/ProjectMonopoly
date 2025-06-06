@@ -36,10 +36,11 @@ import {
 
 const developmentItems = [
 {item: "Deployment", status:"c"},
-{item: "Upload Page", status: "ip"},
-{item: "Settings Page", status: "ip"},
+{item: "Upload Page", status: "c"},
+{item: "Settings Page", status: "c"},
+{item: "Analytics", status: "ip"},
 {item: "Log Out", status: "p"},
-{item: "Analytics", status: "p"},
+
 ]
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Arrow } from "@radix-ui/react-tooltip";
@@ -53,7 +54,7 @@ export function Dashboard() {
       
       try {
         console.log("Fetching userid...");
-        const response = await fetch(`http://localhost:8080/api/getUserID`, {
+        const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/getUserID`, {
           method: "POST",
           headers: {'Content-Type': "application/json"},
           body: JSON.stringify({
@@ -83,7 +84,7 @@ export function Dashboard() {
   async function fetchFollowers() {
     setLoading(true)
     try {
-      const response = await fetch(`http://localhost:8080/followers`);
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/followers`);
       const data = await response.json();
       setFollowers(data);
     } catch (error) {
