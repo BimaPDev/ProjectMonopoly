@@ -127,7 +127,7 @@ export function AIPage() {
 
     try {
      
-      const response = await fetch(`http://localhost:8080/ai/deepseek`, {
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/ai/deepseek`, {
         method: "POST",
         body: formData,
       });

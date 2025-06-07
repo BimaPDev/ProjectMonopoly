@@ -66,7 +66,7 @@ export function TeamSwitcher() {
     try {
       
       const res = await fetch(
-        `http://localhost:8080/api/groups?userID=${userID}`,
+        `${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -113,7 +113,7 @@ export function TeamSwitcher() {
     const description = window.prompt("Description (optional):")?.trim() || "";
     
     try {
-      const res = await fetch("http://localhost:8080/api/groups", {
+      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userID, name, description }),

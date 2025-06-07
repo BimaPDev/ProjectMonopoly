@@ -123,7 +123,7 @@ React.useEffect(() => {
     
     try {
       
-      const res = await fetch(`http://localhost:8080/api/groups?userID=${userID}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_CALL} /api/groups?userID=${userID}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -198,7 +198,7 @@ React.useEffect(() => {
       }
       
       // Send request to backend
-      const response = await fetch("http://localhost:8080/api/upload", {
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/upload`, {
         method: "POST",
         body: formData,
       });
