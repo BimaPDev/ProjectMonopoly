@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarIcon, ImageIcon, Loader2, Upload, X, Info } from "lucide-react";
+import { CalendarIcon, Loader2, Upload, X, Info } from "lucide-react";
 import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -27,13 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import {
   Tooltip,
   TooltipContent,
@@ -366,7 +360,6 @@ React.useEffect(() => {
                             size="icon"
                             className="absolute z-10 right-2 top-2"
                             onClick={() => {
-                              setPreview(undefined);
                               setSelectedFile(null);
                               setStep(1);
                               setProgress(33);

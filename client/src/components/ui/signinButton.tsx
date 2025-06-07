@@ -1,8 +1,7 @@
-import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 
 const SignInButton = () => {
-  const handleLoginSuccess = (credentialResponse) => {
+  const handleLoginSuccess = (credentialResponse: any) => {
     console.log('Login Success:', credentialResponse);
     // Handle the login response
   };

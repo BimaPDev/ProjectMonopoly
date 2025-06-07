@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as React from "react";
-import { ChevronDown, Facebook, Instagram, Linkedin, Twitter, Users, Plus, RefreshCw, UserPlus, AlertCircle, CheckCircle, User2, UserRoundPen } from "lucide-react";
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
-import { InstagramLogoIcon } from '@radix-ui/react-icons';
+import { Facebook, Instagram, Linkedin, Twitter, Users, Plus, RefreshCw, UserPlus, AlertCircle, CheckCircle, User2, UserRoundPen } from "lucide-react";
+
 import {
   Select,
   SelectContent,
@@ -11,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { group } from 'node:console';
+
 const socialPlatforms = [
   {
     id: "instagram",
@@ -60,8 +59,8 @@ const GroupManagement = () => {
     
   }
   // State for managing groups
-  const [groups, setGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [membershipForm, setMembershipForm] = useState({
     username: '',
     password: '',
@@ -73,8 +72,8 @@ const GroupManagement = () => {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [groupItems, setGroupItems] = useState<GroupItem[]>([]);
-  const [editingItem, setEditingItem] = useState(null);
-  const [editForm, setEditForm] = useState({});
+  const [editingItem, setEditingItem] = useState<null | string>(null);
+  const [editForm, setEditForm] = useState<{ Username: string; Password: string }>({ Username: '', Password: '' });
   const [showPass, setShowPass] = useState(false);
 
 
@@ -90,7 +89,7 @@ const GroupManagement = () => {
   }
 }, [selectedGroup]);
    const createGroup = async () => {
-    if (formData.userID === null) {
+    if (formData.ID === null) {
       setError("User ID not found. Please log in again.");
       return;
     }
@@ -116,11 +115,14 @@ const GroupManagement = () => {
     } catch (e: any) {
       setMessage({ text: 'Failed to create group', type: 'error' });
       console.error("Error creating group:", e);
-      setError(e.message || "Error creating group");
+      
     }
   };
   const fetchGroupItems = async () => {
-    
+    if (!selectedGroup) {
+      setMessage({ text: 'No group selected', type: 'error' });
+      return;
+    }
     const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/GetGroupItem?groupID=${selectedGroup.ID}`,{
       method: "GET",
       headers: {"Content-Type": "application/json"},
@@ -250,7 +252,11 @@ const GroupManagement = () => {
     try {
       createGroup();
       } catch (error) {
-      const errorMessage = error.response?.data || 'Failed to create group. Please try again.';
+      let errorMessage = 'Failed to create group. Please try again.';
+      if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+        // @ts-ignore
+        errorMessage = error.response.data || errorMessage;
+      }
       setMessage({ text: errorMessage, type: 'error' });
     } finally {
       setIsLoading(false);
@@ -303,7 +309,11 @@ const GroupManagement = () => {
         platform: ''
       });
       } catch (error) {
-      const errorMessage = error.response?.data || 'Failed to create group. Please try again.';
+      let errorMessage = 'Failed to create group. Please try again.';
+      if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+        // @ts-ignore
+        errorMessage = error.response.data || errorMessage;
+      }
       setMessage({ text: errorMessage, type: 'error' });
     } finally {
       setIsLoading(false);
