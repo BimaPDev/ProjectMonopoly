@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GoogleLogin } from "@react-oauth/google"; // Import Google Login
+const isDev = location.protocol === "http:";
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("");
@@ -30,9 +31,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       }
 
       const data = await response.json();
-      localStorage.setItem("token", JSON.stringify(data));
-      localStorage.setItem("email",email);
-      localStorage.setItem("userID ", data.userID); // Store user ID in localStorage
+      document.cookie = `token=${data.token}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
+      document.cookie = `email=${email}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
+      document.cookie = `userID=${data.userID}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
       // ✅ Redirect to the dashboard after successful login
       navigate("/dashboard");
 
