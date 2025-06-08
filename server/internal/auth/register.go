@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -35,7 +34,7 @@ func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 			return
 		}
 
-		_, err = queries.CreateUserWithPassword(context.Background(), db.CreateUserWithPasswordParams{
+		_, err = queries.CreateUserWithPassword(r.Context(), db.CreateUserWithPasswordParams{
 			Username:     creds.Username,
 			Email:        creds.Email,
 			PasswordHash: string(hashedPassword),
