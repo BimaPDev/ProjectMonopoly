@@ -42,9 +42,9 @@ func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 		if err != nil {
 			log.Printf("❌ Register error: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create user"})
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
-		}
+		}S
 
 		json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 	}
