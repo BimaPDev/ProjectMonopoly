@@ -44,7 +44,7 @@ func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
-		}S
+		}
 
 		json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 	}
