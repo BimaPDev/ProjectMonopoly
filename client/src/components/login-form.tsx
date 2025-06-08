@@ -34,6 +34,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       document.cookie = `token=${data.token}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
       document.cookie = `email=${email}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
       document.cookie = `userID=${data.userID}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
+      localStorage.setItem("token", data.token); 
       // ✅ Redirect to the dashboard after successful login
       navigate("/dashboard");
 
