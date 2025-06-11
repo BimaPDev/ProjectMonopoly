@@ -44,7 +44,8 @@ export default function RegisterPage() {
     }
   
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
+      
+        const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -127,7 +128,7 @@ export default function RegisterPage() {
 
   return (
     <div
-      className="min-h-screen text-white px-6 py-12 flex items-center justify-center"
+      className="flex items-center justify-center min-h-screen px-6 py-12 text-white"
       style={{
         background: "linear-gradient(135deg, #212121, #000000)",
         backgroundSize: "cover",
@@ -136,7 +137,7 @@ export default function RegisterPage() {
     >
       <div className="w-full max-w-md">
        
-        <div className="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-0"></div>
+        <div className="absolute inset-0 z-0 bg-black bg-opacity-60 backdrop-blur-sm"></div>
         
         <div className="relative z-10 flex flex-col items-center mb-8">
           <img 
@@ -144,19 +145,19 @@ export default function RegisterPage() {
             alt="Dogwood Gaming Logo"
             className="w-64 h-auto mb-6 drop-shadow-lg"
           />
-          <h1 className="text-4xl font-extrabold tracking-wide mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          <h1 className="mb-2 text-4xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
             Join Dogwood Gaming
           </h1>
-          <p className="text-gray-300 text-center max-w-sm">
+          <p className="max-w-sm text-center text-gray-300">
             Create your account to access exclusive gaming tools and resources
           </p>
         </div>
         
         
         
-        <div className="relative z-10 bg-gradient-to-b from-gray-900 to-black p-8 rounded-xl border border-gray-800 shadow-2xl backdrop-blur">
+        <div className="relative z-10 p-8 border border-gray-800 shadow-2xl bg-gradient-to-b from-gray-900 to-black rounded-xl backdrop-blur">
           {error && (
-            <div className="mb-6 p-4 bg-red-900 bg-opacity-70 border-l-4 border-red-500 rounded text-white text-sm animate-pulse">
+            <div className="p-4 mb-6 text-sm text-white bg-red-900 border-l-4 border-red-500 rounded bg-opacity-70 animate-pulse">
               <div className="flex items-center">
                 <svg className="w-5 h-5 mr-2 text-red-300" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -176,7 +177,7 @@ export default function RegisterPage() {
                 <button
                   onClick={renderProps.onClick}
                   disabled={renderProps.disabled}
-                  className="w-full flex items-center justify-center bg-white text-gray-800 font-medium py-3 px-4 rounded-lg hover:bg-gray-100 transition duration-300 transform hover:scale-105"
+                  className="flex items-center justify-center w-full px-4 py-3 font-medium text-gray-800 transition duration-300 transform bg-white rounded-lg hover:bg-gray-100 hover:scale-105"
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path
@@ -192,14 +193,14 @@ export default function RegisterPage() {
             {/* Divider */}
             <div className="relative flex items-center py-2">
               <div className="flex-grow border-t border-gray-700"></div>
-              <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
+              <span className="flex-shrink mx-4 text-sm text-gray-400">OR</span>
               <div className="flex-grow border-t border-gray-700"></div>
             </div>
             <div className="space-y-1">
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">Username</label>
               <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                   </svg>
                 </div>
@@ -208,7 +209,7 @@ export default function RegisterPage() {
                   id="username" 
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-70 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Username"
                   required
                 />
@@ -217,8 +218,8 @@ export default function RegisterPage() {
             <div className="space-y-1">
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email Address</label>
               <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                   </svg>
                 </div>
@@ -227,7 +228,7 @@ export default function RegisterPage() {
                   id="email" 
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-70 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="you@example.com"
                   required
                 />
@@ -238,8 +239,8 @@ export default function RegisterPage() {
             <div className="space-y-1">
               <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
               <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
@@ -248,7 +249,7 @@ export default function RegisterPage() {
                   id="password" 
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-70 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                   required
                 />
@@ -259,8 +260,8 @@ export default function RegisterPage() {
             <div className="space-y-1">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">Confirm Password</label>
               <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </div>
@@ -269,7 +270,7 @@ export default function RegisterPage() {
                   id="confirmPassword" 
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-70 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                   required
                 />
@@ -284,12 +285,12 @@ export default function RegisterPage() {
                   type="checkbox"
                   checked={agreeToTerms}
                   onChange={() => setAgreeToTerms(!agreeToTerms)}
-                  className="w-4 h-4 bg-gray-800 border-gray-700 rounded focus:ring-purple-500 text-purple-600 transition duration-200"
+                  className="w-4 h-4 text-purple-600 transition duration-200 bg-gray-800 border-gray-700 rounded focus:ring-purple-500"
                 />
               </div>
               <div className="ml-3 text-sm">
                 <label htmlFor="terms" className="text-gray-300">
-                  I agree to the <a href="#" className="text-purple-400 hover:text-purple-300 hover:underline transition duration-200">Terms and Conditions</a>
+                  I agree to the <a href="#" className="text-purple-400 transition duration-200 hover:text-purple-300 hover:underline">Terms and Conditions</a>
                 </label>
               </div>
             </div>
@@ -298,11 +299,11 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 transform hover:translate-y-1 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 font-bold text-white transition duration-300 transform rounded-lg shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:translate-y-1 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 mr-3 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -313,15 +314,15 @@ export default function RegisterPage() {
             
             {/* {signSuccess &&(
           <div className='relative flex'>
-            <div className='bg-black w-full y-full text-center'>
+            <div className='w-full text-center bg-black y-full'>
             <span style={{margin:0, color:"red",fontSize:"25px"}}>&#33;</span> <span style={{fontWeight:"bold"}}> Account has been created, please log in.</span>
            </div>
           </div>
         )} */}
             
-            <div className="text-center mt-6 text-sm text-gray-400">
+            <div className="mt-6 text-sm text-center text-gray-400">
               Already have an account? 
-              <a href="/login" className="ml-1 text-purple-400 hover:text-purple-300 hover:underline transition duration-200">
+              <a href="/login" className="ml-1 text-purple-400 transition duration-200 hover:text-purple-300 hover:underline">
                 Sign in
               </a>
             </div>
@@ -329,12 +330,12 @@ export default function RegisterPage() {
         </div>
         
         
-        <div className="relative z-10 mt-8 text-center text-gray-500 text-xs">
+        <div className="relative z-10 mt-8 text-xs text-center text-gray-500">
           <p>© 2025 Dogwood Gaming. All rights reserved.</p>
           <div className="mt-2">
-            <a href="https://dogwoodgaming.com/" className="text-gray-400 hover:text-purple-400 hover:underline transition-all duration-200">Home</a>
+            <a href="https://dogwoodgaming.com/" className="text-gray-400 transition-all duration-200 hover:text-purple-400 hover:underline">Home</a>
             <span className="mx-2">|</span>
-            <a href="https://dogwoodgaming.com/contact-us/" className="text-gray-400 hover:text-purple-400 hover:underline transition-all duration-200">Contact</a>
+            <a href="https://dogwoodgaming.com/contact-us/" className="text-gray-400 transition-all duration-200 hover:text-purple-400 hover:underline">Contact</a>
           </div>
         </div>
       </div>

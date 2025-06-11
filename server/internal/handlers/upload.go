@@ -159,3 +159,51 @@ func parseHashtags(raw string) []string {
 	}
 	return clean
 }
+
+
+type uploadResponse struct {
+	ID int32 `json:"ID"`
+	platform string `json:"platform"`
+	status string `json:"status"`
+	updated time.Time `json:"updated"`
+}
+
+func GetUploadItemsByGroupID(w http.ResponseWriter, r *http.Request, q *db.Queries){
+	if r.Method != http.MethodGet{
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed);
+		return
+
+	}
+
+	groupIDstr := r.URL.Query().Get("groupID");
+	groupIDInt, err := strconv.Atoi(groupIDstr);
+	if err != nil {
+
+		http.Error(w, "Invalid group id", http.StatusBadRequest);
+	}
+
+	groupID := int32(groupIDInt);
+
+	uploads, err := q.GetUploadJobByGID(r.Context(), groupID)
+
+	if err != nil {
+		http.Error(w, "Error getting uploads, UG190", http.StatusBadRequest)
+
+	}
+
+	out := make([]uploadResponse,0,len(uploads))
+
+	for _ , g := range uploads{
+		out = append(out, uploadResponse{
+			ID : g.id,
+			platform: g.platform,
+			status: g.status,
+			updated: g.created_at,
+
+		})
+
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(out);
+}

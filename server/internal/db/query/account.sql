@@ -185,6 +185,11 @@ WHERE id = (
 )
 RETURNING *;
 
+-- name: GetUploadJobByGID :one
+ select id, group_id,platform,status, created_at
+ from upload_jobs 
+ where group_id = $1 order by id;
+
 --uploding group items
 
 -- name: CreateSocialMediaData :exec
