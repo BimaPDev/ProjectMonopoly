@@ -51,12 +51,13 @@ export function Dashboard() {
       const username = localStorage.getItem("username");
       const email = localStorage.getItem("email");
       console.log("Attempting authentication with:", { username, email });
-      
+      const token = localStorage.getItem("token");
       try {
         console.log("Fetching userid...");
         const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/getUserID`, {
           method: "POST",
-          headers: {'Content-Type': "application/json"},
+          headers: {'Content-Type': "application/json","Authorization": `Bearer ${token}`},
+
           body: JSON.stringify({
             username,
             email,

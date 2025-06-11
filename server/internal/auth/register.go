@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -35,7 +34,7 @@ func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 			return
 		}
 
-		_, err = queries.CreateUserWithPassword(context.Background(), db.CreateUserWithPasswordParams{
+		_, err = queries.CreateUserWithPassword(r.Context(), db.CreateUserWithPasswordParams{
 			Username:     creds.Username,
 			Email:        creds.Email,
 			PasswordHash: string(hashedPassword),
@@ -43,7 +42,7 @@ func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 		if err != nil {
 			log.Printf("❌ Register error: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create user"})
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
 		}
 
