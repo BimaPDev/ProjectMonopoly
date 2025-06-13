@@ -2,16 +2,15 @@ package utils
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"database/sql"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
-	
 )
 
 // RunPythonScript executes the Python script with the provided arguments
@@ -66,22 +65,22 @@ func GetFollowers(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 
 	ctx := r.Context()
 
-    // Call the sqlc‐generated method: no parameters (just the context)
-    latest, err := queries.GetFollowerByDate(ctx)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            http.Error(w, "no follower history yet", http.StatusNotFound)
-            return
-        }
-        http.Error(w, "failed to fetch followers", http.StatusInternalServerError)
-        return
-    }
+	// Call the sqlc‐generated method: no parameters (just the context)
+	latest, err := queries.GetFollowerByDate(ctx)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "no follower history yet", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "failed to fetch followers", http.StatusInternalServerError)
+		return
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    if err := json.NewEncoder(w).Encode(latest); err != nil {
-        http.Error(w, "failed to encode JSON", http.StatusInternalServerError)
-        return
-    }
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(latest); err != nil {
+		http.Error(w, "failed to encode JSON", http.StatusInternalServerError)
+		return
+	}
 
 }
 
