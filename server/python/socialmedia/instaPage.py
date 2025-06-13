@@ -13,7 +13,7 @@ from datetime import datetime
 
 
 def parse_shorthand(value: str) -> str:
-    # Convert notation (K, M, B) to full numbers
+    # Convert notation (K, M, B) full numbers
     val = value.strip().upper().replace(",", "")
     if val.endswith("K"):
         try:
