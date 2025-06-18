@@ -182,28 +182,18 @@ func GetUploadItemsByGroupID(w http.ResponseWriter, r *http.Request, q *db.Queri
 		http.Error(w, "Invalid group id", http.StatusBadRequest);
 	}
 
-	groupID := int32(groupIDInt);
+	groupID := sql.NullInt32{Int32: int32(groupIDInt), Valid: true};
 
 	uploads, err := q.GetUploadJobByGID(r.Context(), groupID)
 
 	if err != nil {
 		http.Error(w, "Error getting uploads, UG190", http.StatusBadRequest)
-
-	}
-
-	out := make([]uploadResponse,0,len(uploads))
-
-	for _ , g := range uploads{
-		out = append(out, uploadResponse{
-			ID : g.id,
-			platform: g.platform,
-			status: g.status,
-			updated: g.created_at,
-
-		})
-
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(out);
+	if err := json.NewEncoder(w).Encode(uploads); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }

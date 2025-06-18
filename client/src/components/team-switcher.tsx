@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronsUpDown, Plus, Users,ChevronDown } from "lucide-react";
+import { ChevronsUpDown, Plus, Users, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,6 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
+import { useGroup } from '../groupContext.tsx';
 
 interface Group {
   ID: number;
@@ -23,26 +24,22 @@ interface Group {
 }
 
 export function TeamSwitcher() {
+  const { activeGroup, setActiveGroup } = useGroup();
   const [groups, setGroups] = React.useState<Group[]>([]);
-  const [activeGroup, setActiveGroup] = React.useState<Group | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [userID, setUserID] = React.useState<number | null>(null);
   const [isOpen, setIsOpen] = React.useState(false);
-  
+  const [hasFetched, setHasFetched] = React.useState(false);
+
   // First effect - load userID from localStorage when component mounts
   React.useEffect(() => {
     try {
       const storedUserID = localStorage.getItem("userID");
-     
-      
       if (storedUserID) {
-
         const parsedUserID = Number(storedUserID);
         setUserID(parsedUserID);
-        
       } else {
-        
         setUserID(1); // Default testing ID
       }
     } catch (err) {
@@ -53,46 +50,44 @@ export function TeamSwitcher() {
 
   // Second effect - fetch groups whenever userID changes
   React.useEffect(() => {
-    if (userID !== null) {
+    if (userID !== null && !hasFetched) {
       fetchGroups();
+      setHasFetched(true);
     }
   }, [userID]);
 
   const fetchGroups = async () => {
     if (userID === null) return;
-    
+
     setLoading(true);
     setError(null);
     try {
-      
       const res = await fetch(
         `${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
-        } 
+        }
       );
-      
+
       if (!res.ok) {
         throw new Error(`Error fetching groups: ${res.status}`);
       }
-      
+
       const data = await res.json();
-     
-      
+
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
         throw new Error("Invalid response format from server");
       }
-      
-     
+
       setGroups(data);
-      
-      // Set active group if there are groups available
-      if (data.length > 0) {
+
+      // Set active group if there are groups available and no active group is set
+      if (data.length > 0 && !activeGroup) {
         setActiveGroup(data[0]);
       }
-      
+
     } catch (e: any) {
       console.error("Error fetching groups:", e);
       setError(e.message || "Error fetching groups");
@@ -186,13 +181,13 @@ export function TeamSwitcher() {
               </DropdownMenuItem>
             ) : (
               <>
-                
                 {groups.map((g) => (
                   <DropdownMenuItem
                     key={g.ID}
                     onClick={() => {
                       console.log('Selected group:', g);
                       setActiveGroup(g);
+                      setIsOpen(false);
                     }}
                   >
                     <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">

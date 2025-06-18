@@ -57,7 +57,10 @@ func main() {
 		handlers.UploadVideoHandler(w, r, queries)
 	})
 
-	
+	mux.HandleFunc("/api/GetUploadItemsByGroupID",func(w http.ResponseWriter, r *http.Request){
+	    handlers.GetUploadItemsByGroupID(w,r,queries)
+	})
+
 	// ─── Groups API: both "/api/groups" and "/api/groups/" ───────────────────────
 	//    so that requests with or without trailing slash work.
 	groupsHandler := func(w http.ResponseWriter, r *http.Request) {

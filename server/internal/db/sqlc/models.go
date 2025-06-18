@@ -14,12 +14,16 @@ import (
 )
 
 type Competitor struct {
-	ID          uuid.UUID    `json:"id"`
-	GroupID     int32        `json:"group_id"`
-	Platform    string       `json:"platform"`
-	Username    string       `json:"username"`
-	ProfileUrl  string       `json:"profile_url"`
-	LastChecked sql.NullTime `json:"last_checked"`
+	ID               uuid.UUID      `json:"id"`
+	GroupID          int32          `json:"group_id"`
+	Platform         string         `json:"platform"`
+	Username         string         `json:"username"`
+	ProfileUrl       string         `json:"profile_url"`
+	LastChecked      sql.NullTime   `json:"last_checked"`
+	Followers        sql.NullInt64  `json:"followers"`
+	EngagementRate   sql.NullString `json:"engagement_rate"`
+	GrowthRate       sql.NullString `json:"growth_rate"`
+	PostingFrequency sql.NullString `json:"posting_frequency"`
 }
 
 type CompetitorPost struct {

@@ -17,7 +17,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   // Build your nav items and mark the active one
   const navMainItems = [
     { title: "Dashboard",    url: "/dashboard",             icon: Home    },
-    { title: "DogWood AI",    url: "/dashboard/ai",          icon: BotIcon },
+    { title: "Media Workshop",    url: "/dashboard/ai",          icon: BotIcon },
     { title: "Posts",         url: "/dashboard/posts",       icon: MessageCircle },
     { title: "Competitors",   url: "/dashboard/competitors", icon: Users2 },
   ].map(item => ({
