@@ -95,10 +95,14 @@ func main() {
 		})(w, r)
 		return
 	}
-
 	// fallback: default group route
 	groupsHandler(w, r)
-})
+	})
+
+	// Competitors Post
+	mux.HandleFunc("/api/competitors/posts", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	handlers.ListVisibleCompetitorPosts(w, r, queries)
+	}))
 
 
 	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
