@@ -34,9 +34,8 @@ def parse_shorthand(value: str) -> str:
             return val
     return val
 
-
+# Random delay function to avoid detection
 def random_delay(min_seconds=1, max_seconds=3):
-    """Add random delay to avoid detection"""
     time.sleep(random.uniform(min_seconds, max_seconds))
 
 
@@ -59,7 +58,7 @@ class TikTokScraper:
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-plugins")
         chrome_options.add_argument("--disable-images")  # Speed up loading
-        chrome_options.add_argument("--disable-javascript")  # Disable JS to avoid detection
+        #chrome_options.add_argument("--disable-javascript")  # Disable JS to avoid detection
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
@@ -127,7 +126,6 @@ class TikTokScraper:
             time.sleep(1)
         except NoSuchElementException:
             pass
-            
         self.save_cookies()
         return True
     
@@ -183,7 +181,8 @@ class TikTokScraper:
                 new_height = self.driver.execute_script("return document.body.scrollHeight")
                 if new_height == last_height:
                     scroll_attempts += 1
-                    if scroll_attempts >= 3:  # If no new content after 3 attempts
+                    # If no new content after 3 attempts
+                    if scroll_attempts >= 3: 
                         break
                 else:
                     last_height = new_height
@@ -221,7 +220,6 @@ class TikTokScraper:
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all videos to {json_filename}")
-        
         return posts_data
     
     def scrape_video(self, video_url, retries=2):
@@ -232,7 +230,6 @@ class TikTokScraper:
             try:
                 print(f"Attempting to scrape video (attempt {attempt + 1}/{retries + 1}): {video_url}")
                 
-                # Navigate with timeout handling
                 try:
                     self.driver.get(video_url)
                 except Exception as e:
@@ -244,11 +241,9 @@ class TikTokScraper:
                 
                 random_delay(3, 5)
                 
-                # Check if page loaded properly
                 try:
-                    # Wait for any content to load
                     WebDriverWait(self.driver, 15).until(
-                        lambda driver: driver.execute_script("return document.readyState") == "complete"
+                        lambda d: d.execute_script("return document.readyState") == "complete"
                     )
                 except TimeoutException:
                     print("Page didn't load completely, continuing anyway...")
@@ -261,15 +256,12 @@ class TikTokScraper:
                     "hashtags": [],
                     "likes_count": "",
                     "comments_count": "",
-                    "shares_count": "",
-                    "video_url": "",
-                    "author": ""
+                    "shared_count": "",
+                    "author": "",
                 }
                 
-                # Try to extract data using multiple approaches
                 success = False
                 
-                # Method 1: Try standard TikTok selectors
                 try:
                     # Extract author
                     author_selectors = [
@@ -278,11 +270,10 @@ class TikTokScraper:
                         "//span[contains(@class, 'username')]",
                         "//h1//span"
                     ]
-                    
-                    for selector in author_selectors:
+                    for sel in author_selectors:
                         try:
-                            author_elem = self.driver.find_element(By.XPATH, selector)
-                            video_data["author"] = author_elem.text.strip()
+                            elem = self.driver.find_element(By.XPATH, sel)
+                            video_data["author"] = elem.text.strip()
                             if video_data["author"]:
                                 break
                         except NoSuchElementException:
@@ -295,107 +286,94 @@ class TikTokScraper:
                         "//span[contains(@class, 'desc')]",
                         "//div[contains(@class, 'caption')]"
                     ]
-                    
-                    for selector in desc_selectors:
+                    for sel in desc_selectors:
                         try:
-                            desc_elem = self.driver.find_element(By.XPATH, selector)
-                            raw_description = desc_elem.text.strip()
-                            if raw_description:
-                                video_data["description"] = raw_description
-                                video_data["hashtags"] = re.findall(r"#\w+", raw_description)
+                            elem = self.driver.find_element(By.XPATH, sel)
+                            desc = elem.text.strip()
+                            if desc:
+                                video_data["description"] = desc
+                                video_data["hashtags"] = re.findall(r"#\w+", desc)
                                 break
                         except NoSuchElementException:
                             continue
-                    
-                    # Extract engagement metrics with multiple selectors
-                    metric_selectors = {
-                        'likes': [
-                            "//button[@data-e2e='browse-like-icon']//strong",
-                            "//strong[@data-e2e='browse-like-count']",
-                            "//span[contains(@class, 'like')]//strong",
-                            "//div[contains(@class, 'like')]//strong"
-                        ],
-                        'comments': [
-                            "//button[@data-e2e='browse-comment-icon']//strong",
-                            "//strong[@data-e2e='browse-comment-count']",
-                            "//span[contains(@class, 'comment')]//strong",
-                            "//div[contains(@class, 'comment')]//strong"
-                        ],
-                        'shares': [
-                            "//button[@data-e2e='browse-share-icon']//strong",
-                            "//strong[@data-e2e='browse-share-count']",
-                            "//span[contains(@class, 'share')]//strong",
-                            "//div[contains(@class, 'share')]//strong"
-                        ]
-                    }
-                    
-                    for metric, selectors in metric_selectors.items():
-                        for selector in selectors:
-                            try:
-                                elem = self.driver.find_element(By.XPATH, selector)
-                                value = parse_shorthand(elem.text)
-                                if metric == 'likes':
-                                    video_data["likes_count"] = value
-                                elif metric == 'comments':
-                                    video_data["comments_count"] = value
-                                elif metric == 'shares':
-                                    video_data["shares_count"] = value
-                                if value:
-                                    break
-                            except NoSuchElementException:
-                                continue
-                    
-                    # Extract video URL
-                    video_selectors = ["//video", "//video[@src]"]
-                    for selector in video_selectors:
+
+                    #Fallback: description from aria-label of search-common-link
+                    if not video_data["description"]:
                         try:
-                            video_elem = self.driver.find_element(By.XPATH, selector)
-                            src = video_elem.get_attribute("src")
-                            if src:
-                                video_data["video_url"] = src
-                                break
+                            a_tag = self.driver.find_element(By.XPATH, "//a[@data-e2e='search-common-link']")
+                            aria_label = a_tag.get_attribute("aria-label")
+                            match = re.search(r"Watch more videos from user (.+)", aria_label)
+                            if match:
+                                video_data["description"] = match.group(1).strip()
+                                print(f"Extracted description from aria-label: {video_data['description']}")
                         except NoSuchElementException:
-                            continue
+                            pass
+
+                    # Likes
+                    try:
+                        like_btn = self.driver.find_element(By.XPATH, "//strong[@data-e2e='like-count']")
+                        likes_text = like_btn.get_attribute("aria-label").split()[0]
+                        video_data["likes_count"] = parse_shorthand(likes_text)
+                    except NoSuchElementException:
+                        video_data["likes_count"] = ""
+
+                    # Comments
+                    try:
+                        comm = self.driver.find_element(By.XPATH, "//strong[@data-e2e='comment-count']")
+                        video_data["comments_count"] = parse_shorthand(comm.text)
+                    except NoSuchElementException:
+                        video_data["comments_count"] = ""
+
+                    # Shared count
+                    try:
+                        saved = self.driver.find_element(By.XPATH, "//strong[@data-e2e='shared_count']")
+                        video_data["shared_count"] = parse_shorthand(saved.text)
+                    except NoSuchElementException:
+                        video_data["shared_count"] = ""
+                    
+                    # Saved count
+                    try:
+                        saved = self.driver.find_element(By.XPATH, "//strong[@data-e2e='undefined-count']")
+                        video_data["saved_count"] = parse_shorthand(saved.text)
+                    except NoSuchElementException:
+                        video_data["saved_count"] = ""
+
+                    # Video URL
+                    try:
+                        source = self.driver.find_element(By.XPATH, "//video/source")
+                        video_data["video_url"] = source.get_attribute("src")
+                    except NoSuchElementException:
+                        video_data["video_url"] = ""
                     
                     success = True
-                    
+
                 except Exception as e:
-                    print(f"Error with standard extraction: {e}")
+                    print(f"Error during standard extraction: {e}")
                 
-                # Method 2: Try parsing page source if standard method fails
+                # Fallback JSON parsing
                 if not success or not any([video_data["author"], video_data["description"]]):
                     try:
                         page_source = self.driver.page_source
-                        
-                        # Try to extract data from page source using regex
                         if not video_data["author"]:
-                            author_match = re.search(r'"uniqueId":"([^"]+)"', page_source)
-                            if author_match:
-                                video_data["author"] = author_match.group(1)
-                        
+                            m = re.search(r'"uniqueId":"([^"]+)"', page_source)
+                            if m:
+                                video_data["author"] = m.group(1)
                         if not video_data["description"]:
-                            desc_match = re.search(r'"desc":"([^"]+)"', page_source)
-                            if desc_match:
-                                raw_description = desc_match.group(1)
-                                video_data["description"] = raw_description
-                                video_data["hashtags"] = re.findall(r"#\w+", raw_description)
-                        
-                        # Try to extract metrics from JSON data in page source
-                        stats_match = re.search(r'"stats":({[^}]+})', page_source)
-                        if stats_match:
-                            try:
-                                import json
-                                stats = json.loads(stats_match.group(1))
-                                video_data["likes_count"] = str(stats.get("diggCount", ""))
-                                video_data["comments_count"] = str(stats.get("commentCount", ""))
-                                video_data["shares_count"] = str(stats.get("shareCount", ""))
-                            except:
-                                pass
-                                
+                            m = re.search(r'"desc":"([^"]+)"', page_source)
+                            if m:
+                                desc = m.group(1)
+                                video_data["description"] = desc
+                                video_data["hashtags"] = re.findall(r"#\w+", desc)
+                        m = re.search(r'"stats":(\{[^}]+\})', page_source)
+                        if m:
+                            stats = json.loads(m.group(1))
+                            video_data["likes_count"] = str(stats.get("diggCount", ""))
+                            video_data["comments_count"] = str(stats.get("commentCount", ""))
+                            video_data["shared_count"] = str(stats.get("shareCount", ""))
+                            video_data["saved_count"] = str(stats.get("savedCount","")) 
                     except Exception as e:
-                        print(f"Error with page source parsing: {e}")
+                        print(f"Error parsing fallback JSON: {e}")
                 
-                # If we got some data, consider it a success
                 if video_data["author"] or video_data["description"]:
                     return video_data
                 else:
@@ -403,16 +381,15 @@ class TikTokScraper:
                     if attempt < retries:
                         random_delay(5, 8)
                         continue
-                    
+            
             except Exception as e:
                 print(f"Error on attempt {attempt + 1}: {e}")
                 if attempt < retries:
                     random_delay(5, 8)
-                    # Try to refresh the driver if it's crashed
                     try:
                         self.driver.current_url
                     except:
-                        print("Driver seems to have crashed, reinitializing...")
+                        print("Driver crashed; reinitializing...")
                         try:
                             self.driver.quit()
                         except:
@@ -422,6 +399,8 @@ class TikTokScraper:
                 
         print(f"Failed to scrape video after {retries + 1} attempts: {video_url}")
         return None
+
+
     
     def scrape_hashtag(self, hashtag, max_posts=None):
         """Scrape videos from a hashtag page"""
@@ -504,7 +483,7 @@ class TikTokScraper:
     
     def scrape_explore(self, max_posts=None):
         """Scrape videos from TikTok explore page"""
-        explore_url = "https://www.tiktok.com/explore"
+        explore_url = "hhttps://www.tiktok.com/explore?lang=en"
         print(f"Navigating to explore page: {explore_url}")
         
         # Load cookies first
@@ -643,7 +622,7 @@ if __name__ == "__main__":
     try:
         # Example usage - scrape explore page
         print("Scraping explore page...")
-        explore_data = scraper.scrape_explore(max_posts=10)
+        explore_data = scraper.scrape_explore(max_posts=5)
         
         # Example usage - scrape a profile
         # profile = "charlidamelio"  # or use full URL: "https://www.tiktok.com/@charlidamelio"
@@ -658,8 +637,6 @@ if __name__ == "__main__":
         
     except KeyboardInterrupt:
         print("\nScraping interrupted by user")
-    except Exception as e:
-        print(f"Error during scraping: {e}")
     finally:
         scraper.close()
         print("Browser closed.")

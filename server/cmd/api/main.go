@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	_ "github.com/lib/pq"
 
@@ -50,19 +51,15 @@ func main() {
 	)
 
 	// ─── getuserID ─────────────────────────────────────────────
-	mux.HandleFunc("/api/getUserID",
-		handlers.GetUserIDHandler(queries))
+	mux.HandleFunc("/api/getUserID", auth.JWTMiddleware(handlers.GetUserIDHandler(queries)))
 
 	// ─── Upload Endpoint (Protected) ─────────────────────────────────────────────
-	mux.HandleFunc("/api/upload",
-		auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			handlers.UploadVideoHandler(w, r, queries)
-		}),
-	)
+	mux.HandleFunc("/api/upload", func(w http.ResponseWriter, r *http.Request) {
+		handlers.UploadVideoHandler(w, r, queries)
+	})
 
-	// ─── Save Social Token ───────────────────────────────────────────────────────
-	mux.HandleFunc("/tiktok_session", func(w http.ResponseWriter, r *http.Request) {
-		handlers.SaveSocialToken(w, r, queries)
+	mux.HandleFunc("/api/GetUploadItemsByGroupID",func(w http.ResponseWriter, r *http.Request){
+	    handlers.GetUploadItemsByGroupID(w,r,queries)
 	})
 
 	// ─── Groups API: both "/api/groups" and "/api/groups/" ───────────────────────
@@ -77,11 +74,36 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
+
+	// ─── addGroupItem ─────────────────────────────────────────────
+	mux.HandleFunc("/api/AddGroupItem", func(w http.ResponseWriter, r *http.Request) {
+		handlers.AddGroupItem(w, r, queries)
+	})
+	mux.HandleFunc("/api/GetGroupItem", func(w http.ResponseWriter, r *http.Request) {
+		handlers.GetGroupItems(w,r,queries)
+	})
+
 	mux.HandleFunc("/api/groups", groupsHandler)
-	mux.HandleFunc("/api/groups/", groupsHandler)
+	//mux.HandleFunc("/api/groups/", groupsHandler)
 
 	// ─── Competitors API: both "/api/groups" and "/api/groups/" ───────────────────────
 	//    so that requests with or without trailing slash work.
+	mux.HandleFunc("/api/groups/", func(w http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, "/competitors") && r.Method == http.MethodPost {
+		auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			handlers.CreateCompetitor(w, r, queries)
+		})(w, r)
+		return
+	}
+	// fallback: default group route
+	groupsHandler(w, r)
+	})
+
+	// Competitors Post
+	mux.HandleFunc("/api/competitors/posts", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	handlers.ListVisibleCompetitorPosts(w, r, queries)
+	}))
+
 
 	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
 	handlerWithCORS := middleware.CORSMiddleware(mux)

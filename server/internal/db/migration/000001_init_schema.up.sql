@@ -22,21 +22,35 @@ CREATE TABLE "groups" (
 CREATE TABLE "group_items" (
   "id" SERIAL PRIMARY KEY,
   "group_id" INT NOT NULL,
-  "type" VARCHAR(50),
+  "platform" VARCHAR(50) NOT NULL,  -- e.g., 'tiktok', 'youtube'
   "data" JSONB,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE CASCADE
 );
+ALTER TABLE group_items ADD CONSTRAINT unique_group_platform UNIQUE (group_id, platform);
 
 CREATE TABLE competitors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   platform VARCHAR(50) NOT NULL,
   username VARCHAR(100) NOT NULL,
   profile_url TEXT NOT NULL,
   last_checked TIMESTAMP DEFAULT NOW(),
-  UNIQUE (group_id, platform, username)
+  followers BIGINT DEFAULT 0,
+  engagement_rate NUMERIC(4,2) DEFAULT 0.0,
+  growth_rate NUMERIC(4,2) DEFAULT 0.0,
+  posting_frequency NUMERIC(5,2) DEFAULT 0.0,
+  UNIQUE (platform, username)
+);
+
+CREATE TABLE user_competitors (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id INT, -- optional
+  competitor_id UUID NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
+  visibility VARCHAR(10) NOT NULL DEFAULT 'group', -- 'global', 'user', or 'group'
+  added_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (user_id, competitor_id, group_id)
 );
 
 
@@ -75,6 +89,7 @@ CREATE TABLE "upload_jobs" (
   "ai_post_time" TIMESTAMP,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
+  "scheduled_date" date DEFAULT NOW(),
 
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
   FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE SET NULL
@@ -96,8 +111,7 @@ CREATE TABLE competitor_posts (
   UNIQUE (platform, post_id)
 );
 
-ALTER TABLE group_items
-ADD CONSTRAINT group_items_group_id_type_key UNIQUE (group_id, type);
+
 --socialmeiad data, id PK, groupsid FK, type, data, created, upadted
 CREATE TABLE socialmedia_data (
   id SERIAL PRIMARY KEY,
@@ -111,13 +125,11 @@ CREATE TABLE socialmedia_data (
   updated_at TIMESTAMP     NOT NULL DEFAULT NOW()
 );
 
--- (optional) ensure you don’t insert duplicate platform/type per group:
-ALTER TABLE socialmedia_data
-  ADD CONSTRAINT uniq_group_platform_type
-    UNIQUE (group_id, platform, type);
+
 -- Daily followers table to track follower counts per day
 CREATE TABLE daily_followers (
   id              SERIAL      PRIMARY KEY,
   record_date     DATE        NOT NULL DEFAULT CURRENT_DATE,
   follower_count  BIGINT      NOT NULL
 );
+

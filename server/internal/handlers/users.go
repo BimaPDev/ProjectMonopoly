@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
@@ -39,7 +38,6 @@ type getUserIDResponse struct {
 
 // handler
 func GetUserIDHandler(q *db.Queries) http.HandlerFunc {
-	fmt.Printf("userID get called")
 	type req struct{ Username, Email string }
 	type resp struct {
 		UserID int32 `json:"userID"`

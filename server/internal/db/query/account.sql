@@ -86,6 +86,7 @@ INSERT INTO upload_jobs (
   video_path,
   storage_type,
   file_url,
+  scheduled_date,
   status,
   user_title,
   user_hashtags,
@@ -93,7 +94,7 @@ INSERT INTO upload_jobs (
   updated_at
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, NOW(), NOW()
 )
 RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at;
 
@@ -125,14 +126,19 @@ WHERE user_id = $1
 ORDER BY created_at DESC;
 
 -- name: InsertGroupItemIfNotExists :execrows
-INSERT INTO group_items (group_id, type, data)
-VALUES (@group_id, @type, @data::jsonb)
-ON CONFLICT (group_id, type) DO NOTHING;
+INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
+VALUES ($1,$2,$3, NOW(), NOW())
+ON CONFLICT (group_id, platform) DO NOTHING;
 
 -- name: UpdateGroupItemData :execrows
 UPDATE group_items
 SET data = @data::jsonb, updated_at = NOW()
-WHERE group_id = @group_id AND type = @type;
+WHERE group_id = @group_id;
+
+-- name: GetGroupItemByGroupID :many
+SELECT id, group_id, platform, data, created_at, updated_at
+FROM group_items
+WHERE group_id = $1;
 
 -- name: GetGroupByID :one
 SELECT id, user_id, name, description, created_at, updated_at
@@ -157,15 +163,15 @@ WHERE user_id = $1
 ORDER BY id;
 
 -- name: CreateCompetitor :one
-INSERT INTO competitors (group_id, platform, username, profile_url, last_checked)
-VALUES ($1, $2, $3, $4, NOW())
-RETURNING id, group_id, platform, username, profile_url, last_checked;
+INSERT INTO competitors (platform, username, profile_url, last_checked)
+VALUES ($1, $2, $3, NOW())
+RETURNING *;
 
 -- name: GetGroupCompetitors :many
 SELECT c.*
 FROM competitors c
-JOIN groups g ON g.id = c.group_id
-WHERE g.user_id = $1;
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1;
 
 -- name: FetchNextPendingJob :one
 UPDATE upload_jobs
@@ -179,9 +185,14 @@ WHERE id = (
 )
 RETURNING *;
 
+-- name: GetUploadJobByGID :one
+ select id, group_id,platform,status, created_at
+ from upload_jobs 
+ where group_id = $1 order by id;
+
 --uploding group items
 
--- name: CreateSocialMediaData :one
+-- name: CreateSocialMediaData :exec
 INSERT INTO socialmedia_data (
   group_id,
   platform,
@@ -192,20 +203,13 @@ INSERT INTO socialmedia_data (
 )
 VALUES (
   $1,       -- group_id    (INT)
-  $2,       -- platform    (VARCHAR)
+  $2,      -- platform    (VARCHAR)
   $3,       -- type        (VARCHAR)
   $4::jsonb,-- data        (JSONB)
   NOW(),
   NOW()
-)
-RETURNING
-  id,
-  group_id,
-  platform,
-  type,
-  data,
-  created_at,
-  updated_at;
+);
+
 
 -- name: ListSocialMediaDataByGroup :many
 SELECT
@@ -224,8 +228,7 @@ ORDER BY created_at DESC;
 UPDATE socialmedia_data
 SET
   platform   = $2,
-  type       = $3,
-  data       = $4::jsonb,
+  data       = $3::jsonb,
   updated_at = NOW()
 WHERE id = $1;
 
@@ -255,3 +258,32 @@ FROM daily_followers
 ORDER BY record_date DESC
 LIMIT 1;
 
+
+
+-- name: LinkUserToCompetitor :exec
+INSERT INTO user_competitors (user_id, group_id, competitor_id, visibility)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT DO NOTHING;
+
+-- name: ListUserCompetitors :many
+SELECT c.*
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1;
+
+-- name: ListGroupCompetitors :many
+SELECT c.*
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1 AND uc.group_id = $2;
+
+-- name: ListAvailableCompetitorsToUser :many
+SELECT *
+FROM competitors
+WHERE id NOT IN (
+  SELECT competitor_id FROM user_competitors WHERE user_id = $1
+);
+
+-- name: GetCompetitorByPlatformUsername :one
+SELECT * FROM competitors
+WHERE platform = $1 AND username = $2;

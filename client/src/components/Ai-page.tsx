@@ -87,9 +87,9 @@ export function AIPage() {
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension || '')) {
-      return <Image className="h-4 w-4 mr-1" />;
+      return <Image className="w-4 h-4 mr-1" />;
     } else {
-      return <FileText className="h-4 w-4 mr-1" />;
+      return <FileText className="w-4 h-4 mr-1" />;
     }
   };
 
@@ -126,9 +126,8 @@ export function AIPage() {
     );
 
     try {
-      const endpoint = model === "DeepSeek" ? "deepseek" : 
-                      model === "GPT-4" ? "gpt4" : "claude";
-      const response = await fetch(`http://localhost:8080/ai/deepseek`, {
+     
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/ai/deepseek`, {
         method: "POST",
         body: formData,
       });
@@ -176,10 +175,10 @@ export function AIPage() {
   
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-black">
-      <div className="flex flex-col h-full max-w-6xl mx-auto w-full p-4 md:p-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center">
-            <Sparkles className="mr-2 h-6 w-6 text-primary animate-pulse" />
+      <div className="flex flex-col w-full h-full max-w-6xl p-4 mx-auto md:p-6">
+        <div className="flex flex-col items-start justify-between gap-4 mb-4 md:flex-row md:items-center">
+          <h2 className="flex items-center text-2xl font-bold tracking-tight md:text-3xl">
+            <Sparkles className="w-6 h-6 mr-2 text-primary animate-pulse" />
             DogWood AI Studio
           </h2>
           <div className="flex flex-wrap items-center gap-3">
@@ -190,7 +189,7 @@ export function AIPage() {
               className="text-sm"
               disabled={messages.length === 0}
             >
-              <X className="h-4 w-4 mr-1" /> Clear Chat
+              <X className="w-4 h-4 mr-1" /> Clear Chat
             </Button>
             <Select value={model} onValueChange={setModel}>
               <SelectTrigger className="w-[180px]">
@@ -213,12 +212,12 @@ export function AIPage() {
           </div>
         </div>
 
-        <Card className="flex flex-col flex-1 border-2 shadow-xl bg-card/95 backdrop-blur-sm overflow-hidden">
-          <CardHeader className="bg-primary/10 border-b py-3">
-            <div className="flex justify-between items-center">
+        <Card className="flex flex-col flex-1 overflow-hidden border-2 shadow-xl bg-card/95 backdrop-blur-sm">
+          <CardHeader className="py-3 border-b bg-primary/10">
+            <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center text-lg md:text-xl">
-                  <Bot className="h-5 w-5 mr-2 text-primary" />
+                  <Bot className="w-5 h-5 mr-2 text-primary" />
                   Chat with {models.find((m) => m.id === model)?.name} {models.find((m) => m.id === model)?.icon}
                 </CardTitle>
                 <CardDescription>
@@ -235,30 +234,30 @@ export function AIPage() {
           </CardHeader>
           
           {!messageSent && messages.length === 0 && (
-            <div className="flex flex-1 items-center justify-center bg-dot-pattern bg-opacity-5">
-              <div className="text-center p-6 md:p-8 rounded-lg bg-card/80 backdrop-blur-sm border shadow-lg max-w-lg mx-auto">
+            <div className="flex items-center justify-center flex-1 bg-dot-pattern bg-opacity-5">
+              <div className="max-w-lg p-6 mx-auto text-center border rounded-lg shadow-lg md:p-8 bg-card/80 backdrop-blur-sm">
                 <motion.div 
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <Sparkles className="h-12 w-12 text-primary mx-auto mb-4" />
-                  <h3 className="text-2xl md:text-3xl font-bold mb-2">DogWood Gaming's AI Marketing Tool</h3>
-                  <p className="text-muted-foreground mb-6">
+                  <Sparkles className="w-12 h-12 mx-auto mb-4 text-primary" />
+                  <h3 className="mb-2 text-2xl font-bold md:text-3xl">DogWood Gaming's AI Marketing Tool</h3>
+                  <p className="mb-6 text-muted-foreground">
                     Your AI assistant for marketing strategy, content creation, and customer engagement
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
-                    <div className="bg-secondary/10 p-3 rounded-lg border">
-                      <p className="font-medium mb-1">Try asking about:</p>
-                      <ul className="text-sm text-muted-foreground space-y-1">
+                  <div className="grid grid-cols-1 gap-3 text-left md:grid-cols-2">
+                    <div className="p-3 border rounded-lg bg-secondary/10">
+                      <p className="mb-1 font-medium">Try asking about:</p>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
                         <li>• Marketing strategy for a game launch</li>
                         <li>• Content calendar ideas for social media</li>
                         <li>• Audience targeting recommendations</li>
                       </ul>
                     </div>
-                    <div className="bg-secondary/10 p-3 rounded-lg border">
-                      <p className="font-medium mb-1">Upload files like:</p>
-                      <ul className="text-sm text-muted-foreground space-y-1">
+                    <div className="p-3 border rounded-lg bg-secondary/10">
+                      <p className="mb-1 font-medium">Upload files like:</p>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
                         <li>• Market research documents</li>
                         <li>• Campaign performance data</li>
                         <li>• Competitor analysis reports</li>
@@ -297,9 +296,9 @@ export function AIPage() {
                         }`}
                       >
                         {message.role === "assistant" ? (
-                          <Bot className="h-4 w-4" />
+                          <Bot className="w-4 h-4" />
                         ) : (
-                          <User className="h-4 w-4" />
+                          <User className="w-4 h-4" />
                         )}
                       </div>
                       <div>
@@ -328,11 +327,11 @@ export function AIPage() {
                             </ReactMarkdown>
                           </div>
                           {message.attachments && message.attachments.length > 0 && (
-                            <div className="mt-3 text-sm border-t pt-2">
-                              <p className="font-semibold text-xs uppercase">Attachments</p>
+                            <div className="pt-2 mt-3 text-sm border-t">
+                              <p className="text-xs font-semibold uppercase">Attachments</p>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {message.attachments.map((file, i) => (
-                                  <div key={i} className="flex items-center rounded-md bg-background/50 px-2 py-1 text-xs">
+                                  <div key={i} className="flex items-center px-2 py-1 text-xs rounded-md bg-background/50">
                                     {getFileIcon(file)}
                                     <span className="truncate max-w-[200px]">{file}</span>
                                   </div>
@@ -353,8 +352,8 @@ export function AIPage() {
                   className="flex justify-start"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="rounded-full bg-primary p-2 text-primary-foreground">
-                      <Bot className="h-4 w-4" />
+                    <div className="p-2 rounded-full bg-primary text-primary-foreground">
+                      <Bot className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="flex items-center mb-1">
@@ -365,12 +364,12 @@ export function AIPage() {
                           {formatTimestamp(new Date())}
                         </span>
                       </div>
-                      <div className="rounded-lg bg-muted/80 px-4 py-3 flex items-center gap-3">
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-muted/80">
                         <div className="flex items-center gap-2">
                           <div className="flex space-x-1">
-                            <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                            <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                            <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }}></div>
                           </div>
                           <span className="text-sm">{thinkingMessage}</span>
                         </div>
@@ -383,8 +382,8 @@ export function AIPage() {
             </div>
           </CardContent>
           
-          <CardFooter className="border-t p-3 md:p-4">
-            <form onSubmit={handleSubmit} className="flex w-full flex-col gap-3">
+          <CardFooter className="p-3 border-t md:p-4">
+            <form onSubmit={handleSubmit} className="flex flex-col w-full gap-3">
               <div className={cn(
                 "flex gap-2 transition-all border-2 rounded-lg p-1",
                 inputFocused ? "border-primary/50 ring-2 ring-primary/20" : "border-input"
@@ -407,7 +406,7 @@ export function AIPage() {
                   disabled={isLoading}
                   className="h-9 w-9 shrink-0"
                 >
-                  <Upload className="h-4 w-4" />
+                  <Upload className="w-4 h-4" />
                   <span className="sr-only">Upload files</span>
                 </Button>
                 <Button 
@@ -415,7 +414,7 @@ export function AIPage() {
                   disabled={isLoading || (!input.trim() && files.length === 0)} 
                   className="px-4 h-9 shrink-0"
                 >
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send className="w-4 h-4 mr-2" />
                   <span>Send</span>
                 </Button>
               </div>
@@ -434,13 +433,13 @@ export function AIPage() {
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="bg-muted/50 rounded-lg p-2">
-                      <p className="text-xs font-medium mb-1">Selected files</p>
+                    <div className="p-2 rounded-lg bg-muted/50">
+                      <p className="mb-1 text-xs font-medium">Selected files</p>
                       <div className="flex flex-wrap gap-2">
                         {files.map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center gap-1 rounded-md bg-background px-2 py-1 text-xs"
+                            className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-background"
                           >
                             {getFileIcon(file.name)}
                             <span className="truncate max-w-[150px]">{file.name}</span>
@@ -449,7 +448,7 @@ export function AIPage() {
                               onClick={() => removeFile(file)}
                               className="ml-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted p-0.5"
                             >
-                              <X className="h-3 w-3" />
+                              <X className="w-3 h-3" />
                             </button>
                           </div>
                         ))}
@@ -461,7 +460,7 @@ export function AIPage() {
             </form>
           </CardFooter>
         </Card>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center justify-between mt-2">
           <div className="text-xs font-medium text-muted-foreground">
             DogWood AI can make mistakes. Always verify important information.
           </div>

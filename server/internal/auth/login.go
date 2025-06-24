@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -42,10 +43,11 @@ func LoginHandler(queries *db.Queries) http.HandlerFunc {
 		// Generate JWT Token
 		expirationTime := time.Now().Add(24 * time.Hour)
 		claims := &Claims{
-			Email: creds.Email,
+		    UserID: user.ID,               // 👈 Add this
+		    Email:  user.Email,            // also use the actual user email, not input
 			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: expirationTime.Unix(),
-			},
+		    ExpiresAt: expirationTime.Unix(),
+		    },
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -54,7 +56,7 @@ func LoginHandler(queries *db.Queries) http.HandlerFunc {
 			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 			return
 		}
-
+		fmt.Print("login called")
 		// Send token to frontend
 		json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 	}

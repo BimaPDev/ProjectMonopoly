@@ -358,7 +358,7 @@ if __name__ == "__main__":
         exit(1)
     
     # Example usage:
-    profile = "chelseafc"         
+    profile = "4u99ieewr"         
     max_posts = 5               
     
     scraper.scrape_profile(profile, max_posts)

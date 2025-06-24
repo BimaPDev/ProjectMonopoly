@@ -20,7 +20,7 @@ import (
 const baseUploadDir = "uploads" // Base upload directory
 
 func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	print("upload called")
+	
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -39,7 +39,7 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	// Optional fields
 	title := r.FormValue("title")
 	hashtagsRaw := r.FormValue("hashtags")
-
+	
 	if userID == "" || platform == "" {
 		http.Error(w, "user_id and platform are required", http.StatusBadRequest)
 		return
@@ -86,12 +86,14 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 
 	// Generate Job ID
 	jobID := fmt.Sprintf("%s-%s", userID, uuid.New().String())
-
+	groupID := r.FormValue("group_id")
+	groupIDInt, err := strconv.Atoi(groupID)
 	// Parse hashtags from raw string to []string
 	hashtags := parseHashtags(hashtagsRaw)
-
+	layout:= "02/01/2006 3.04.05 PM"
+	date, _ := time.Parse(layout, r.FormValue("schedule_date"))
 	// Save job to DB
-	err = saveJobToDB(queries, int32(userIDInt), jobID, platform, fullFilePath, "", "local", title, hashtags)
+	err = saveJobToDB(queries, int32(userIDInt), jobID, int32(groupIDInt),date, platform, fullFilePath,"", "local", title, hashtags)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save job to database: %v", err), http.StatusInternalServerError)
 		fmt.Printf("❌ Upload error: %v\n", err) // Also logs to your terminal
@@ -115,7 +117,10 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 func saveJobToDB(
 	queries *db.Queries,
 	userID int32,
-	jobID, platform, videoPath, fileURL, storageType, title string,
+	jobID string, 
+	groupID int32,
+	scheduleDate time.Time,
+	platform, videoPath, fileURL, storageType, title string,
 	hashtags []string,
 ) error {
 	_, err := queries.CreateUploadJob(context.TODO(), db.CreateUploadJobParams{
@@ -125,6 +130,7 @@ func saveJobToDB(
 		VideoPath:    videoPath,   // $4
 		StorageType:  storageType, // $5
 		FileUrl:      sql.NullString{String: fileURL, Valid: fileURL != ""},
+		ScheduledDate: sql.NullTime{Time: scheduleDate, Valid: !scheduleDate.IsZero()}, // $6
 		Status:       "pending",
 		UserTitle:    sql.NullString{String: title, Valid: title != ""},
 		UserHashtags: hashtags,
@@ -152,4 +158,42 @@ func parseHashtags(raw string) []string {
 		}
 	}
 	return clean
+}
+
+
+type uploadResponse struct {
+	ID int32 `json:"ID"`
+	platform string `json:"platform"`
+	status string `json:"status"`
+	updated time.Time `json:"updated"`
+}
+
+func GetUploadItemsByGroupID(w http.ResponseWriter, r *http.Request, q *db.Queries){
+	if r.Method != http.MethodGet{
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed);
+		return
+
+	}
+
+	groupIDstr := r.URL.Query().Get("groupID");
+	groupIDInt, err := strconv.Atoi(groupIDstr);
+	if err != nil {
+
+		http.Error(w, "Invalid group id", http.StatusBadRequest);
+	}
+
+	groupID := sql.NullInt32{Int32: int32(groupIDInt), Valid: true};
+
+	uploads, err := q.GetUploadJobByGID(r.Context(), groupID)
+
+	if err != nil {
+		http.Error(w, "Error getting uploads, UG190", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(uploads); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }

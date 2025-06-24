@@ -51,7 +51,7 @@ services:
       - OLLAMA_ORIGINS=*
     entrypoint: ["ollama", "serve"]
 
-
+  
 volumes:
   postgres_data:
   ollama_data:

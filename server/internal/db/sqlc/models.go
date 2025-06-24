@@ -14,12 +14,15 @@ import (
 )
 
 type Competitor struct {
-	ID          uuid.UUID    `json:"id"`
-	GroupID     int32        `json:"group_id"`
-	Platform    string       `json:"platform"`
-	Username    string       `json:"username"`
-	ProfileUrl  string       `json:"profile_url"`
-	LastChecked sql.NullTime `json:"last_checked"`
+	ID               uuid.UUID      `json:"id"`
+	Platform         string         `json:"platform"`
+	Username         string         `json:"username"`
+	ProfileUrl       string         `json:"profile_url"`
+	LastChecked      sql.NullTime   `json:"last_checked"`
+	Followers        sql.NullInt64  `json:"followers"`
+	EngagementRate   sql.NullString `json:"engagement_rate"`
+	GrowthRate       sql.NullString `json:"growth_rate"`
+	PostingFrequency sql.NullString `json:"posting_frequency"`
 }
 
 type CompetitorPost struct {
@@ -53,7 +56,7 @@ type Group struct {
 type GroupItem struct {
 	ID        int32                 `json:"id"`
 	GroupID   int32                 `json:"group_id"`
-	Type      sql.NullString        `json:"type"`
+	Platform  string                `json:"platform"`
 	Data      pqtype.NullRawMessage `json:"data"`
 	CreatedAt sql.NullTime          `json:"created_at"`
 	UpdatedAt sql.NullTime          `json:"updated_at"`
@@ -86,22 +89,23 @@ type SocialmediaDatum struct {
 }
 
 type UploadJob struct {
-	ID           string         `json:"id"`
-	UserID       int32          `json:"user_id"`
-	GroupID      sql.NullInt32  `json:"group_id"`
-	Platform     string         `json:"platform"`
-	VideoPath    string         `json:"video_path"`
-	StorageType  string         `json:"storage_type"`
-	FileUrl      sql.NullString `json:"file_url"`
-	Status       string         `json:"status"`
-	Caption      sql.NullString `json:"caption"`
-	UserTitle    sql.NullString `json:"user_title"`
-	UserHashtags []string       `json:"user_hashtags"`
-	AiTitle      sql.NullString `json:"ai_title"`
-	AiHashtags   []string       `json:"ai_hashtags"`
-	AiPostTime   sql.NullTime   `json:"ai_post_time"`
-	CreatedAt    sql.NullTime   `json:"created_at"`
-	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	ID            string         `json:"id"`
+	UserID        int32          `json:"user_id"`
+	GroupID       sql.NullInt32  `json:"group_id"`
+	Platform      string         `json:"platform"`
+	VideoPath     string         `json:"video_path"`
+	StorageType   string         `json:"storage_type"`
+	FileUrl       sql.NullString `json:"file_url"`
+	Status        string         `json:"status"`
+	Caption       sql.NullString `json:"caption"`
+	UserTitle     sql.NullString `json:"user_title"`
+	UserHashtags  []string       `json:"user_hashtags"`
+	AiTitle       sql.NullString `json:"ai_title"`
+	AiHashtags    []string       `json:"ai_hashtags"`
+	AiPostTime    sql.NullTime   `json:"ai_post_time"`
+	CreatedAt     sql.NullTime   `json:"created_at"`
+	UpdatedAt     sql.NullTime   `json:"updated_at"`
+	ScheduledDate sql.NullTime   `json:"scheduled_date"`
 }
 
 type User struct {
@@ -113,4 +117,13 @@ type User struct {
 	OauthID       sql.NullString `json:"oauth_id"`
 	CreatedAt     sql.NullTime   `json:"created_at"`
 	UpdatedAt     sql.NullTime   `json:"updated_at"`
+}
+
+type UserCompetitor struct {
+	ID           int32         `json:"id"`
+	UserID       int32         `json:"user_id"`
+	GroupID      sql.NullInt32 `json:"group_id"`
+	CompetitorID uuid.UUID     `json:"competitor_id"`
+	Visibility   string        `json:"visibility"`
+	AddedAt      sql.NullTime  `json:"added_at"`
 }
