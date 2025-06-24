@@ -32,7 +32,6 @@ ALTER TABLE group_items ADD CONSTRAINT unique_group_platform UNIQUE (group_id, p
 
 CREATE TABLE competitors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   platform VARCHAR(50) NOT NULL,
   username VARCHAR(100) NOT NULL,
   profile_url TEXT NOT NULL,
@@ -41,7 +40,17 @@ CREATE TABLE competitors (
   engagement_rate NUMERIC(4,2) DEFAULT 0.0,
   growth_rate NUMERIC(4,2) DEFAULT 0.0,
   posting_frequency NUMERIC(5,2) DEFAULT 0.0,
-  UNIQUE (group_id, platform, username)
+  UNIQUE (platform, username)
+);
+
+CREATE TABLE user_competitors (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id INT, -- optional
+  competitor_id UUID NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
+  visibility VARCHAR(10) NOT NULL DEFAULT 'group', -- 'global', 'user', or 'group'
+  added_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (user_id, competitor_id, group_id)
 );
 
 
@@ -123,3 +132,4 @@ CREATE TABLE daily_followers (
   record_date     DATE        NOT NULL DEFAULT CURRENT_DATE,
   follower_count  BIGINT      NOT NULL
 );
+

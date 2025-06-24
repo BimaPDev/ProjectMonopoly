@@ -163,15 +163,15 @@ WHERE user_id = $1
 ORDER BY id;
 
 -- name: CreateCompetitor :one
-INSERT INTO competitors (group_id, platform, username, profile_url, last_checked)
-VALUES ($1, $2, $3, $4, NOW())
-RETURNING id, group_id, platform, username, profile_url, last_checked;
+INSERT INTO competitors (platform, username, profile_url, last_checked)
+VALUES ($1, $2, $3, NOW())
+RETURNING *;
 
 -- name: GetGroupCompetitors :many
 SELECT c.*
 FROM competitors c
-JOIN groups g ON g.id = c.group_id
-WHERE g.user_id = $1;
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1;
 
 -- name: FetchNextPendingJob :one
 UPDATE upload_jobs
@@ -258,3 +258,32 @@ FROM daily_followers
 ORDER BY record_date DESC
 LIMIT 1;
 
+
+
+-- name: LinkUserToCompetitor :exec
+INSERT INTO user_competitors (user_id, group_id, competitor_id, visibility)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT DO NOTHING;
+
+-- name: ListUserCompetitors :many
+SELECT c.*
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1;
+
+-- name: ListGroupCompetitors :many
+SELECT c.*
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1 AND uc.group_id = $2;
+
+-- name: ListAvailableCompetitorsToUser :many
+SELECT *
+FROM competitors
+WHERE id NOT IN (
+  SELECT competitor_id FROM user_competitors WHERE user_id = $1
+);
+
+-- name: GetCompetitorByPlatformUsername :one
+SELECT * FROM competitors
+WHERE platform = $1 AND username = $2;

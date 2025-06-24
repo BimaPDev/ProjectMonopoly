@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -18,19 +19,18 @@ type CreateCompetitorRequest struct {
 }
 
 func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	// Extract group ID from URL
+	// Extract optional group ID from URL
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 4 {
-		http.Error(w, "Invalid path. Expected /api/groups/{group_id}/competitors", http.StatusBadRequest)
-		return
+	var groupID *int32
+	if len(parts) >= 4 {
+		if gid, err := strconv.Atoi(parts[3]); err == nil {
+			tmp := int32(gid)
+			groupID = &tmp
+		}
 	}
 
-	groupIDStr := parts[3]
-	groupID, err := strconv.Atoi(groupIDStr)
-	if err != nil {
-		http.Error(w, "Invalid group ID", http.StatusBadRequest)
-		return
-	}
+	// Stub: extract current user ID (replace this with real session auth later)
+	currentUserID := int32(1)
 
 	// Parse request body
 	var req CreateCompetitorRequest
@@ -39,39 +39,72 @@ func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Querie
 		return
 	}
 
-	// Parse social input (e.g., @username or full URL)
+	// Parse social input (@username or URL)
 	parsed, err := utils.ParseSocialInput(req.Input, req.Platform)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse input: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	// Build params for DB insert
-	params := db.CreateCompetitorParams{
-		GroupID:    int32(groupID),
-		Platform:   parsed.Platform,
-		Username:   parsed.Username,
-		ProfileUrl: parsed.ProfileURL,
+	// Check if competitor already exists
+	var competitor db.Competitor
+	existing, err := queries.GetCompetitorByPlatformUsername(r.Context(), db.GetCompetitorByPlatformUsernameParams{
+		Platform: parsed.Platform,
+		Username: parsed.Username,
+	})
+	if err == nil {
+		competitor = existing
+	} else {
+		// Create new competitor if not found
+		newComp, err := queries.CreateCompetitor(r.Context(), db.CreateCompetitorParams{
+			Platform:   parsed.Platform,
+			Username:   parsed.Username,
+			ProfileUrl: parsed.ProfileURL,
+		})
+		if err != nil {
+			log.Printf("❌ Failed to create competitor: %v", err)
+			http.Error(w, "Failed to create competitor", http.StatusInternalServerError)
+			return
+		}
+		competitor = newComp
 	}
 
-	// Insert into DB
-	competitor, err := queries.CreateCompetitor(r.Context(), params)
+	// Convert groupID into sql.NullInt32
+	var groupVal sql.NullInt32
+	if groupID != nil {
+		groupVal = sql.NullInt32{Int32: *groupID, Valid: true}
+	} else {
+		groupVal = sql.NullInt32{Valid: false}
+	}
+
+	// Set visibility
+	visibility := "group"
+	if !groupVal.Valid {
+		visibility = "user"
+	}
+
+	// Link user to competitor
+	err = queries.LinkUserToCompetitor(r.Context(), db.LinkUserToCompetitorParams{
+		UserID:       currentUserID,
+		GroupID:      groupVal,
+		CompetitorID: competitor.ID,
+		Visibility:   visibility,
+	})
 	if err != nil {
-		log.Printf("❌ DB error while creating competitor: %v", err)
-		http.Error(w, "Failed to create competitor", http.StatusInternalServerError)
+		log.Printf("❌ Failed to link user to competitor: %v", err)
+		http.Error(w, "Failed to link competitor", http.StatusInternalServerError)
 		return
 	}
 
 	// Success response
 	resp := map[string]interface{}{
-		"message":      "Competitor added",
+		"message": "Competitor added",
 		"competitor": map[string]interface{}{
-			"id":          competitor.ID,
-			"group_id":    competitor.GroupID,
-			"platform":    competitor.Platform,
-			"username":    competitor.Username,
-			"profile_url": competitor.ProfileUrl,
-			"created_at":  competitor.LastChecked,
+			"id":           competitor.ID,
+			"platform":     competitor.Platform,
+			"username":     competitor.Username,
+			"profile_url":  competitor.ProfileUrl,
+			"last_checked": competitor.LastChecked,
 		},
 	}
 	w.Header().Set("Content-Type", "application/json")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	_ "github.com/lib/pq"
 
@@ -83,10 +84,22 @@ func main() {
 	})
 
 	mux.HandleFunc("/api/groups", groupsHandler)
-	mux.HandleFunc("/api/groups/", groupsHandler)
+	//mux.HandleFunc("/api/groups/", groupsHandler)
 
 	// ─── Competitors API: both "/api/groups" and "/api/groups/" ───────────────────────
 	//    so that requests with or without trailing slash work.
+	mux.HandleFunc("/api/groups/", func(w http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, "/competitors") && r.Method == http.MethodPost {
+		auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			handlers.CreateCompetitor(w, r, queries)
+		})(w, r)
+		return
+	}
+
+	// fallback: default group route
+	groupsHandler(w, r)
+})
+
 
 	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
 	handlerWithCORS := middleware.CORSMiddleware(mux)
