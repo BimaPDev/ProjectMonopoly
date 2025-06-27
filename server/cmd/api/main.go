@@ -89,15 +89,22 @@ func main() {
 	// ─── Competitors API: both "/api/groups" and "/api/groups/" ───────────────────────
 	//    so that requests with or without trailing slash work.
 	mux.HandleFunc("/api/groups/", func(w http.ResponseWriter, r *http.Request) {
-	if strings.HasSuffix(r.URL.Path, "/competitors") && r.Method == http.MethodPost {
-		auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			handlers.CreateCompetitor(w, r, queries)
-		})(w, r)
-		return
-	}
+        if strings.HasSuffix(r.URL.Path, "/competitors") && r.Method == http.MethodPost {
+            auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+                handlers.CreateCompetitor(w, r, queries)
+            })(w, r)
+            return
+        }
+        if strings.HasSuffix(r.URL.Path, "/competitors") && r.Method == http.MethodGet{
+            auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request){
+                handlers.ListUserCompetitors(w,r,queries)
+            })(w,r)
+            return
+        }
 	// fallback: default group route
 	groupsHandler(w, r)
 	})
+
 
 	// Competitors Post
 	mux.HandleFunc("/api/competitors/posts", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {

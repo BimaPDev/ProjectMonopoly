@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const checkEmailExists = `-- name: CheckEmailExists :one
@@ -49,33 +50,30 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 }
 
 const createCompetitor = `-- name: CreateCompetitor :one
-INSERT INTO competitors (group_id, platform, username, profile_url, last_checked)
-VALUES ($1, $2, $3, $4, NOW())
-RETURNING id, group_id, platform, username, profile_url, last_checked
+INSERT INTO competitors (platform, username, profile_url, last_checked)
+VALUES ($1, $2, $3, NOW())
+RETURNING id, platform, username, profile_url, last_checked, followers, engagement_rate, growth_rate, posting_frequency
 `
 
 type CreateCompetitorParams struct {
-	GroupID    int32  `json:"group_id"`
 	Platform   string `json:"platform"`
 	Username   string `json:"username"`
 	ProfileUrl string `json:"profile_url"`
 }
 
 func (q *Queries) CreateCompetitor(ctx context.Context, arg CreateCompetitorParams) (Competitor, error) {
-	row := q.db.QueryRowContext(ctx, createCompetitor,
-		arg.GroupID,
-		arg.Platform,
-		arg.Username,
-		arg.ProfileUrl,
-	)
+	row := q.db.QueryRowContext(ctx, createCompetitor, arg.Platform, arg.Username, arg.ProfileUrl)
 	var i Competitor
 	err := row.Scan(
 		&i.ID,
-		&i.GroupID,
 		&i.Platform,
 		&i.Username,
 		&i.ProfileUrl,
 		&i.LastChecked,
+		&i.Followers,
+		&i.EngagementRate,
+		&i.GrowthRate,
+		&i.PostingFrequency,
 	)
 	return i, err
 }
@@ -171,7 +169,7 @@ func (q *Queries) CreateSession(ctx context.Context, userID int32) (Session, err
 	return i, err
 }
 
-const createSocialMediaData = `-- name: CreateSocialMediaData :one
+const createSocialMediaData = `-- name: CreateSocialMediaData :exec
 
 INSERT INTO socialmedia_data (
   group_id,
@@ -183,20 +181,12 @@ INSERT INTO socialmedia_data (
 )
 VALUES (
   $1,       -- group_id    (INT)
-  $2,       -- platform    (VARCHAR)
+  $2,      -- platform    (VARCHAR)
   $3,       -- type        (VARCHAR)
   $4::jsonb,-- data        (JSONB)
   NOW(),
   NOW()
 )
-RETURNING
-  id,
-  group_id,
-  platform,
-  type,
-  data,
-  created_at,
-  updated_at
 `
 
 type CreateSocialMediaDataParams struct {
@@ -207,24 +197,14 @@ type CreateSocialMediaDataParams struct {
 }
 
 // uploding group items
-func (q *Queries) CreateSocialMediaData(ctx context.Context, arg CreateSocialMediaDataParams) (SocialmediaDatum, error) {
-	row := q.db.QueryRowContext(ctx, createSocialMediaData,
+func (q *Queries) CreateSocialMediaData(ctx context.Context, arg CreateSocialMediaDataParams) error {
+	_, err := q.db.ExecContext(ctx, createSocialMediaData,
 		arg.GroupID,
 		arg.Platform,
 		arg.Type,
 		arg.Column4,
 	)
-	var i SocialmediaDatum
-	err := row.Scan(
-		&i.ID,
-		&i.GroupID,
-		&i.Platform,
-		&i.Type,
-		&i.Data,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	return err
 }
 
 const createUploadJob = `-- name: CreateUploadJob :one
@@ -235,6 +215,7 @@ INSERT INTO upload_jobs (
   video_path,
   storage_type,
   file_url,
+  scheduled_date,
   status,
   user_title,
   user_hashtags,
@@ -242,21 +223,22 @@ INSERT INTO upload_jobs (
   updated_at
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, NOW(), NOW()
 )
 RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at
 `
 
 type CreateUploadJobParams struct {
-	ID           string         `json:"id"`
-	UserID       int32          `json:"user_id"`
-	Platform     string         `json:"platform"`
-	VideoPath    string         `json:"video_path"`
-	StorageType  string         `json:"storage_type"`
-	FileUrl      sql.NullString `json:"file_url"`
-	Status       string         `json:"status"`
-	UserTitle    sql.NullString `json:"user_title"`
-	UserHashtags []string       `json:"user_hashtags"`
+	ID            string         `json:"id"`
+	UserID        int32          `json:"user_id"`
+	Platform      string         `json:"platform"`
+	VideoPath     string         `json:"video_path"`
+	StorageType   string         `json:"storage_type"`
+	FileUrl       sql.NullString `json:"file_url"`
+	ScheduledDate sql.NullTime   `json:"scheduled_date"`
+	Status        string         `json:"status"`
+	UserTitle     sql.NullString `json:"user_title"`
+	UserHashtags  []string       `json:"user_hashtags"`
 }
 
 type CreateUploadJobRow struct {
@@ -281,6 +263,7 @@ func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams
 		arg.VideoPath,
 		arg.StorageType,
 		arg.FileUrl,
+		arg.ScheduledDate,
 		arg.Status,
 		arg.UserTitle,
 		pq.Array(arg.UserHashtags),
@@ -377,7 +360,7 @@ WHERE id = (
     LIMIT 1
     FOR UPDATE SKIP LOCKED
 )
-RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at
+RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at, scheduled_date
 `
 
 func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
@@ -400,6 +383,34 @@ func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
 		&i.AiPostTime,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ScheduledDate,
+	)
+	return i, err
+}
+
+const getCompetitorByPlatformUsername = `-- name: GetCompetitorByPlatformUsername :one
+SELECT id, platform, username, profile_url, last_checked, followers, engagement_rate, growth_rate, posting_frequency FROM competitors
+WHERE platform = $1 AND username = $2
+`
+
+type GetCompetitorByPlatformUsernameParams struct {
+	Platform string `json:"platform"`
+	Username string `json:"username"`
+}
+
+func (q *Queries) GetCompetitorByPlatformUsername(ctx context.Context, arg GetCompetitorByPlatformUsernameParams) (Competitor, error) {
+	row := q.db.QueryRowContext(ctx, getCompetitorByPlatformUsername, arg.Platform, arg.Username)
+	var i Competitor
+	err := row.Scan(
+		&i.ID,
+		&i.Platform,
+		&i.Username,
+		&i.ProfileUrl,
+		&i.LastChecked,
+		&i.Followers,
+		&i.EngagementRate,
+		&i.GrowthRate,
+		&i.PostingFrequency,
 	)
 	return i, err
 }
@@ -439,10 +450,10 @@ func (q *Queries) GetGroupByID(ctx context.Context, id int32) (Group, error) {
 }
 
 const getGroupCompetitors = `-- name: GetGroupCompetitors :many
-SELECT c.id, c.group_id, c.platform, c.username, c.profile_url, c.last_checked
+SELECT c.id, c.platform, c.username, c.profile_url, c.last_checked, c.followers, c.engagement_rate, c.growth_rate, c.posting_frequency
 FROM competitors c
-JOIN groups g ON g.id = c.group_id
-WHERE g.user_id = $1
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
 `
 
 func (q *Queries) GetGroupCompetitors(ctx context.Context, userID int32) ([]Competitor, error) {
@@ -456,11 +467,50 @@ func (q *Queries) GetGroupCompetitors(ctx context.Context, userID int32) ([]Comp
 		var i Competitor
 		if err := rows.Scan(
 			&i.ID,
-			&i.GroupID,
 			&i.Platform,
 			&i.Username,
 			&i.ProfileUrl,
 			&i.LastChecked,
+			&i.Followers,
+			&i.EngagementRate,
+			&i.GrowthRate,
+			&i.PostingFrequency,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getGroupItemByGroupID = `-- name: GetGroupItemByGroupID :many
+SELECT id, group_id, platform, data, created_at, updated_at
+FROM group_items
+WHERE group_id = $1
+`
+
+func (q *Queries) GetGroupItemByGroupID(ctx context.Context, groupID int32) ([]GroupItem, error) {
+	rows, err := q.db.QueryContext(ctx, getGroupItemByGroupID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GroupItem
+	for rows.Next() {
+		var i GroupItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.Platform,
+			&i.Data,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -558,6 +608,33 @@ func (q *Queries) GetUploadJob(ctx context.Context, id string) (GetUploadJobRow,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUploadJobByGID = `-- name: GetUploadJobByGID :one
+ select id, group_id,platform,status, created_at
+ from upload_jobs 
+ where group_id = $1 order by id
+`
+
+type GetUploadJobByGIDRow struct {
+	ID        string        `json:"id"`
+	GroupID   sql.NullInt32 `json:"group_id"`
+	Platform  string        `json:"platform"`
+	Status    string        `json:"status"`
+	CreatedAt sql.NullTime  `json:"created_at"`
+}
+
+func (q *Queries) GetUploadJobByGID(ctx context.Context, groupID sql.NullInt32) (GetUploadJobByGIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUploadJobByGID, groupID)
+	var i GetUploadJobByGIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.Platform,
+		&i.Status,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -660,23 +737,132 @@ func (q *Queries) InsertFollowerCount(ctx context.Context, arg InsertFollowerCou
 }
 
 const insertGroupItemIfNotExists = `-- name: InsertGroupItemIfNotExists :execrows
-INSERT INTO group_items (group_id, type, data)
-VALUES ($1, $2, $3::jsonb)
-ON CONFLICT (group_id, type) DO NOTHING
+INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
+VALUES ($1,$2,$3, NOW(), NOW())
+ON CONFLICT (group_id, platform) DO NOTHING
 `
 
 type InsertGroupItemIfNotExistsParams struct {
-	GroupID int32           `json:"group_id"`
-	Type    sql.NullString  `json:"type"`
-	Data    json.RawMessage `json:"data"`
+	GroupID  int32                 `json:"group_id"`
+	Platform string                `json:"platform"`
+	Data     pqtype.NullRawMessage `json:"data"`
 }
 
 func (q *Queries) InsertGroupItemIfNotExists(ctx context.Context, arg InsertGroupItemIfNotExistsParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, insertGroupItemIfNotExists, arg.GroupID, arg.Type, arg.Data)
+	result, err := q.db.ExecContext(ctx, insertGroupItemIfNotExists, arg.GroupID, arg.Platform, arg.Data)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const linkUserToCompetitor = `-- name: LinkUserToCompetitor :exec
+INSERT INTO user_competitors (user_id, group_id, competitor_id, visibility)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT DO NOTHING
+`
+
+type LinkUserToCompetitorParams struct {
+	UserID       int32         `json:"user_id"`
+	GroupID      sql.NullInt32 `json:"group_id"`
+	CompetitorID uuid.UUID     `json:"competitor_id"`
+	Visibility   string        `json:"visibility"`
+}
+
+func (q *Queries) LinkUserToCompetitor(ctx context.Context, arg LinkUserToCompetitorParams) error {
+	_, err := q.db.ExecContext(ctx, linkUserToCompetitor,
+		arg.UserID,
+		arg.GroupID,
+		arg.CompetitorID,
+		arg.Visibility,
+	)
+	return err
+}
+
+const listAvailableCompetitorsToUser = `-- name: ListAvailableCompetitorsToUser :many
+SELECT id, platform, username, profile_url, last_checked, followers, engagement_rate, growth_rate, posting_frequency
+FROM competitors
+WHERE id NOT IN (
+  SELECT competitor_id FROM user_competitors WHERE user_id = $1
+)
+`
+
+func (q *Queries) ListAvailableCompetitorsToUser(ctx context.Context, userID int32) ([]Competitor, error) {
+	rows, err := q.db.QueryContext(ctx, listAvailableCompetitorsToUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Competitor
+	for rows.Next() {
+		var i Competitor
+		if err := rows.Scan(
+			&i.ID,
+			&i.Platform,
+			&i.Username,
+			&i.ProfileUrl,
+			&i.LastChecked,
+			&i.Followers,
+			&i.EngagementRate,
+			&i.GrowthRate,
+			&i.PostingFrequency,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroupCompetitors = `-- name: ListGroupCompetitors :many
+SELECT c.id, c.platform, c.username, c.profile_url, c.last_checked, c.followers, c.engagement_rate, c.growth_rate, c.posting_frequency
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1 AND uc.group_id = $2
+`
+
+type ListGroupCompetitorsParams struct {
+	UserID  int32         `json:"user_id"`
+	GroupID sql.NullInt32 `json:"group_id"`
+}
+
+func (q *Queries) ListGroupCompetitors(ctx context.Context, arg ListGroupCompetitorsParams) ([]Competitor, error) {
+	rows, err := q.db.QueryContext(ctx, listGroupCompetitors, arg.UserID, arg.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Competitor
+	for rows.Next() {
+		var i Competitor
+		if err := rows.Scan(
+			&i.ID,
+			&i.Platform,
+			&i.Username,
+			&i.ProfileUrl,
+			&i.LastChecked,
+			&i.Followers,
+			&i.EngagementRate,
+			&i.GrowthRate,
+			&i.PostingFrequency,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listGroupsByUser = `-- name: ListGroupsByUser :many
@@ -753,6 +939,46 @@ func (q *Queries) ListSocialMediaDataByGroup(ctx context.Context, groupID int32)
 			&i.Data,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserCompetitors = `-- name: ListUserCompetitors :many
+SELECT c.id, c.platform, c.username, c.profile_url, c.last_checked, c.followers, c.engagement_rate, c.growth_rate, c.posting_frequency
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+`
+
+func (q *Queries) ListUserCompetitors(ctx context.Context, userID int32) ([]Competitor, error) {
+	rows, err := q.db.QueryContext(ctx, listUserCompetitors, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Competitor
+	for rows.Next() {
+		var i Competitor
+		if err := rows.Scan(
+			&i.ID,
+			&i.Platform,
+			&i.Username,
+			&i.ProfileUrl,
+			&i.LastChecked,
+			&i.Followers,
+			&i.EngagementRate,
+			&i.GrowthRate,
+			&i.PostingFrequency,
 		); err != nil {
 			return nil, err
 		}
@@ -865,17 +1091,16 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 const updateGroupItemData = `-- name: UpdateGroupItemData :execrows
 UPDATE group_items
 SET data = $1::jsonb, updated_at = NOW()
-WHERE group_id = $2 AND type = $3
+WHERE group_id = $2
 `
 
 type UpdateGroupItemDataParams struct {
 	Data    json.RawMessage `json:"data"`
 	GroupID int32           `json:"group_id"`
-	Type    sql.NullString  `json:"type"`
 }
 
 func (q *Queries) UpdateGroupItemData(ctx context.Context, arg UpdateGroupItemDataParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateGroupItemData, arg.Data, arg.GroupID, arg.Type)
+	result, err := q.db.ExecContext(ctx, updateGroupItemData, arg.Data, arg.GroupID)
 	if err != nil {
 		return 0, err
 	}
@@ -886,8 +1111,7 @@ const updateSocialMediaData = `-- name: UpdateSocialMediaData :exec
 UPDATE socialmedia_data
 SET
   platform   = $2,
-  type       = $3,
-  data       = $4::jsonb,
+  data       = $3::jsonb,
   updated_at = NOW()
 WHERE id = $1
 `
@@ -895,17 +1119,11 @@ WHERE id = $1
 type UpdateSocialMediaDataParams struct {
 	ID       int32           `json:"id"`
 	Platform string          `json:"platform"`
-	Type     string          `json:"type"`
-	Column4  json.RawMessage `json:"column_4"`
+	Column3  json.RawMessage `json:"column_3"`
 }
 
 func (q *Queries) UpdateSocialMediaData(ctx context.Context, arg UpdateSocialMediaDataParams) error {
-	_, err := q.db.ExecContext(ctx, updateSocialMediaData,
-		arg.ID,
-		arg.Platform,
-		arg.Type,
-		arg.Column4,
-	)
+	_, err := q.db.ExecContext(ctx, updateSocialMediaData, arg.ID, arg.Platform, arg.Column3)
 	return err
 }
 

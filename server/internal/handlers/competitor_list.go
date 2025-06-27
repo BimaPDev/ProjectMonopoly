@@ -6,14 +6,19 @@ import (
 	"net/http"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
 )
 
 func ListUserCompetitors(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	// TODO: Replace with real user session logic
-	currentUserID := int32(1)
+	userID, err := utils.GetUserIDFromRequest(r)
+    	if err != nil {
+    		http.Error(w, "unauthorized", http.StatusUnauthorized)
+    		return
+    	}
 
 	// Query DB
-	competitors, err := queries.ListUserCompetitors(r.Context(), currentUserID)
+	competitors, err := queries.ListUserCompetitors(r.Context(), userID)
 	if err != nil {
 		log.Printf("❌ Failed to list user competitors: %v", err)
 		http.Error(w, "Failed to fetch competitors", http.StatusInternalServerError)

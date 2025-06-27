@@ -222,47 +222,11 @@ const GroupManagement = () => {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
-  };
-
- const handleMembershipChange = (value: string) => {
-  setMembershipForm(prev => ({ ...prev, platform: value }));
-};
 
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log('Form data:', membershipForm);
-    if (!formData.ID || !formData.name) {
-      setMessage({
-        text: 'User ID and group name are required fields',
-        type: 'error'
-      });
-      return;
-    }
 
-    const requestData = {
-      user_id: parseInt(formData.ID),
-      name: formData.name,
-      description: formData.description
-    };
 
-    setIsLoading(true);
-    setMessage({ text: '', type: '' });
 
-    try {
-      createGroup();
-      } catch (error) {
-      setMessage({ text: "'Failed to create group. Please try again.'", type: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleAddMember = async (e) => {
     e.preventDefault();
