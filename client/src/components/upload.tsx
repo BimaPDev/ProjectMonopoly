@@ -44,7 +44,7 @@ const formSchema = z.object({
   title: z.string().optional(),
   hashtags: z.string().optional(),
   platform: z.array(z.string()).min(1, "Platform is required"),
-  groupId: z.string().min(1, "Group is required"),
+  groupId: z.number().min(1, "Group is required"),
   scheduledDate: z.date().optional(),
 });
 
@@ -100,7 +100,7 @@ export default function UploadPage() {
       hashtags: "",
       platform: [],
       scheduledDate: undefined,
-      groupId: "",
+      groupId: 0,
     },
   });
 // Fetch user ID first, then fetch groups once we have the ID
@@ -117,7 +117,7 @@ React.useEffect(() => {
     
     try {
       
-      const res = await fetch(`${import.meta.env.VITE_API_CALL} /api/groups?userID=${userID}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -461,9 +461,9 @@ React.useEffect(() => {
                                     type="radio"
                                     id={`group-${g.ID}`}
                                     className="mr-2"
-                                    value={String(g.ID)}
-                                    checked={field.value === String(g.ID)}
-                                    onChange={() => field.onChange(String(g.ID))}
+                                    value={g.ID}
+                                    checked={field.value === g.ID}
+                                    onChange={() => field.onChange(g.ID)}
                                     disabled={groupsLoading}
                                   />
                                   <span>{g.name || "No Groups"}</span>

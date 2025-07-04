@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+    "log"
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/google/uuid"
 )
@@ -86,8 +86,12 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 
 	// Generate Job ID
 	jobID := fmt.Sprintf("%s-%s", userID, uuid.New().String())
-	groupID := r.FormValue("group_id")
-	groupIDInt, err := strconv.Atoi(groupID)
+	groupID := r.FormValue("group_id") // returns a string, like "1"
+    groupIDInt, err := strconv.Atoi(groupID)
+    if err != nil {
+    	http.Error(w, "Invalid group_id format", http.StatusBadRequest)
+    	return
+    }
 	// Parse hashtags from raw string to []string
 	hashtags := parseHashtags(hashtagsRaw)
 	layout:= "02/01/2006 3.04.05 PM"
@@ -117,7 +121,7 @@ func UploadVideoHandler(w http.ResponseWriter, r *http.Request, queries *db.Quer
 func saveJobToDB(
 	queries *db.Queries,
 	userID int32,
-	jobID string, 
+	jobID string,
 	groupID int32,
 	scheduleDate time.Time,
 	platform, videoPath, fileURL, storageType, title string,
@@ -134,6 +138,8 @@ func saveJobToDB(
 		Status:       "pending",
 		UserTitle:    sql.NullString{String: title, Valid: title != ""},
 		UserHashtags: hashtags,
+		GroupID: sql.NullInt32{Int32: groupID, Valid: true},
+
 	})
 	return err
 }
@@ -187,7 +193,8 @@ func GetUploadItemsByGroupID(w http.ResponseWriter, r *http.Request, q *db.Queri
 	uploads, err := q.GetUploadJobByGID(r.Context(), groupID)
 
 	if err != nil {
-		http.Error(w, "Error getting uploads, UG190", http.StatusBadRequest)
+	    log.Printf("Error getting uploads: %v", err)
+        http.Error(w, "Error getting uploads, UG190", http.StatusInternalServerError)
 		return
 	}
 

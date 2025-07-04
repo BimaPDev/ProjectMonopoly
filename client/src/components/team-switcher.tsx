@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { useGroup } from '../groupContext.tsx';
+import { useGroup } from './groupContext.tsx';
 
 interface Group {
   ID: number;
@@ -63,11 +63,11 @@ export function TeamSwitcher() {
     setError(null);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
+          `${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          }
       );
 
       if (!res.ok) {
@@ -84,7 +84,8 @@ export function TeamSwitcher() {
       setGroups(data);
 
       // Set active group if there are groups available and no active group is set
-      if (data.length > 0 && !activeGroup) {
+      // Check for both null and undefined, and ensure we have groups
+      if (data.length > 0 && (!activeGroup || activeGroup === null)) {
         setActiveGroup(data[0]);
       }
 

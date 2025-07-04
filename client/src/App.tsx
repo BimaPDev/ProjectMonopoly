@@ -18,7 +18,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import CreateGroupSettings from "./app/settings/page";
 
 // Add the GroupProvider import
-import { GroupProvider } from "./groupContext"; // Adjust the path as needed
+import { GroupProvider } from "./components/groupContext.tsx"; // Adjust the path as needed
 
 // Add your Google Client ID here
 const googleClientId = "1054535744463-vofp68rffke3c3m9r1o4vaq6ss0iggt1.apps.googleusercontent.com"

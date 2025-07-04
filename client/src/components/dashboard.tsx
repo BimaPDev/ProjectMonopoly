@@ -10,40 +10,74 @@ import {
   CircleIcon,
   CrossCircledIcon,
   LightningBoltIcon,
-  QuestionMarkCircledIcon,
+  QuestionMarkCircledIcon, ReloadIcon,
   StopwatchIcon,
 } from "@radix-ui/react-icons";
-import {
-  Area,
-  AreaChart,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  XAxis,
-  Tooltip,
-} from "recharts";
-import { Bar, BarChart } from "recharts";
-import { Calendar, Hash, Loader2Icon, ChartArea,Users, TrendingUp, CheckCheckIcon, Clock, Circle } from "lucide-react";
+
+import {Loader2Icon, ChartArea,Users, TrendingUp, CheckCheckIcon, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+
 } from "@/components/ui/card";
+
+import { useGroup } from './groupContext.tsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Arrow } from "@radix-ui/react-tooltip";
+import { Calendar, Clock, Check, AlertCircle, Edit, Trash2, Play } from 'lucide-react';
+
+
+
+
 
 const developmentItems = [
   {item: "Analytics", status: "ip"},
 {item: "Log Out", status: "p"},
-
+    
 ]
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Arrow } from "@radix-ui/react-tooltip";
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'active': return 'bg-green-100 text-green-800 border-green-200';
+    case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'failed': return 'bg-red-100 text-red-800 border-red-200';
+    default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
+
+const getPlatformIcon = (platform: string) => {
+  switch (platform) {
+    case 'facebook': return '📘';
+    case 'instagram': return '📷';
+    case 'twitter': return '🐦';
+    default: return '📱';
+  }
+};
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleString();
+};
+
+interface Campaign {
+  id: string;
+  group_id: number;
+  valid: boolean;
+  created_at: string;
+  platforms: string[];
+  status: 'pending' | 'active' | 'completed' | 'failed';
+}
+
 export function Dashboard() {
   const [followers, setFollowers] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { activeGroup} = useGroup();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [error, setError] = useState<string | null>(null);
+  const filteredCampaigns = campaigns.filter(campaign => {
+    if (selectedFilter === 'all') return true;
+    return campaign.status === selectedFilter;
+  });
   async function fetchUserID() {
       const username = localStorage.getItem("username");
       const email = localStorage.getItem("email");
@@ -51,7 +85,7 @@ export function Dashboard() {
       if(!localStorage.getItem("userID") ) {
         try {
           console.log("Fetching userid...");
-          const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/getUserID`, {
+          const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/UserID`, {
             method: "POST",
             headers: {'Content-Type': "application/json", "Authorization": `Bearer ${token}`},
 
@@ -90,15 +124,49 @@ export function Dashboard() {
       setLoading(false);
     }
   }
-  // async function fetchPosts() {
-  //   setLoading(true);
-  //   try {
-  //     const response = await fetch( `${import.meta.env.VITE_API_CALL}/GetUploadItemsByGroupID?groupID=`)
-  //
-  //   }
-  //
-  // }
-  fetchUserID();
+  // Transform API data to match component structure
+  const transformCampaignData = (rawData: any): Campaign[] => {
+    // Handle single object or array
+    const dataArray = Array.isArray(rawData) ? rawData : [rawData];
+
+    return dataArray.map((item: any) => ({
+      id: item.id,
+      group_id: item.group_id?.Int32 || item.group_id || 0,
+      valid: item.valid !== undefined ? item.valid : true,
+      created_at: item.created_at?.Time || item.created_at || new Date().toISOString(),
+      platforms: item.platform ? item.platform.split(',').map((p: string) => p.trim()) : [],
+      status: item.status || 'pending'
+    }));
+  };
+  async function fetchPosts() {
+
+
+    try {
+      const res = await fetch(
+          `${import.meta.env.VITE_API_CALL}/api/UploadItemsByGroupID?groupID=${activeGroup.ID}`
+      );
+
+      if (!res.ok) {
+        throw new Error(`Error: ${res.status}`);
+      }
+      const data = await res.json() as Campaign[];
+      // Transform the data
+      const transformedData = transformCampaignData(data);
+      console.log('Transformed data:', transformedData);
+
+      setCampaigns(transformedData);
+
+      console.log("CAMPAITGN", campaigns)
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+
+  }
+  useEffect(() => {
+      fetchPosts()
+      fetchUserID()
+
+      },[])//dependency array, empty means on mount
   return (
     <div className="min-h-screen bg-gradient-to-br from-black-900 via-slate-800 to-slate-900">
     <Tabs defaultValue="overview" className="">
@@ -172,7 +240,7 @@ export function Dashboard() {
                  </div>
               </div>
 
-          <div className="flex flex-col p-6 border rounded-lg border-slate-700/50 bg-slate-800/50 backdrop-blur-sm">
+          <div className="flex flex-col col-span-3 p-6 border rounded-lg border-slate-700/50 bg-slate-800/50 backdrop-blur-sm">
             <div className="flex items-center justify-start  space-x-2">
               <div className="bg-green-500/50 p-2 rounded ">
                 <svg
@@ -190,8 +258,130 @@ export function Dashboard() {
 
               </div>
               <h1 className="p-2 font-semibold">Recent Posts</h1>
-            </div>
+              <div className={"flex gap-x-2 items-center rounded-2xl p-2 bg-blue-300/20"}>
+                <ReloadIcon></ReloadIcon>
+                <button onClick={()=> fetchPosts()}> Reload</button>
+              </div>
+              </div>
+            <div className="min-h-screen  p-6">
+              <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-white mb-2">Social Media Campaigns</h1>
+                  <p className="text-gray-600">Manage your social media posts across platforms</p>
+                </div>
 
+                {/* Filters */}
+                <div className=" rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+                  <div className="flex flex-wrap gap-2">
+                    {['all', 'pending', 'active', 'completed', 'failed'].map((filter) => (
+                        <button
+                            key={filter}
+                            onClick={() => setSelectedFilter(filter)}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                selectedFilter === filter
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                          {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Loading State */}
+                {loading && (
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 mb-4">
+                        <Clock className="w-16 h-16 mx-auto animate-spin" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Loading campaigns...</h3>
+                    </div>
+                )}
+
+                {/* Error State */}
+                {error && (
+                    <div className="text-center py-12">
+                      <div className="text-red-400 mb-4">
+                        <AlertCircle className="w-16 h-16 mx-auto" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading campaigns</h3>
+                      <p className="text-gray-500">{error}</p>
+                    </div>
+                )}
+
+                {/* Campaign Grid */}
+                {!loading && !error && (
+                    <div className="flex flex-col gap-6">
+                      {filteredCampaigns.map((campaign) => (
+                          <div key={campaign.id} className="bg-gray-800 rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow w-full">
+                            {/* Header */}
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono text-white">
+                    Group {campaign.group_id}
+                  </span>
+                                {campaign.valid ? (
+                                    <Check className="w-4 h-4 text-green-600" />
+                                ) : (
+                                    <AlertCircle className="w-4 h-4 text-red-600" />
+                                )}
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(campaign.status)}`}>
+                  {campaign.status}
+                </span>
+                            </div>
+
+                            {/* Campaign ID */}
+                            <div className="mb-4">
+                              <p className="text-xs text-white mb-1">Campaign ID</p>
+                              <p className="text-sm font-mono text-white break-all">{campaign.id}</p>
+                            </div>
+
+                            {/* Platforms */}
+                            <div className="mb-4">
+                              <p className="text-xs text-white mb-2">Platforms</p>
+                              <div className="flex gap-2">
+                                {campaign.platforms.map((platform) => (
+                                    <span
+                                        key={platform}
+                                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-black rounded-lg text-xs font-medium"
+                                    >
+                                        <span >{getPlatformIcon(platform)}</span>
+                                                        {platform}
+                                      </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Created Date */}
+                            <div className="mb-4">
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <Calendar className="w-3 h-3" />
+                                <span>Created: {formatDate(campaign.created_at)}</span>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+
+                          </div>
+                      ))}
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {!loading && !error && filteredCampaigns.length === 0 && (
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 mb-4">
+                        <Clock className="w-16 h-16 mx-auto" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns found</h3>
+                      <p className="text-gray-500">No campaigns match your current filter selection.</p>
+                    </div>
+                )}
+              </div>
+            </div>
           </div>
 
         </div>

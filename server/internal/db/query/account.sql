@@ -90,13 +90,15 @@ INSERT INTO upload_jobs (
   status,
   user_title,
   user_hashtags,
+  group_id,
   created_at,
   updated_at
+
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, $11,NOW(), NOW()
 )
-RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at;
+RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at, group_id;
 
 -- Get upload job by ID
 -- name: GetUploadJob :one
@@ -185,7 +187,7 @@ WHERE id = (
 )
 RETURNING *;
 
--- name: GetUploadJobByGID :one
+-- name: GetUploadJobByGID :many
  select id, group_id,platform,status, created_at
  from upload_jobs 
  where group_id = $1 order by id;

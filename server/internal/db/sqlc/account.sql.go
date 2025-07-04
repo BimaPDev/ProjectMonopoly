@@ -219,13 +219,15 @@ INSERT INTO upload_jobs (
   status,
   user_title,
   user_hashtags,
+  group_id,
   created_at,
   updated_at
+
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, $11,NOW(), NOW()
 )
-RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at
+RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at, group_id
 `
 
 type CreateUploadJobParams struct {
@@ -239,6 +241,7 @@ type CreateUploadJobParams struct {
 	Status        string         `json:"status"`
 	UserTitle     sql.NullString `json:"user_title"`
 	UserHashtags  []string       `json:"user_hashtags"`
+	GroupID       sql.NullInt32  `json:"group_id"`
 }
 
 type CreateUploadJobRow struct {
@@ -253,6 +256,7 @@ type CreateUploadJobRow struct {
 	UserHashtags []string       `json:"user_hashtags"`
 	CreatedAt    sql.NullTime   `json:"created_at"`
 	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	GroupID      sql.NullInt32  `json:"group_id"`
 }
 
 func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams) (CreateUploadJobRow, error) {
@@ -267,6 +271,7 @@ func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams
 		arg.Status,
 		arg.UserTitle,
 		pq.Array(arg.UserHashtags),
+		arg.GroupID,
 	)
 	var i CreateUploadJobRow
 	err := row.Scan(
@@ -281,6 +286,7 @@ func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams
 		pq.Array(&i.UserHashtags),
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GroupID,
 	)
 	return i, err
 }
@@ -612,7 +618,7 @@ func (q *Queries) GetUploadJob(ctx context.Context, id string) (GetUploadJobRow,
 	return i, err
 }
 
-const getUploadJobByGID = `-- name: GetUploadJobByGID :one
+const getUploadJobByGID = `-- name: GetUploadJobByGID :many
  select id, group_id,platform,status, created_at
  from upload_jobs 
  where group_id = $1 order by id
@@ -626,17 +632,33 @@ type GetUploadJobByGIDRow struct {
 	CreatedAt sql.NullTime  `json:"created_at"`
 }
 
-func (q *Queries) GetUploadJobByGID(ctx context.Context, groupID sql.NullInt32) (GetUploadJobByGIDRow, error) {
-	row := q.db.QueryRowContext(ctx, getUploadJobByGID, groupID)
-	var i GetUploadJobByGIDRow
-	err := row.Scan(
-		&i.ID,
-		&i.GroupID,
-		&i.Platform,
-		&i.Status,
-		&i.CreatedAt,
-	)
-	return i, err
+func (q *Queries) GetUploadJobByGID(ctx context.Context, groupID sql.NullInt32) ([]GetUploadJobByGIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUploadJobByGID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUploadJobByGIDRow
+	for rows.Next() {
+		var i GetUploadJobByGIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.Platform,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByEmailWithPassword = `-- name: GetUserByEmailWithPassword :one

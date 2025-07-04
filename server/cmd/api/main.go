@@ -51,14 +51,14 @@ func main() {
 	)
 
 	// ─── getuserID ─────────────────────────────────────────────
-	mux.HandleFunc("/api/getUserID", auth.JWTMiddleware(handlers.GetUserIDHandler(queries)))
+	mux.HandleFunc("/api/UserID", auth.JWTMiddleware(handlers.GetUserIDHandler(queries)))
 
 	// ─── Upload Endpoint (Protected) ─────────────────────────────────────────────
 	mux.HandleFunc("/api/upload", func(w http.ResponseWriter, r *http.Request) {
 		handlers.UploadVideoHandler(w, r, queries)
 	})
 
-	mux.HandleFunc("/api/GetUploadItemsByGroupID",func(w http.ResponseWriter, r *http.Request){
+	mux.HandleFunc("/api/UploadItemsByGroupID",func(w http.ResponseWriter, r *http.Request){
 	    handlers.GetUploadItemsByGroupID(w,r,queries)
 	})
 
@@ -79,7 +79,7 @@ func main() {
 	mux.HandleFunc("/api/AddGroupItem", func(w http.ResponseWriter, r *http.Request) {
 		handlers.AddGroupItem(w, r, queries)
 	})
-	mux.HandleFunc("/api/GetGroupItem", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/GroupItem", func(w http.ResponseWriter, r *http.Request) {
 		handlers.GetGroupItems(w,r,queries)
 	})
 

@@ -150,7 +150,7 @@ const GroupManagement = () => {
       setMessage({ text: 'No group selected', type: 'error' });
       return;
     }
-    const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/GetGroupItem?groupID=${selectedGroup.ID}`,{
+    const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/GroupItem?groupID=${selectedGroup.ID}`,{
       method: "GET",
       headers: {"Content-Type": "application/json"},
     });
