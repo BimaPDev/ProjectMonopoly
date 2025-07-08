@@ -113,7 +113,7 @@ type AddGroupitem struct {
 	Platform string `json:"platform"`
 }
 
-func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
+func AddOrUpdateGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -125,20 +125,19 @@ func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 		return
 	}
 
-	// Create the data JSON object
+	// Convert credentials to JSON
 	dataJSON := map[string]string{
 		"username": req.Username,
 		"password": req.Password,
 	}
-
-	// Convert to JSON bytes
 	dataBytes, err := json.Marshal(dataJSON)
 	if err != nil {
 		http.Error(w, "Error processing data", http.StatusInternalServerError)
 		return
 	}
 
-	response, err := q.InsertGroupItemIfNotExists(r.Context(), db.InsertGroupItemIfNotExistsParams{
+	// Try Insert (will do nothing if exists)
+	_, err = q.InsertGroupItemIfNotExists(r.Context(), db.InsertGroupItemIfNotExistsParams{
 		GroupID:  int32(req.GroupID),
 		Platform: req.Platform,
 		Data: pqtype.NullRawMessage{
@@ -146,16 +145,24 @@ func AddGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 			Valid:      true,
 		},
 	})
-
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Database error: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Insert error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Send success response
-	w.Header().Set("Content-Type", "application/json")
+	// Then force update anyway (safe, no-op if same)
+	err = q.UpdateGroupItemData(r.Context(), db.UpdateGroupItemDataParams{
+		GroupID:  int32(req.GroupID),
+		Platform: req.Platform,
+		Data:  json.RawMessage(dataBytes),
+	})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Update error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	fmt.Fprint(w, "Group item updated or inserted")
 }
 
 // GetGroupItems retrieves all items in a group

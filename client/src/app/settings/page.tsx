@@ -188,30 +188,30 @@ const GroupManagement = () => {
 
   
   const fetchGroups = async () => {
-    setIsLoading(true)
-    const id= localStorage.getItem('userID')
-    setUserID(Number(id))
+    setIsLoading(true);
+    const id = localStorage.getItem('userID');
+    const numericID = Number(id);
+    setUserID(numericID); // you can still update state
+  
     setIsFetchingGroups(true);
     try {
-      
-      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${numericID}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
-      
+    
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(errorText || "Failed to fetch groups");
       }
-      
+    
       const data = await res.json() as Group[];
-  
-      
+    
       if (!Array.isArray(data)) {
         console.error("Expected array response, got:", typeof data);
         throw new Error("Invalid response format from server");
       }
-      
+    
       setGroups(data);
       setMessage({ text: 'Groups loaded successfully', type: 'success' });
     } catch (error) {
@@ -221,6 +221,7 @@ const GroupManagement = () => {
       setIsFetchingGroups(false);
     }
   };
+
 
 
 

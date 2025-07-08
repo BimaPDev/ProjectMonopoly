@@ -15,37 +15,49 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const navigate = useNavigate(); // ✅ Initialize React Router Navigation
 
   // Handle regular login (email + password)
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Invalid credentials, please try again.");
+    const handleLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError("");
+    
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+      
+        if (!response.ok) {
+          throw new Error("Invalid credentials, please try again.");
+        }
+      
+        const data = await response.json();
+        const token = data.token;
+      
+        // ✅ Decode JWT to extract userID and email
+        const payloadBase64 = token.split('.')[1];
+        const decodedPayload = JSON.parse(atob(payloadBase64));
+      
+        // ✅ Save token and user data to localStorage and cookies
+        localStorage.setItem("token", token);
+        localStorage.setItem("userID", decodedPayload.userID);
+        localStorage.setItem("email", decodedPayload.email);
+      
+        document.cookie = `token=${token}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
+        document.cookie = `email=${decodedPayload.email}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
+        document.cookie = `userID=${decodedPayload.userID}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
+      
+        // ✅ Redirect to dashboard
+        navigate("/dashboard");
+      
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unexpected error occurred.");
+        }
       }
+    };
 
-      const data = await response.json();
-      document.cookie = `token=${data.token}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
-      document.cookie = `email=${email}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
-      document.cookie = `userID=${data.userID}; path=/; max-age=86400; ${isDev ? "" : "secure;"} samesite=strict`;
-      localStorage.setItem("token", data.token); 
-      // ✅ Redirect to the dashboard after successful login
-      navigate("/dashboard");
-
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred.");
-      }
-    }
-  };
 
   // Handle Google login
   const handleGoogleLoginSuccess = async (response: any) => {

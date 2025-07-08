@@ -40,14 +40,17 @@ func LoginHandler(queries *db.Queries) http.HandlerFunc {
 			return
 		}
 
+		// Print debug info
+		fmt.Printf("✅ user.ID = %d | Email = %s\n", user.ID, user.Email)
+			
 		// Generate JWT Token
 		expirationTime := time.Now().Add(24 * time.Hour)
 		claims := &Claims{
-		    UserID: user.ID,               // 👈 Add this
-		    Email:  user.Email,            // also use the actual user email, not input
+			UserID: user.ID,
+			Email:  user.Email,
 			StandardClaims: jwt.StandardClaims{
-		    ExpiresAt: expirationTime.Unix(),
-		    },
+				ExpiresAt: expirationTime.Unix(),
+			},
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

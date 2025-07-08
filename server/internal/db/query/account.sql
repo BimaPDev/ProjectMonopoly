@@ -132,10 +132,6 @@ INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
 VALUES ($1,$2,$3, NOW(), NOW())
 ON CONFLICT (group_id, platform) DO NOTHING;
 
--- name: UpdateGroupItemData :execrows
-UPDATE group_items
-SET data = @data::jsonb, updated_at = NOW()
-WHERE group_id = @group_id;
 
 -- name: GetGroupItemByGroupID :many
 SELECT id, group_id, platform, data, created_at, updated_at
@@ -289,3 +285,8 @@ WHERE id NOT IN (
 -- name: GetCompetitorByPlatformUsername :one
 SELECT * FROM competitors
 WHERE platform = $1 AND username = $2;
+
+-- name: UpdateGroupItemData :exec
+UPDATE group_items
+SET data = @data::jsonb, updated_at = NOW()
+WHERE group_id = @group_id AND platform = @platform;
