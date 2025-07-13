@@ -77,7 +77,7 @@ func main() {
 
 	// ─── addGroupItem ─────────────────────────────────────────────
 	mux.HandleFunc("/api/AddGroupItem", func(w http.ResponseWriter, r *http.Request) {
-		handlers.AddGroupItem(w, r, queries)
+		handlers.AddOrUpdateGroupItem(w, r, queries)
 	})
 	mux.HandleFunc("/api/GroupItem", func(w http.ResponseWriter, r *http.Request) {
 		handlers.GetGroupItems(w,r,queries)
