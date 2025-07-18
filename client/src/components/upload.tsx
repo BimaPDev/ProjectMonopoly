@@ -38,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-
+import { socialPlatforms } from "@/components/socialPlatforms";
 // Updated schema to include group selection
 const formSchema = z.object({
   title: z.string().optional(),
@@ -48,32 +48,6 @@ const formSchema = z.object({
   scheduledDate: z.date().optional(),
 });
 
-const socialPlatforms = [
-  {
-    id: "instagram",
-    label: "Instagram",
-    icon: Instagram,
-    color: "bg-gradient-to-br from-purple-600 to-pink-500",
-  },
-  {
-    id: "facebook",
-    label: "Facebook",
-    icon: Facebook,
-    color: "bg-blue-600",
-  },
-  {
-    id: "twitter",
-    label: "Twitter",
-    icon: Twitter,
-    color: "bg-sky-500",
-  },
-  {
-    id: "linkedin",
-    label: "LinkedIn",
-    icon: Linkedin,
-    color: "bg-blue-700",
-  },
-];
 
 export default function UploadPage() {
   const [loading, setLoading] = useState(false);
@@ -81,6 +55,7 @@ export default function UploadPage() {
   const [dragActive, setDragActive] = useState(false);
   const [step, setStep] = useState(1);
   const [progress, setProgress] = useState(33);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [groups, setGroups] = React.useState<Group[]>([]);
@@ -103,58 +78,55 @@ export default function UploadPage() {
       groupId: 0,
     },
   });
-// Fetch user ID first, then fetch groups once we have the ID
-React.useEffect(() => {
-  async function fetchGroups() {
-    const storedUserID = localStorage.getItem("userID");
-    if (!storedUserID) {
-  
-      return;
+
+  // Fetch user ID first, then fetch groups once we have the ID
+  React.useEffect(() => {
+    async function fetchGroups() {
+      const storedUserID = localStorage.getItem("userID");
+      if (!storedUserID) {
+        return;
+      }
+      
+      const userID = Number(storedUserID);
+      setGroupsLoading(true);
+      
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" }
+        });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || `Failed to fetch groups: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        
+        if (!Array.isArray(data)) {
+          console.error("Expected array response, got:", typeof data);
+          throw new Error("Invalid response format from server");
+        }
+        
+        setGroups(data);
+        if (data.length == 0) {
+          setGroupEmptyErr(true);
+        }
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your groups. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setGroupsLoading(false);
+      }
     }
     
-    const userID = Number(storedUserID);
-    setGroupsLoading(true);
-    
-    try {
-      
-      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Failed to fetch groups: ${res.status}`);
-      }
-      
-      const data = await res.json();
-      
-      
-      if (!Array.isArray(data)) {
-        console.error("Expected array response, got:", typeof data);
-        throw new Error("Invalid response format from server");
-      }
-      
-      
-      
-      setGroups(data);
-      if (data.length == 0) {
-        setGroupEmptyErr(true);
-      }
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load your groups. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setGroupsLoading(false);
-    }
-  }
-  
-  fetchGroups();
-}, []);
+    fetchGroups();
+  }, []);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     console.log("Form values:", values);
@@ -181,7 +153,7 @@ React.useEffect(() => {
           ? values.scheduledDate.toISOString()
           : new Date().toLocaleString()
       );
-      formData.append("group_id", values.groupId);
+      formData.append("group_id", values.groupId.toString());
       
       if (values.title) {
         formData.append("title", values.title);
@@ -204,16 +176,20 @@ React.useEffect(() => {
 
       const data = await response.json();
       
+      // Set upload success state first
+      setUploadSuccess(true);
+      
+      // Show success toast
       toast({
         title: "Success",
         description: "Your content has been uploaded successfully.",
       });
       
-      //Reset the form on success if desired
-      form.reset();
-      setSelectedFile(null);
-      setStep(1);
-      setProgress(33);
+      // Wait longer for the toast to be visible before resetting
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      
+      // Reset everything after successful upload
+      resetForm();
       
     } catch (error) {
       console.error("Upload error:", error);
@@ -224,6 +200,19 @@ React.useEffect(() => {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  function resetForm() {
+    form.reset();
+    setSelectedFile(null);
+    setPreview("");
+    setStep(1);
+    setProgress(33);
+    setUploadSuccess(false);
+    // Reset file input
+    if (fileRef.current) {
+      fileRef.current.value = "";
     }
   }
 
@@ -243,12 +232,12 @@ React.useEffect(() => {
         setPreview(reader.result as string);
         setStep(2);
         setProgress(66);
+        setUploadSuccess(false); // Reset success state when new file is selected
       };
       reader.readAsDataURL(file);
     }
   }
 
-  
   function handleDrag(e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -281,6 +270,28 @@ React.useEffect(() => {
           </div>
 
           <Progress value={progress} className="w-full" />
+
+          {/* Success Message */}
+          {uploadSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 border border-green-200 rounded-lg bg-green-50"
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="w-5 h-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-green-800">
+                    Upload successful! Your content has been uploaded and scheduled.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           <div className="grid gap-8 lg:grid-cols-2">
             <AnimatePresence mode="sync">
@@ -337,7 +348,7 @@ React.useEffect(() => {
                             </div>
                           </div>
                         )}
-                 </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -361,8 +372,13 @@ React.useEffect(() => {
                             className="absolute z-10 right-2 top-2"
                             onClick={() => {
                               setSelectedFile(null);
+                              setPreview("");
                               setStep(1);
                               setProgress(33);
+                              setUploadSuccess(false);
+                              if (fileRef.current) {
+                                fileRef.current.value = "";
+                              }
                             }}
                           >
                             <X className="w-4 h-4" />
@@ -395,7 +411,6 @@ React.useEffect(() => {
                       <CardContent className="p-6 space-y-6">
                         <FormField
                           control={form.control}
-                        
                           name="title"
                           render={({ field }) => (
                             <FormItem>
@@ -412,7 +427,6 @@ React.useEffect(() => {
                         />
                         <FormField
                           control={form.control}
-                      
                           name="hashtags"
                           render={({ field }) => (
                             <FormItem>
@@ -448,44 +462,43 @@ React.useEffect(() => {
 
                     <Card>
                       <CardContent className="p-6 space-y-6">
-                      <FormField
-                        control={form.control}
-                        name="groupId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Group</FormLabel>
-                            <div className="pl-4 space-y-2">
-                              {groups.map((g) => (
-                                <div key={g.ID} className="flex items-center">
-                                  <input
-                                    type="radio"
-                                    id={`group-${g.ID}`}
-                                    className="mr-2"
-                                    value={g.ID}
-                                    checked={field.value === g.ID}
-                                    onChange={() => field.onChange(g.ID)}
-                                    disabled={groupsLoading}
-                                  />
-                                  <span>{g.name || "No Groups"}</span>
-                                  <span className="block pl-2 text-xs text-zinc-500 dark:text-zinc-400"> ({g.description || "No description"})</span>
-                                </div>
-                              ))}
-                            </div>
+                        <FormField
+                          control={form.control}
+                          name="groupId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Group</FormLabel>
+                              <div className="pl-4 space-y-2">
+                                {groups.map((g) => (
+                                  <div key={g.ID} className="flex items-center">
+                                    <input
+                                      type="radio"
+                                      id={`group-${g.ID}`}
+                                      className="mr-2"
+                                      value={g.ID}
+                                      checked={field.value === g.ID}
+                                      onChange={() => field.onChange(g.ID)}
+                                      disabled={groupsLoading}
+                                    />
+                                    <span>{g.name || "No Groups"}</span>
+                                    <span className="block pl-2 text-xs text-zinc-500 dark:text-zinc-400"> ({g.description || "No description"})</span>
+                                  </div>
+                                ))}
+                              </div>
                               {groupEmptyErr && (
                                 <p className="mt-1 text-sm text-red-500">
                                   No groups found. Please create a group in the settings.
                                 </p>
                               )}
-
                               
-                            {groupsLoading && (
-                              <p className="mt-1 text-sm text-gray-500">Loading your groups…</p>
-                            )}
+                              {groupsLoading && (
+                                <p className="mt-1 text-sm text-gray-500">Loading your groups…</p>
+                              )}
 
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
                         <FormField
                           control={form.control}
@@ -537,7 +550,7 @@ React.useEffect(() => {
                                       <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${platform.color}`}>
                                         <platform.icon className="w-4 h-4 text-white" />
                                       </span>
-                                      <span>{platform.label}</span>
+                                      <span>{platform.id}</span>
                                     </label>
                                   </div>
                                 ))}
@@ -607,8 +620,23 @@ React.useEffect(() => {
                       </CardContent>
                     </Card>
 
-                    <div className="flex justify-end">
-                      <Button type="submit" disabled={loading} size="lg">
+                    <div className="flex justify-end space-x-4">
+                      {(step === 2 || selectedFile) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const confirmReset = window.confirm("Are you sure you want to start over? This will clear all your current progress.");
+                            if (confirmReset) {
+                              resetForm();
+                            }
+                          }}
+                          disabled={loading}
+                        >
+                          Start Over
+                        </Button>
+                      )}
+                      <Button type="submit" disabled={loading || !selectedFile} size="lg">
                         {loading && (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         )}

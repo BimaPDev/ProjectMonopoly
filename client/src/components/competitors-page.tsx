@@ -30,40 +30,8 @@ import {useEffect, useState} from "react";
 import { HRTrimmed } from "flowbite-react";
 import {Comment} from "postcss";
 import {CgComment} from "react-icons/cg";
-const socialPlatforms = [
-  {
-    id: "Instagram",
-    name: "instagram",
-    icon: Instagram,
-    color: "bg-gradient-to-br from-purple-600 to-pink-500",
-  },
-  {
-    id: "Facebook",
-    name: "facebook",
-    icon: Facebook,
-    color: "bg-blue-600",
-  },
-  {
-    id: "Twitter",
-    name: "twitter",
-    icon: Twitter,
-    color: "bg-sky-500",
-  },
-  {
-    id: "Linkedin",
-    name: "linkedIn",
-    icon: Linkedin,
-    color: "bg-blue-700",
-
-  },
-  {
-    id: "TikTok",
-    name: "tiktok",
-    icon: FaTiktok,
-    color: "bg-black"
-
-  }
-];
+import { add } from "date-fns";
+import { socialPlatforms } from "@/components/socialPlatforms";
 interface Competitors{
   id: string,
   platform: string,
@@ -124,7 +92,27 @@ export function CompetitorsPage() {
       return newSet;
     });
   };
-
+  const addCompetitor = async () =>{
+    const socials = prompt("Enter in URL or @ of competitor")
+    const platform = prompt("Enter in the platform")?.toLowerCase()
+    try{
+      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups/competitors`, {
+        method: "POST",
+        headers: {'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}`},
+        body: JSON.stringify({
+          Platform: platform,
+          Username: socials,
+          
+          
+        })
+      })
+      const data = res.json();
+      console.log(data)
+    }catch (e: any){
+       throw new Error(e || "Could not add competitor");
+    }
+    
+  }
   const fetchCompetitorsPosts = async () => {
     try{
       const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/competitors/posts`, {
@@ -193,18 +181,18 @@ export function CompetitorsPage() {
     fetchCompetitorsPosts();
   }, []);
   return (
-      <div className="flex-1 space-y-4  pt-6">
+      <div className="flex-1 pt-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Competitors</h2>
           <div className="flex items-center space-x-2">
             <Button variant="outline" className="gap-2" asChild>
               <a href="/competitors/live">
-                <Radio className="h-4 w-4 text-red-500 animate-pulse" />
+                <Radio className="w-4 h-4 text-red-500 animate-pulse" />
                 Live Feed
               </a>
             </Button>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Add Competitor
+            <Button onClick={() => addCompetitor()}>
+              <Plus className="w-4 h-4 mr-2" /> Add Competitor
             </Button>
           </div>
         </div>
@@ -212,11 +200,11 @@ export function CompetitorsPage() {
         <div className="mt-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium">
                   Tracked Competitors
                 </CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <BarChart3 className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{competitors.length}</div>
@@ -224,11 +212,11 @@ export function CompetitorsPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium">
                   Avg. Engagement Rate
                 </CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <BarChart3 className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
 
@@ -238,22 +226,22 @@ export function CompetitorsPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium">
                   Audience Growth Rate
                 </CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <BarChart3 className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">Coming soon</p>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium">
                   Posting Frequency
                 </CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <BarChart3 className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
 
@@ -277,32 +265,32 @@ export function CompetitorsPage() {
                     const isExpanded = expandedCompetitors.has(competitor.id);
 
                     return (
-                        <div key={competitor.id} className="border rounded-lg p-4">
+                        <div key={competitor.id} className="p-4 border rounded-lg">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1">
+                            <div className="flex items-center flex-1 gap-4">
                               <div className="flex items-center w-[150px]">
                                 <Avatar className="h-9 w-9" src={competitor.profile_url}>
                                   <AvatarFallback>
                                     {competitor.username.slice(0, 2)}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div className="ml-4 flex flex-col">
+                                <div className="flex flex-col ml-4">
                                   <p className="font-semibold text-medium">{competitor.username}</p>
-                                  <span className="text-slate-600 text-xs">
+                                  <span className="text-xs text-slate-600">
                                   {new Date(competitor.last_checked).toLocaleDateString()}
                                 </span>
                                 </div>
                               </div>
 
                               <div className="flex ml-4 w-[100px] justify-center">
-                                <div className="ml-3 flex items-center gap-4">
+                                <div className="flex items-center gap-4 ml-3">
                                   <div className="flex flex-col items-center">
                                     {(() => {
                                       const platform = socialPlatforms.find(p => p.id === competitor.platform);
                                       const Icon = platform?.icon;
                                       return Icon ? (
                                           <div>
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground">
+                                            <div className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground">
                                               <Icon className="w-4 h-4"/>
                                             </div>
                                           </div>
@@ -327,7 +315,7 @@ export function CompetitorsPage() {
                                 </div>
                               </div>
 
-                              <div className="flex ml-2 items-center justify-between">
+                              <div className="flex items-center justify-between ml-2">
                               <span className={
                                 competitor.growth_rate > 0.0
                                     ? "text-sm font-medium text-green-600"
@@ -352,12 +340,12 @@ export function CompetitorsPage() {
                             >
                               {isExpanded ? (
                                   <>
-                                    <ChevronUp className="h-4 w-4" />
+                                    <ChevronUp className="w-4 h-4" />
                                     Hide Posts
                                   </>
                               ) : (
                                   <>
-                                    <ChevronDown className="h-4 w-4" />
+                                    <ChevronDown className="w-4 h-4" />
                                     Show Posts ({posts.length})
                                   </>
                               )}
@@ -365,17 +353,17 @@ export function CompetitorsPage() {
                           </div>
 
                           {isExpanded && (
-                              <div className="mt-6 border-t pt-6">
-                                <div className="max-h-80 overflow-y-auto scrollbar-hide">
+                              <div className="pt-6 mt-6 border-t">
+                                <div className="overflow-y-auto max-h-80 scrollbar-hide">
                                   <div className="space-y-4">
                                     {posts.length > 0 ? (
                                         posts.map((post) => (
-                                            <div key={post.id} className="flex flex-col gap-4 items-start p-4 border rounded-lg ">
-                                              <div className="flex gap-4 w-full">
+                                            <div key={post.id} className="flex flex-col items-start gap-4 p-4 border rounded-lg ">
+                                              <div className="flex w-full gap-4">
                                                 {post.media?.video ? (
                                                     <video
                                                         src={post.media.video}
-                                                        className="w-2/3 h-64 rounded-lg object-cover"
+                                                        className="object-cover w-2/3 h-64 rounded-lg"
                                                         muted
                                                         controls
                                                     />
@@ -383,43 +371,43 @@ export function CompetitorsPage() {
                                                     <img
                                                         src={post.media.image}
                                                         alt="Post"
-                                                        className="w-2/3 h-64 rounded-lg object-cover"
+                                                        className="object-cover w-2/3 h-64 rounded-lg"
                                                     />
                                                 ) : (
-                                                    <div className="w-2/3 h-64 rounded-lg bg-gray-200 flex items-center justify-center">
+                                                    <div className="flex items-center justify-center w-2/3 h-64 bg-gray-200 rounded-lg">
                                                       <span className="text-lg text-gray-500">No media</span>
                                                     </div>
                                                 )}
-                                                <div className="flex-1 flex flex-col gap-4 p-4">
+                                                <div className="flex flex-col flex-1 gap-4 p-4">
                                                   <div className="flex items-center gap-2">
-                                                    <Heart className="text-red-500 w-6 h-6" />
-                                                    <span className="text-base text-slate-700 font-medium">
+                                                    <Heart className="w-6 h-6 text-red-500" />
+                                                    <span className="text-base font-medium text-slate-700">
                                                   {post.engagement.likes.toLocaleString()}
                                                 </span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
-                                                    <Share className="text-blue-500 w-6 h-6"/>
-                                                    <span className="text-base text-slate-700 font-medium">
+                                                    <Share className="w-6 h-6 text-blue-500"/>
+                                                    <span className="text-base font-medium text-slate-700">
                                                   {post.engagement.shares.toLocaleString()}
                                                 </span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
-                                                    <CgComment className="text-green-500 w-6 h-6"/>
-                                                    <span className="text-base text-slate-700 font-medium">
+                                                    <CgComment className="w-6 h-6 text-green-500"/>
+                                                    <span className="text-base font-medium text-slate-700">
                                                   {post.engagement.comments.toLocaleString()}
                                                 </span>
                                                   </div>
                                                 </div>
                                               </div>
                                               <div className="w-full">
-                                                <p className="text-sm text-slate-600 leading-relaxed">
+                                                <p className="text-sm leading-relaxed text-slate-600">
                                                   {post.content}
                                                 </p>
                                               </div>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="text-center py-8">
+                                        <div className="py-8 text-center">
                                           <span className="text-lg text-gray-400">No posts available</span>
                                         </div>
                                     )}

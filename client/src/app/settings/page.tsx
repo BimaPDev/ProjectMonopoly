@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as React from "react";
 import { Facebook, Instagram, Linkedin, Twitter, Users, Plus, RefreshCw, UserPlus, AlertCircle, CheckCircle, User2, UserRoundPen } from "lucide-react";
-
+import { FaTiktok } from "react-icons/fa";
 import {
   Select,
   SelectContent,
@@ -10,32 +10,39 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { setTimeout } from 'timers';
 
 const socialPlatforms = [
   {
     id: "instagram",
-    name: "instagram",
+    name: "Instagram",
     icon: Instagram,
     color: "bg-gradient-to-br from-purple-600 to-pink-500",
   },
   {
     id: "facebook",
-    name: "facebook",
+    name: "Facebook",
     icon: Facebook,
     color: "bg-blue-600",
   },
   {
     id: "twitter",
-    name: "twitter",
+    name: "Twitter",
     icon: Twitter,
     color: "bg-sky-500",
   },
   {
     id: "linkedin",
-    name: "linkedIn",
+    name: "Linkedin",
     icon: Linkedin,
     color: "bg-blue-700",
   },
+  {
+    id: 'tiktok',
+    name: 'TikTok',
+    icon: FaTiktok,
+    color: 'bg-black'
+  }
 ];
 
 const GroupManagement = () => {
@@ -170,20 +177,54 @@ const GroupManagement = () => {
       Password: itemEdited.Password
 
     });
-
+    
   };
 
   const cancelEdit = () => {
     setEditingItem(null);
-    setEditForm({});
+    setEditForm({ Username: '', Password: '' });
 
   };
 
-  const saveEdit = async () =>{
+  const saveEdit = async (item) => {
+  try {
+    const requestData = {
+      userName: editForm.Username,  // Changed from Username to userName to match API
+      password: editForm.Password,  // Changed from Password to password to match API
+      GroupID: selectedGroup?.ID,
+      platform: item.Platform  // Added platform from the item being edited
+    };
 
-    
-  };
+    const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/AddGroupItem`, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(requestData)
+    });
 
+    if (res.ok) {
+      setMessage({ text: 'Login Updated!', type: 'success' });
+      
+      // Reset editing state
+      setEditingItem(null);
+      setEditForm({ Username: '', Password: '' });
+      
+      // Refresh the group items to show updated data
+      await fetchGroupItems();
+    } else {
+      const errorText = await res.text();
+      console.error('Update failed:', errorText);
+      setMessage({ text: 'Login Not Updated!', type: 'error' });
+    }
+  } catch (e) {
+    console.error('Error updating login:', e);
+    setMessage({ text: 'Could not update login', type: 'error' });
+  }finally{
+    fetchGroupItems();
+  }
+};
 
 
   
@@ -485,7 +526,7 @@ const GroupManagement = () => {
           )}   
       
       
-      <div className='gap-3  mt-4 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50'>
+      <div className='gap-3 mt-4 shadow-2xl bg-slate-800/50 backdrop-blur-sm rounded-2xl border-slate-700/50'>
         <div className='flex items-center gap-3 p-3'>
           <div className='p-2 rounded-lg bg-green-500/20'>
             <UserRoundPen className='text-green-400'></UserRoundPen>
@@ -494,7 +535,7 @@ const GroupManagement = () => {
           <p className='font-semibold font-lg'>Edit a social media login</p>
           {groupItems.length > 2  && (
               <div className="flex space-x-2">
-                <svg width="22" height="22" fill="none" viewBox="0 0 22 22" className="size-5 flex-none">
+                <svg width="22" height="22" fill="none" viewBox="0 0 22 22" className="flex-none size-5">
                   <path fill="currentColor" className="dark:[fill-opacity:0.1]" fillOpacity="0.05" fillRule="evenodd"
                         d="M10.5 8.77V2a1.5 1.5 0 1 0-3 0v10.929a3.5 3.5 0 0 1-1.025 2.474l-.008.009a6.5 6.5 0 0 0-1.87-3.937l-.536-.536a1.5 1.5 0 1 0-2.122 2.121l.536.536A3.5 3.5 0 0 1 3.5 16.07v.1a3.5 3.5 0 0 0 1.025 2.475l1.829 1.828A3.5 3.5 0 0 0 8.828 21.5h7.758a2.5 2.5 0 0 0 1.768-.733l.242-.242a6.5 6.5 0 0 0 1.904-4.596v-2.29a3.5 3.5 0 0 0-2.814-3.432z"
                         clipRule="evenodd"></path>
@@ -549,7 +590,12 @@ const GroupManagement = () => {
                           </button>
                         </div>
                         <div className='mt-2'>
-                        <button className = "w-full py-1 mt-2 mb-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={() => saveEdit(item)}>Save</button>
+                        <button 
+                          className="w-full py-1 mt-2 mb-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                          onClick={() => saveEdit(item)}
+                        >
+                          Save
+                        </button>
                         <button className = "w-full px-2 py-1 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"onClick={cancelEdit}>Cancel</button>
                         </div>
                       </div>
@@ -561,11 +607,11 @@ const GroupManagement = () => {
                           <div className={"flex gap-x-2 items-center"}>
                             <span className='font-semibold'>Username: {item.Username}</span>
                             {(() => {
-                              const platform = socialPlatforms.find(p => p.id === item.Platform);
+                              const platform = socialPlatforms.find(p => p.id === item.Platform.toLowerCase());
                               const Icon = platform?.icon;
                               return Icon ? (
                                   <div
-                                      className={`flex h-8 w-8 items-center justify-center rounded-full text-white ${platform.color}`}
+                                      className={`flex h-8 w-8 items-center justify-center rounded-md text-white ${platform.color}`}
                                   >
                                     <Icon className="w-6 h-6" />
                                   </div>

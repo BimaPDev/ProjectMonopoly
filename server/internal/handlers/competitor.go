@@ -14,8 +14,8 @@ import (
 )
 
 type CreateCompetitorRequest struct {
-	Input    string `json:"input"`
-	Platform string `json:"platform"`
+	Username string `json:"Username"`
+	Platform string `json:"Platform"`
 }
 
 func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
@@ -29,8 +29,11 @@ func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Querie
 		}
 	}
 
-	// Stub: extract current user ID (replace this with real session auth later)
-	currentUserID := int32(1)
+	currentUserID, err := utils.GetUserIDFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	// Parse request body
 	var req CreateCompetitorRequest
@@ -40,7 +43,7 @@ func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Querie
 	}
 
 	// Parse social input (@username or URL)
-	parsed, err := utils.ParseSocialInput(req.Input, req.Platform)
+	parsed, err := utils.ParseSocialInput(req.Username, req.Platform)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse input: %v", err), http.StatusBadRequest)
 		return
