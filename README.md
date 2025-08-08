@@ -66,10 +66,6 @@ Transform your marketing workflow with a comprehensive platform that combines **
 
 ## 🏗️ Architecture Overview
 
-<details>
-<summary>📂 <strong>Repository Structure</strong></summary>
-
-```
 ProjectMonopoly/
 ├── 🎨 client/                 # React/TypeScript Frontend
 │   ├── src/
@@ -97,10 +93,6 @@ ProjectMonopoly/
     ├── 🐳 Dockerfile         # API server container
     ├── 🔧 makefile           # Development commands
     └── ⚙️ sqlc.yaml          # Database code generation
-```
-
-</details>
-
 ---
 
 ## 💻 Frontend Technologies
