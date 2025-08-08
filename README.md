@@ -65,34 +65,7 @@ Transform your marketing workflow with a comprehensive platform that combines **
 ---
 
 ## 🏗️ Architecture Overview
-
-ProjectMonopoly/
-├── 🎨 client/                 # React/TypeScript Frontend
-│   ├── src/
-│   │   ├── 📄 app/           # Page components (React Router)
-│   │   ├── 🧩 components/    # Reusable UI & domain components
-│   │   ├── 🪝 hooks/         # Custom React hooks
-│   │   ├── 📚 lib/           # Utility functions & helpers
-│   │   └── 🔧 utils/         # API communication layer
-│   ├── 🌍 public/            # Static assets & resources
-│   ├── 🐳 Dockerfile         # Production-ready Nginx container
-│   ├── 📦 package.json       # Dependencies & scripts
-│   ├── 🎨 tailwind.config.js # Styling configuration
-│   └── ⚡ vite.config.ts     # Build tool configuration
-│
-└── 🔧 server/                 # Go Backend API
-    ├── 🚀 cmd/api/           # Gin router & server initialization
-    ├── 🏗️ internal/
-    │   ├── 🔐 auth/          # JWT creation & middleware
-    │   ├── 💾 db/            # SQLC-generated code & migrations
-    │   ├── 🎯 handlers/      # REST API endpoint handlers
-    │   ├── 🛠️ utils/         # Backend utility functions
-    │   └── ⚡ function/      # Experimental features
-    ├── 🐍 python/            # Python automation scripts
-    ├── 📋 go.mod / go.sum    # Go module definitions
-    ├── 🐳 Dockerfile         # API server container
-    ├── 🔧 makefile           # Development commands
-    └── ⚙️ sqlc.yaml          # Database code generation
+<img src="https://i.imgur.com/ODGDssP.png" alt="Dogwood Gaming Marketing Tool Dashboard" width="800"/>
 ---
 
 ## 💻 Frontend Technologies
