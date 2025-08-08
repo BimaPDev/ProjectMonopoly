@@ -1,192 +1,329 @@
-# Dogwood Gaming Marketing Tool (ProjectMonopoly)
-
-An **all-in-one application** for managing social-media marketing campaigns.  
-Organized as a **monorepo** with a **React/TypeScript** client and a **Go** backend, this tool enables marketing teams to:
-
-- Upload and schedule posts across multiple platforms
-- Manage competitor groups
-- Track posts and engagement metrics
-- Leverage AI models for content brainstorming
+# 🎯 Dogwood Gaming Marketing Tool (ProjectMonopoly)
 
 ---
 
-## 🚀 Features
+## ✨ What Makes This Special
 
-### **Landing & Registration**
-- Marketing website with hero section, features list, and CTA buttons
-- Registration via **custom form** or **Google OAuth**
-- Backend validation to prevent duplicate accounts
+Transform your marketing workflow with a comprehensive platform that combines **intelligent automation**, **real-time analytics**, and **AI-powered insights** in one seamless experience.
 
-### **Authentication & Protected Routes**
-- Email/password or Google OAuth login
-- Token-based authentication stored in `localStorage`
-- `ProtectedRoute` redirects unauthenticated users
+### 🌟 Core Capabilities
 
-### **Dashboard**
-- Overview of followers and campaigns
-- Fetched data from backend (user ID, follower counts, scheduled campaigns)
-- Filterable by campaign status
-
-### **Group Management**
-- Users belong to marketing groups/projects
-- **Team Switcher** for switching or creating groups
-- Active group stored in React Context
-
-### **Competitors Page**
-- Track competitors across social platforms
-- Add competitors via prompt
-- View metrics: followers, engagement, growth rate
-- Expand to see competitor posts
-- **Live Feed**: card-based, real-time competitor posts
-
-### **Upload & Scheduling**
-- Multi-step form for video/image uploads
-- Title & hashtag inputs
-- Multi-platform selection
-- Drag-and-drop, date/time picker, progress bar
-- Sends `multipart/form-data` to Go backend, which stores job in DB & triggers Python publishing scripts
-
-### **AI Studio**
-- Chat interface (DeepSeek / GPT-4 / Claude)
-- Timestamped messages with attachment support
-- AI responses rendered via `react-markdown`
-
-### **Settings**
-- Manage social media credentials and groups
-- Add/remove group items
-- Extensive form & modal interactions
+| Feature | Description | Benefits |
+|---------|-------------|----------|
+| **📅 Smart Scheduling** | Upload and schedule posts across multiple platforms | Save hours of manual posting |
+| **🎯 Competitor Intelligence** | Track rivals' strategies and performance metrics | Stay ahead of the competition |
+| **📊 Analytics Dashboard** | Real-time engagement tracking and campaign insights | Make data-driven decisions |
+| **🤖 AI Content Studio** | Leverage GPT-4, Claude, and DeepSeek for brainstorming | Never run out of creative ideas |
 
 ---
 
-## 📂 Repository Structure
-`
-ProjectMonopoly
-├── client/ # React/TypeScript front-end (Vite)
-│ ├── src/
-│ │ ├── app/ # Page components (react-router)
-│ │ ├── components/ # Shared UI + domain components
-│ │ ├── hooks/ # Custom React hooks
-│ │ ├── lib/ # Utility functions
-│ │ └── utils/ # API helpers
-│ ├── public/ # Static assets
-│ ├── Dockerfile # Builds static files, serves via Nginx
-│ ├── package.json
-│ ├── tailwind.config.js
-│ └── vite.config.ts
-└── server/ # Go backend
-├── cmd/api/ # Gin router & server startup
-├── internal/
-│ ├── auth/ # JWT creation & middleware
-│ ├── db/ # SQLC-generated code & migrations
-│ ├── handlers/ # REST API handlers
-│ ├── utils/ # Helper functions
-│ └── function/ # Experimental features
-├── python/ # Python scripts (TikTok, AI)
-├── go.mod / go.sum
-├── Dockerfile
-├── makefile
-└── sqlc.yaml
-`
+## 🚀 Feature Highlights
+
+### 🏠 **Landing & Onboarding**
+- **Stunning marketing website** with gradient hero sections and compelling CTAs
+- **Dual authentication**: Custom forms + Google OAuth integration
+- **Smart validation** prevents duplicate accounts and ensures data integrity
+
+### 🔐 **Security & Access Control**
+- **JWT-based authentication** with secure token storage
+- **Protected routes** with automatic redirects for unauthorized access
+- **Multi-platform credential management** with encrypted storage
+
+### 📈 **Intelligent Dashboard**
+- **Real-time follower tracking** across all connected platforms
+- **Campaign performance overview** with filtering and status updates
+- **Visual analytics** with interactive charts and growth metrics
+
+### 👥 **Team Collaboration**
+- **Group-based organization** for marketing teams and projects
+- **Dynamic team switching** with context preservation
+- **Role-based permissions** for different team members
+
+### 🕵️ **Competitor Monitoring**
+- **Multi-platform competitor tracking** (Instagram, TikTok, Twitter, YouTube)
+- **Live feed dashboard** with real-time competitor post updates
+- **Performance metrics**: followers, engagement rates, growth analysis
+- **Expandable post details** with full content preview
+
+### 📤 **Advanced Upload System**
+- **Multi-step wizard** with intuitive drag-and-drop interface
+- **Bulk scheduling** across multiple platforms simultaneously
+- **Smart hashtag suggestions** and title optimization
+- **Real-time progress tracking** with detailed status updates
+
+### 🧠 **AI-Powered Studio**
+- **Multi-model support**: GPT-4, Claude, DeepSeek integration
+- **Rich chat interface** with markdown rendering and attachments
+- **Conversation history** with timestamps and context preservation
+- **Content brainstorming** and strategy recommendations
+
+### ⚙️ **Comprehensive Settings**
+- **Social media credential management** with secure encryption
+- **Team and group administration** with granular controls
+- **Extensive customization options** for workflows and preferences
 
 ---
 
-## 🖥 Client (React/TypeScript)
+## 🏗️ Architecture Overview
 
-Built with **Vite**, **TailwindCSS**, **Shadcn/UI**, and **Radix UI**.  
-Communicates with the backend via `VITE_API_CALL`.
+<details>
+<summary>📂 <strong>Repository Structure</strong></summary>
 
-### Key Pages
-- **Landing Page** – Gradient background, branding, CTAs
-- **Login** – Email/password or Google OAuth
-- **Register** – Prevents duplicate accounts
-- **Dashboard** – Followers, campaigns, tabs, graphs
-- **Competitors** – List & live feed views
-- **Upload** – Multi-step scheduler
-- **Settings** – Manage credentials & groups
-- **AI Studio** – Chat with AI models
+```
+ProjectMonopoly/
+├── 🎨 client/                 # React/TypeScript Frontend
+│   ├── src/
+│   │   ├── 📄 app/           # Page components (React Router)
+│   │   ├── 🧩 components/    # Reusable UI & domain components
+│   │   ├── 🪝 hooks/         # Custom React hooks
+│   │   ├── 📚 lib/           # Utility functions & helpers
+│   │   └── 🔧 utils/         # API communication layer
+│   ├── 🌍 public/            # Static assets & resources
+│   ├── 🐳 Dockerfile         # Production-ready Nginx container
+│   ├── 📦 package.json       # Dependencies & scripts
+│   ├── 🎨 tailwind.config.js # Styling configuration
+│   └── ⚡ vite.config.ts     # Build tool configuration
+│
+└── 🔧 server/                 # Go Backend API
+    ├── 🚀 cmd/api/           # Gin router & server initialization
+    ├── 🏗️ internal/
+    │   ├── 🔐 auth/          # JWT creation & middleware
+    │   ├── 💾 db/            # SQLC-generated code & migrations
+    │   ├── 🎯 handlers/      # REST API endpoint handlers
+    │   ├── 🛠️ utils/         # Backend utility functions
+    │   └── ⚡ function/      # Experimental features
+    ├── 🐍 python/            # Python automation scripts
+    ├── 📋 go.mod / go.sum    # Go module definitions
+    ├── 🐳 Dockerfile         # API server container
+    ├── 🔧 makefile           # Development commands
+    └── ⚙️ sqlc.yaml          # Database code generation
+```
 
-### Notable Components
-- **AppSidebar**, **NavMain**, **NavUser**
-- **TeamSwitcher** (group selection & creation)
-- **Dashboard component** (data visualization)
-- **CompetitorsPage / LiveFeed**
-- **UploadPage** (file uploads, progress tracking)
-- **AIPage** (chat UI)
-
----
-
-## ⚙ Server (Go Backend)
-
-Written in **Go** using the **Gin** framework.  
-Implements REST endpoints for auth, group & competitor management, uploading, and AI integration.
-
-### Key Packages
-- **internal/auth** – JWT handling, middleware
-- **internal/db/sqlc** – Typed DB access
-- **internal/handlers** – Core API endpoints:
-  - `group.go` – Group CRUD
-  - `competitor.go` – Competitor management
-  - `upload.go` – File uploads
-  - `ai.go` – AI model integration
-  - `status.go` – Job status queries
-- **internal/utils** – Password hashing, JWT parsing, Python runners
-- **internal/function** – Experimental TikTok hashtag scraper
+</details>
 
 ---
 
-## 🐍 Python Integration
+## 💻 Frontend Technologies
 
-The backend invokes Python scripts for:
-- TikTok uploads
-- Follower statistics
-- AI model requests
+### 🛠️ **Tech Stack**
+- **⚡ Vite** - Lightning-fast build tool and dev server
+- **🎨 TailwindCSS** - Utility-first CSS framework
+- **🎭 Shadcn/UI** - Beautiful, accessible component library
+- **🔧 Radix UI** - Low-level UI primitives
+- **🌐 React Router** - Client-side routing solution
+
+### 🎯 **Key Pages & Components**
+
+#### **Core Pages**
+| Page | Purpose | Key Features |
+|------|---------|-------------|
+| 🏠 **Landing** | Marketing website | Gradient backgrounds, animations, CTAs |
+| 🔑 **Authentication** | Login/Register | OAuth integration, validation |
+| 📊 **Dashboard** | Analytics overview | Real-time data, interactive charts |
+| 🎯 **Competitors** | Rival tracking | Live feeds, performance metrics |
+| 📤 **Upload** | Content scheduling | Multi-platform, progress tracking |
+| 🤖 **AI Studio** | Content creation | Multi-model chat interface |
+| ⚙️ **Settings** | Configuration | Credentials, team management |
+
+#### **Notable Components**
+- **🧭 AppSidebar** - Responsive navigation with collapsible sections
+- **👤 NavUser** - User profile and account management
+- **🔄 TeamSwitcher** - Dynamic group selection and creation
+- **📈 Dashboard** - Data visualization with interactive elements
+- **🎯 CompetitorsPage** - Comprehensive competitor analysis
+- **📺 LiveFeed** - Real-time social media monitoring
+- **📤 UploadPage** - Advanced file handling with progress tracking
+- **🤖 AIPage** - Conversational AI interface with rich formatting
 
 ---
 
-## 🐳 Running with Docker
+## ⚙️ Backend Architecture
 
-**Services in `docker-compose.yml`:**
-- `frontend` – React client served via Nginx
-- `backend` – Go API server on port `8080`
-- `db` – PostgreSQL database
-- `python` – Python service for AI/automation
-- `ollama` – Optional local AI model server
+### 🛠️ **Technology Stack**
+- **🚀 Go (Gin Framework)** - High-performance HTTP router
+- **🗃️ PostgreSQL** - Robust relational database
+- **🔒 JWT Authentication** - Secure token-based auth
+- **📝 SQLC** - Type-safe SQL code generation
 
-**Run everything:**
+### 🎯 **API Endpoints**
+
+<details>
+<summary><strong>📋 Complete API Reference</strong></summary>
+
+#### **Authentication**
+- `POST /auth/login` - User authentication
+- `POST /auth/register` - Account creation
+- `POST /auth/oauth/google` - Google OAuth flow
+
+#### **Group Management**
+- `GET /groups` - List user groups
+- `POST /groups` - Create new group
+- `PUT /groups/:id` - Update group details
+- `DELETE /groups/:id` - Remove group
+
+#### **Competitor Tracking**
+- `GET /competitors` - List tracked competitors
+- `POST /competitors` - Add new competitor
+- `GET /competitors/:id/posts` - Fetch competitor posts
+- `DELETE /competitors/:id` - Remove competitor
+
+#### **Content Management**
+- `POST /upload` - Upload and schedule content
+- `GET /campaigns` - List scheduled campaigns
+- `GET /status/:jobId` - Check upload progress
+
+#### **AI Integration**
+- `POST /ai/chat` - Send message to AI models
+- `GET /ai/models` - List available AI models
+
+</details>
+
+### 🔧 **Core Packages**
+
+| Package | Responsibility | Key Features |
+|---------|----------------|-------------|
+| **🔐 internal/auth** | Security layer | JWT generation, middleware, validation |
+| **💾 internal/db/sqlc** | Database access | Type-safe queries, migrations |
+| **🎯 internal/handlers** | API logic | REST endpoints, request handling |
+| **🛠️ internal/utils** | Utilities | Password hashing, Python integration |
+| **⚡ internal/function** | Experimental | TikTok scraper, advanced features |
+
+---
+
+## 🐍 Python Integration Layer
+
+Our Go backend seamlessly integrates with Python scripts for specialized tasks:
+
+- **📱 TikTok Automation** - Automated posting and engagement
+- **📊 Analytics Processing** - Follower statistics and growth analysis  
+- **🤖 AI Model Communication** - Interface with various AI providers
+- **🔍 Data Scraping** - Competitor content and hashtag analysis
+
+---
+
+## 🐳 Docker Deployment
+
+### **🏗️ Service Architecture**
+
+```yaml
+services:
+  frontend:    # 🎨 React client via Nginx
+  backend:     # 🔧 Go API server (port 8080)  
+  db:          # 💾 PostgreSQL database
+  python:      # 🐍 AI & automation service
+  ollama:      # 🤖 Local AI model server (optional)
+```
+
+### **🚀 Quick Start**
+
 ```bash
-
+# Launch entire stack
 docker-compose up --build
-Visit http://localhost for the UI.
 
-🔧 Development Setup
-Install dependencies
+# Access application
+open http://localhost
+```
 
-bash
-Copy
-Edit
+---
+
+## 🛠️ Development Setup
+
+### **📋 Prerequisites**
+- **Node.js** 18+ and npm
+- **Go** 1.21+ 
+- **PostgreSQL** 14+
+- **Docker** (optional but recommended)
+
+### **⚡ Quick Setup**
+
+#### **1️⃣ Install Dependencies**
+```bash
+# Frontend dependencies
 cd client && npm install
+
+# Backend dependencies  
 cd ../server && go mod download
-Start PostgreSQL
+```
 
-bash
-Copy
-Edit
+#### **2️⃣ Database Setup**
+```bash
+# Start PostgreSQL
 make postgres
+
+# Create database
 make createdb
+
+# Run migrations
 make migrateup
-Run the backend
+```
 
-bash
-Copy
-Edit
+#### **3️⃣ Start Development Servers**
+
+**Backend (Terminal 1):**
+```bash
+# Start Go API server
 go run ./cmd/api
-# or
-make server
-Run the client
 
-bash
-Copy
-Edit
+# Or use makefile
+make server
+```
+
+**Frontend (Terminal 2):**
+```bash
 cd client
 npm run dev
-Visit http://localhost:3000 (ensure VITE_API_CALL points to backend).
+```
+
+**🌐 Access Points:**
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8080
+- **Database**: localhost:5432
+
+---
+
+## 🎯 Getting Started
+
+1. **🔧 Clone & Setup**
+   ```bash
+   git clone <repository-url>
+   cd ProjectMonopoly
+   ```
+
+2. **🐳 Docker Quick Start**
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **🌐 Access Application**
+   - Open http://localhost
+   - Register your account
+   - Connect social media platforms
+   - Start scheduling content!
+
+4. **📚 Explore Features**
+   - Add competitors to track
+   - Schedule your first post
+   - Chat with AI for content ideas
+   - Analyze your performance metrics
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and development process.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+
+**Built with ❤️ by the Dogwood Gaming Team**
+
+*Transforming social media marketing, one post at a time*
+
+</div>
