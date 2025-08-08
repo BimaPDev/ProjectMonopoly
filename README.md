@@ -59,7 +59,7 @@ Organized as a **monorepo** with a **React/TypeScript** client and a **Go** back
 ---
 
 ## 📂 Repository Structure
-
+`
 ProjectMonopoly
 ├── client/ # React/TypeScript front-end (Vite)
 │ ├── src/
@@ -86,7 +86,7 @@ ProjectMonopoly
 ├── Dockerfile
 ├── makefile
 └── sqlc.yaml
-
+`
 
 ---
 
