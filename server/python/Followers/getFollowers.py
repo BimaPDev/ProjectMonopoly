@@ -24,11 +24,12 @@ from selenium.common.exceptions import TimeoutException
 def connectDB():
     try:
         conn = psycopg2.connect(
-            user="root",
-            password="secret",
-            host="localhost",
-            port=5432,
-            database="project_monopoly"
+            'dbname': 'project_monopoly',
+            'user': 'root',
+            'password': 'secret',
+            'host': 'localhost',  # or your actual hostname
+            'port': 5432,
+            'sslmode': 'disable'
         )
         conn.autocommit = True
         return conn
