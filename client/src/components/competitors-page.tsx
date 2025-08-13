@@ -3,18 +3,12 @@
 import * as React from "react";
 import {
   BarChart3,
-  Globe,
-  Instagram,
-  Linkedin,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Twitter,
-  Radio, Facebook, ChevronUp, ChevronDown, Heart, Share,
-} from "lucide-react";
 
-import { FaTiktok } from "react-icons/fa";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+  Radio, ChevronUp, ChevronDown, Heart, Share,
+} from "lucide-react";
+import CompetitorAddForm from "@/components/competitorAddForm.tsx"
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,10 +21,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 import {useEffect, useState} from "react";
-import { HRTrimmed } from "flowbite-react";
-import {Comment} from "postcss";
+
 import {CgComment} from "react-icons/cg";
-import { add } from "date-fns";
+
 import { socialPlatforms } from "@/components/socialPlatforms";
 interface Competitors{
   id: string,
@@ -75,12 +68,10 @@ function formatNumber(num: number): string {
 
 
 
-
 export function CompetitorsPage() {
   const [competitorsPost, setCompetitorsPosts] = useState<CompetitorPost[]>([]);
   const [competitors, setCompetitors] = useState<Competitors[]>([]);
   const [expandedCompetitors, setExpandedCompetitors] = useState<Set<string>>(new Set());
-
   const toggleCompetitorPosts = (competitorId: string) => {
     setExpandedCompetitors(prev => {
       const newSet = new Set(prev);
@@ -92,27 +83,7 @@ export function CompetitorsPage() {
       return newSet;
     });
   };
-  const addCompetitor = async () =>{
-    const socials = prompt("Enter in URL or @ of competitor")
-    const platform = prompt("Enter in the platform")?.toLowerCase()
-    try{
-      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups/competitors`, {
-        method: "POST",
-        headers: {'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}`},
-        body: JSON.stringify({
-          Platform: platform,
-          Username: socials,
-          
-          
-        })
-      })
-      const data = res.json();
-      console.log(data)
-    }catch (e: any){
-       throw new Error(e || "Could not add competitor");
-    }
-    
-  }
+
   const fetchCompetitorsPosts = async () => {
     try{
       const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/competitors/posts`, {
@@ -185,15 +156,16 @@ export function CompetitorsPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Competitors</h2>
           <div className="flex items-center space-x-2">
+            <div className={'mr-2'}>
+              <CompetitorAddForm />
+            </div>
             <Button variant="outline" className="gap-2" asChild>
               <a href="/competitors/live">
                 <Radio className="w-4 h-4 text-red-500 animate-pulse" />
                 Live Feed
               </a>
             </Button>
-            <Button onClick={() => addCompetitor()}>
-              <Plus className="w-4 h-4 mr-2" /> Add Competitor
-            </Button>
+
           </div>
         </div>
 
@@ -265,7 +237,7 @@ export function CompetitorsPage() {
                     const isExpanded = expandedCompetitors.has(competitor.id);
 
                     return (
-                        <div key={competitor.id} className="p-4 border rounded-lg">
+                        <div key={competitor.id + competitor.username} className="p-4 border rounded-lg">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center flex-1 gap-4">
                               <div className="flex items-center w-[150px]">
