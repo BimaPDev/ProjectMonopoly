@@ -15,6 +15,8 @@ services:
       - "8080:8080"
     environment:
       - DATABASE_URL=postgres://myuser:mypassword@db:5432/mydb
+      - DOCS_DIR=/data/docs
+    volumes: [docs_data:/data/docs]
     depends_on:
       - db
     restart: always
@@ -25,6 +27,9 @@ services:
       - db
       - ollama
     restart: always
+    environment:
+      - DOCS_DIR=/data/docs
+    volumes: [docs_data:/data/docs]
 
   db:
     image: postgres:15
@@ -38,6 +43,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+      
 
   ollama:
     image: ollama/ollama:latest

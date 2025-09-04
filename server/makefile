@@ -1,6 +1,11 @@
 postgres:
 	docker run --name felix -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -d postgres
 
+pgvector:
+	docker run --name felix -p 5432:5432 \
+	-e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=project_monopoly \
+	-d pgvector/pgvector:pg15
+
 createdb:
 	docker exec -it felix createdb --username=root --owner=root project_monopoly
 
