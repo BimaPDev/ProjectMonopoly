@@ -52,3 +52,146 @@ func (q *Queries) EnqueueIngestJob(ctx context.Context, documentID uuid.UUID) er
 	_, err := q.db.ExecContext(ctx, enqueueIngestJob, documentID)
 	return err
 }
+
+const fuzzyChunks = `-- name: FuzzyChunks :many
+WITH p AS (
+  SELECT
+    $1::text       AS q,
+    $2::int  AS user_id,
+    $3::int AS group_id,
+    $4::int        AS n
+)
+SELECT
+  c.document_id,
+  c.page,
+  c.chunk_index,
+  c.content,
+  similarity(c.content, p.q) AS sim
+FROM workshop_chunks c
+JOIN workshop_documents d ON d.id = c.document_id, p
+WHERE d.user_id = p.user_id
+  AND d.group_id = p.group_id
+ORDER BY c.content <-> p.q
+LIMIT (SELECT n FROM p)
+`
+
+type FuzzyChunksParams struct {
+	Q       string `json:"q"`
+	UserID  int32  `json:"user_id"`
+	GroupID int32  `json:"group_id"`
+	N       int32  `json:"n"`
+}
+
+type FuzzyChunksRow struct {
+	DocumentID uuid.UUID     `json:"document_id"`
+	Page       sql.NullInt32 `json:"page"`
+	ChunkIndex int32         `json:"chunk_index"`
+	Content    string        `json:"content"`
+	Sim        float32       `json:"sim"`
+}
+
+func (q *Queries) FuzzyChunks(ctx context.Context, arg FuzzyChunksParams) ([]FuzzyChunksRow, error) {
+	rows, err := q.db.QueryContext(ctx, fuzzyChunks,
+		arg.Q,
+		arg.UserID,
+		arg.GroupID,
+		arg.N,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FuzzyChunksRow
+	for rows.Next() {
+		var i FuzzyChunksRow
+		if err := rows.Scan(
+			&i.DocumentID,
+			&i.Page,
+			&i.ChunkIndex,
+			&i.Content,
+			&i.Sim,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchChunks = `-- name: SearchChunks :many
+WITH p AS (
+  SELECT
+    $1::text       AS q,
+    $2::int  AS user_id,
+    $3::int AS group_id,
+    $4::int        AS n
+)
+SELECT
+  c.document_id,
+  c.page,
+  c.chunk_index,
+  c.content,
+  ts_rank_cd(c.tsv, plainto_tsquery(p.q)) AS rank
+FROM workshop_chunks c
+JOIN workshop_documents d ON d.id = c.document_id, p
+WHERE d.user_id = p.user_id
+  AND d.group_id = p.group_id
+  AND c.tsv @@ plainto_tsquery(p.q)
+ORDER BY rank DESC
+LIMIT (SELECT n FROM p)
+`
+
+type SearchChunksParams struct {
+	Q       string `json:"q"`
+	UserID  int32  `json:"user_id"`
+	GroupID int32  `json:"group_id"`
+	N       int32  `json:"n"`
+}
+
+type SearchChunksRow struct {
+	DocumentID uuid.UUID     `json:"document_id"`
+	Page       sql.NullInt32 `json:"page"`
+	ChunkIndex int32         `json:"chunk_index"`
+	Content    string        `json:"content"`
+	Rank       float32       `json:"rank"`
+}
+
+func (q *Queries) SearchChunks(ctx context.Context, arg SearchChunksParams) ([]SearchChunksRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchChunks,
+		arg.Q,
+		arg.UserID,
+		arg.GroupID,
+		arg.N,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchChunksRow
+	for rows.Next() {
+		var i SearchChunksRow
+		if err := rows.Scan(
+			&i.DocumentID,
+			&i.Page,
+			&i.ChunkIndex,
+			&i.Content,
+			&i.Rank,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

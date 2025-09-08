@@ -1,20 +1,23 @@
-from celery import Celery
-from .config import REDIS_BROKER_URL, REDIS_BACKEND_URL
-import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from celery import Celery
 
-app = Celery(
-    'celery',
-    broker=REDIS_BROKER_URL,
-    backend=REDIS_BACKEND_URL,
-    include=['worker.tasks']  # 👈 Tell Celery where to find your tasks
-)
+BROKER = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+BACKEND = os.getenv("CELERY_RESULT_BACKEND", BROKER)
+
+app = Celery("worker", broker=BROKER, backend=BACKEND, include=["worker.tasks"])
 
 app.conf.update(
-    task_serializer='json',
-    accept_content=['json'],
-    result_serializer='json',
-    timezone='UTC',
+    task_default_queue="celery",
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone=os.getenv("TZ", "UTC"),
     enable_utc=True,
+
+    # Reliability and throughput
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
+    worker_max_tasks_per_child=200,
+    broker_transport_options={"visibility_timeout": 3600},  # Redis ack timeout
+    result_expires=3600,
 )

@@ -24,23 +24,18 @@ sqlc:
 rungo:
 	go run cmd/api/main.go
 
-runpy:
-	python3 python/manager.py
-
-server:
-	$(MAKE) -j2 rungo runpy
-
 redis:
-	redis-server
+	redis-server --save "" --appendonly no
 
-celery:
-	celery -A python.celery boss --loglevel=info
-	celery -A python.celery task --loglevel=info
-	celery -A tasks worker --loglevel=info -Q boss_queue --concurrency=1
-	celery -A tasks worker --loglevel=info -Q manager_queue --concurrency=4
-	celery -A tasks beat --loglevel=info
+celery-worker:
+	CELERY_BROKER_URL=redis://localhost:6379/0 CELERY_RESULT_BACKEND=redis://localhost:6379/0 \
+	celery -A worker.celery_app worker -l info -Q celery --concurrency=4
 
+dispatcher:
+	python3 -m worker.auto_dispatch
 
+flower:
+	CELERY_BROKER_URL=redis://localhost:6379/0 celery -A worker.celery_app flower --port 5555
 
-
-.PHONY: createdb dropdb postgres migrateup migratedown sqlc rungo runpy
+runpy: redis
+	$(MAKE) -j2 celery-worker dispatcher

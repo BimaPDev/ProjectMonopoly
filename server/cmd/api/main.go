@@ -111,10 +111,16 @@ func main() {
 	handlers.ListVisibleCompetitorPosts(w, r, queries)
 	}))
 
-	// worshop upload
+	// worshop stuff
 	mux.HandleFunc("/api/workshop/upload", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handlers.WorkshopUploadHandler(w, r, queries)
 	}))
+
+	mux.HandleFunc("/api/workshop/search", auth.JWTMiddleware(handlers.WorkshopSearchHandler(queries)))
+
+	mux.HandleFunc("/api/workshop/ask", auth.JWTMiddleware(handlers.WorkshopAskHandler(queries)))
+
+
 
 
 	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
