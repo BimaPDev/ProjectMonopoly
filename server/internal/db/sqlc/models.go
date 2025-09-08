@@ -44,6 +44,16 @@ type DailyFollower struct {
 	FollowerCount int64     `json:"follower_count"`
 }
 
+type DocumentIngestJob struct {
+	ID         int64          `json:"id"`
+	DocumentID uuid.UUID      `json:"document_id"`
+	TryCount   int32          `json:"try_count"`
+	Status     string         `json:"status"`
+	Error      sql.NullString `json:"error"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+}
+
 type Group struct {
 	ID          int32          `json:"id"`
 	UserID      int32          `json:"user_id"`
@@ -126,4 +136,40 @@ type UserCompetitor struct {
 	CompetitorID uuid.UUID     `json:"competitor_id"`
 	Visibility   string        `json:"visibility"`
 	AddedAt      sql.NullTime  `json:"added_at"`
+}
+
+type WorkshopChunk struct {
+	ID         int64          `json:"id"`
+	DocumentID uuid.UUID      `json:"document_id"`
+	GroupID    int32          `json:"group_id"`
+	Page       sql.NullInt32  `json:"page"`
+	ChunkIndex int32          `json:"chunk_index"`
+	Content    string         `json:"content"`
+	TokenCount sql.NullInt32  `json:"token_count"`
+	Tsv        interface{}    `json:"tsv"`
+	ContentSha sql.NullString `json:"content_sha"`
+}
+
+type WorkshopDocument struct {
+	ID         uuid.UUID      `json:"id"`
+	GroupID    int32          `json:"group_id"`
+	UserID     int32          `json:"user_id"`
+	Filename   string         `json:"filename"`
+	Mime       string         `json:"mime"`
+	SizeBytes  int64          `json:"size_bytes"`
+	Sha256     string         `json:"sha256"`
+	Version    int32          `json:"version"`
+	Pages      sql.NullInt32  `json:"pages"`
+	Status     string         `json:"status"`
+	Error      sql.NullString `json:"error"`
+	StorageUrl sql.NullString `json:"storage_url"`
+	CreatedAt  sql.NullTime   `json:"created_at"`
+	UpdatedAt  sql.NullTime   `json:"updated_at"`
+}
+
+type WorkshopEmbedding struct {
+	ChunkID   int64       `json:"chunk_id"`
+	Model     string      `json:"model"`
+	Dims      int32       `json:"dims"`
+	Embedding interface{} `json:"embedding"`
 }
