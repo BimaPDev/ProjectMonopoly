@@ -71,6 +71,7 @@ FROM workshop_chunks c
 JOIN workshop_documents d ON d.id = c.document_id, p
 WHERE d.user_id = p.user_id
   AND d.group_id = p.group_id
+  AND similarity(c.content, p.q) >= 0.25
 ORDER BY c.content <-> p.q
 LIMIT (SELECT n FROM p)
 `
@@ -137,12 +138,18 @@ SELECT
   c.page,
   c.chunk_index,
   c.content,
-  ts_rank_cd(c.tsv, plainto_tsquery(p.q)) AS rank
+  ts_rank_cd(
+    c.tsv,
+    websearch_to_tsquery('english', p.q)
+  ) AS rank
 FROM workshop_chunks c
 JOIN workshop_documents d ON d.id = c.document_id, p
-WHERE d.user_id = p.user_id
+WHERE d.user_id  = p.user_id
   AND d.group_id = p.group_id
-  AND c.tsv @@ plainto_tsquery(p.q)
+  AND (
+    c.tsv @@ websearch_to_tsquery('english', p.q)
+    OR c.content ILIKE '%' || p.q || '%'
+  )
 ORDER BY rank DESC
 LIMIT (SELECT n FROM p)
 `
