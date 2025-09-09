@@ -7,7 +7,7 @@ BACKEND_URL = os.getenv("CELERY_RESULT_BACKEND", BROKER_URL)
 DATABASE_URL= os.getenv("DATABASE_URL", "postgresql://root:secret@localhost:5432/project_monopoly?sslmode=disable")
 DOCS_DIR    = os.getenv("DOCS_DIR", os.path.join(REPO_ROOT, "data", "docs"))
 CONCURRENCY = os.getenv("CELERY_CONCURRENCY", "4")
-START_FLOWER= os.getenv("START_FLOWER", "0").lower() in ("1","true","yes","on")
+START_FLOWER= os.getenv("START_FLOWER", "1").lower() in ("1","true","yes","on")
 FLOWER_PORT = os.getenv("FLOWER_PORT", "5555")
 
 CELERY_APP  = "worker.celery_app"
@@ -21,6 +21,7 @@ def wait_port(host, port, timeout=10):
         except OSError: time.sleep(0.2)
     return False
 
+# Start redis if needed for broker/backend
 def start_redis():
     if BROKER_URL.startswith("redis://") and not wait_port("127.0.0.1", 6379, 0.5):
         if shutil.which("redis-server") is None:
@@ -33,6 +34,7 @@ def start_redis():
     print("ℹ️ redis available")
     return None
 
+# Start celery worker for tasks
 def start_celery_worker(env):
     print(f"📦 starting celery x{CONCURRENCY}")
     return subprocess.Popen(
@@ -40,15 +42,18 @@ def start_celery_worker(env):
         cwd=REPO_ROOT, env=env
     )
 
+# Start dispatcher for new jobs
 def start_dispatcher(env):
     print("🔁 starting dispatcher")
     return subprocess.Popen([sys.executable,"-m",DISPATCH_MOD], cwd=REPO_ROOT, env=env)
 
+# Start flower for monitoring
 def start_flower(env):
     if not START_FLOWER: return None
     print(f"🌸 starting flower :{FLOWER_PORT}")
     return subprocess.Popen(["celery","-A",CELERY_APP,"flower",f"--port={FLOWER_PORT}"], cwd=REPO_ROOT, env=env)
 
+# Terminate a subprocess if running
 def kill(proc):
     if not proc: return
     try: proc.terminate()
