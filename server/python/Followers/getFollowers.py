@@ -23,47 +23,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# ── DATABASE SETUP ────────────────────────────────────────────────────────────
 
-@dataclass
-class Config:
-    """Configuration settings for the scraper."""
-    db_connection_string: str = "dbname=project_monopoly user=root password=secret host=localhost port=5432 sslmode=disable"
-    request_timeout: int = 10
-    selenium_timeout: int = 15
-    max_retries: int = 3
-    retry_delay: int = 2
-    max_workers: int = 1  # Reduced to 1 to avoid Chrome conflicts completely
-    
-    # User agents for rotation
-    user_agents: list = None
-    
-    def __post_init__(self):
-        if self.user_agents is None:
-            self.user_agents = [
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            ]
-
-config = Config()
-
-# ── LOGGING SETUP ─────────────────────────────────────────────────────────────
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# ── DATABASE OPERATIONS ───────────────────────────────────────────────────────
-
-@contextmanager
-def get_db_connection():
-    """Context manager for database connections."""
-    conn = None
+def connectDB():
     try:
-        conn = psycopg2.connect(config.db_connection_string)
+        conn = psycopg2.connect(
+    "dbname=project_monopoly user=root password=secret host=localhost port=5432 sslmode=disable"
+)
         conn.autocommit = True
         yield conn
     except psycopg2.Error as e:

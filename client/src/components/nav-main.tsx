@@ -24,7 +24,7 @@ interface NavMainProps {
     title: string
     url: string
     icon?: LucideIcon
-    isActive?: boolean  // Added this property
+    isActive?: boolean
     items?: { title: string; url: string }[]
   }[]
 }
@@ -32,79 +32,95 @@ interface NavMainProps {
 export function NavMain({ items }: NavMainProps) {
   const pathname = usePathname()
 
-  return (
-      <SidebarGroup>
-        <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-        <SidebarMenu>
-          {items.map((item) => {
-            // Use the isActive prop from parent, or fall back to pathname checking
-            const isItemActive = item.isActive ?? (pathname === item.url)
+  const isItemActive = (item: NavMainProps['items'][0]) => {
+    return item.isActive ?? (pathname === item.url)
+  }
 
-            // For items with sub-menus, check if parent or any sub is active
-            const isParentActive = item.items?.length
-                ? (isItemActive || !!item.items?.find((sub) => pathname === sub.url))
-                : isItemActive
+  const isParentActive = (item: NavMainProps['items'][0]) => {
+    if (!item.items?.length) return isItemActive(item)
+    return isItemActive(item) || item.items.some(sub => pathname === sub.url)
+  }
 
-            // leaf node (no sub-items)
-            if (!item.items?.length) {
-              return (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton
-                        asChild
-                        isActive={isItemActive}
-                        tooltip={item.title}
-                    >
-                      <a href={item.url} className="flex items-center space-x-2">
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        <span>{item.title}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-              )
-            }
+  const renderLeafItem = (item: NavMainProps['items'][0]) => (
+    <SidebarMenuItem key={item.url}>
+      <SidebarMenuButton
+        asChild
+        isActive={isItemActive(item)}
+        tooltip={item.title}
+      >
+        <a 
+          href={item.url} 
+          className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+        >
+          {item.icon && (
+            <item.icon className="h-4 w-4 transition-colors duration-200 group-hover:scale-110" />
+          )}
+          <span className="font-medium">{item.title}</span>
+        </a>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
 
-            // has sub-menu
-            return (
-                <Collapsible
-                    key={item.url}
-                    asChild
-                    defaultOpen={isParentActive}
-                    className="group/collapsible"
+  const renderCollapsibleItem = (item: NavMainProps['items'][0]) => (
+    <Collapsible
+      key={item.url}
+      asChild
+      defaultOpen={isParentActive(item)}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton
+            isActive={isParentActive(item)}
+            tooltip={item.title}
+            className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+          >
+            {item.icon && (
+              <item.icon className="h-4 w-4 transition-all duration-200 group-hover:scale-110" />
+            )}
+            <span className="flex-1 font-medium text-left">{item.title}</span>
+            <ChevronRight className="h-4 w-4 shrink-0 transition-all duration-300 ease-out group-data-[state=open]/collapsible:rotate-90 group-hover:scale-110" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="overflow-hidden transition-all duration-300 ease-out data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+          <SidebarMenuSub className="border-l-2 border-border/20 ml-2 pl-0">
+            {item.items?.map((sub) => (
+              <SidebarMenuSubItem key={sub.url}>
+                <SidebarMenuSubButton
+                  asChild
+                  isActive={pathname === sub.url}
                 >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                          isActive={isParentActive}
-                          tooltip={item.title}
-                          className="flex items-center space-x-2"
-                      >
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        <span>{item.title}</span>
-                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
+                  <a 
+                    className="group flex items-center rounded-lg py-2 pl-8 pr-3 transition-all duration-200 hover:translate-x-1 hover:shadow-sm" 
+                    href={sub.url}
+                  >
+                    <span className="relative">
+                      <span className="absolute -left-6 top-1/2 h-px w-4 bg-border/40 transition-all duration-200 group-hover:w-5 group-hover:bg-border/60"></span>
+                      {sub.title}
+                    </span>
+                  </a>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  )
 
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {item.items.map((sub) => (
-                            <SidebarMenuSubItem key={sub.url}>
-                              <SidebarMenuSubButton
-                                  asChild
-                                  isActive={pathname === sub.url}
-                              >
-                                <a className="pl-8 block" href={sub.url}>
-                                  {sub.title}
-                                </a>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-            )
-          })}
-        </SidebarMenu>
-      </SidebarGroup>
+  return (
+    <SidebarGroup className="space-y-2">
+      <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+        Navigation
+      </SidebarGroupLabel>
+      <SidebarMenu className="space-y-1">
+        {items.map((item) => (
+          item.items?.length 
+            ? renderCollapsibleItem(item)
+            : renderLeafItem(item)
+        ))}
+      </SidebarMenu>
+    </SidebarGroup>
   )
 }

@@ -4,6 +4,8 @@ import * as React from "react";
 import { useEffect, useState, useRef } from "react";
 import { Bot, Send, User, Upload, Loader2, Sparkles, X, FileText, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UploadContext } from "@/components/uploadContext"
+import { useGroup } from "./groupContext";
 import {
   Card,
   CardContent,
@@ -24,6 +26,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { GroupProvider } from "./groupContext";
 
 const models = [
   { id: "DeepSeek", name: "DeepSeek", icon: "✨"},
@@ -63,7 +66,7 @@ export function AIPage() {
   const [thinkingMessage, setThinkingMessage] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+  const [token, setToken] = useState(localStorage.getItem("token"))
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -181,7 +184,15 @@ export function AIPage() {
             <Sparkles className="w-6 h-6 mr-2 text-primary animate-pulse" />
             DogWood AI Studio
           </h2>
+          
           <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3">
+              <UploadContext
+                token={token || ""}
+                groupID={useGroup().activeGroup?.ID || 0}
+                
+              />
+            </div>
             <Button 
               variant="outline" 
               size="sm" 
@@ -202,7 +213,7 @@ export function AIPage() {
                       <span className="mr-2">{m.icon}</span>
                       <div>
                         <div>{m.name}</div>
-                        <div className="text-xs text-muted-foreground">{m.description}</div>
+                        
                       </div>
                     </div>
                   </SelectItem>
