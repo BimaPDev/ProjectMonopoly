@@ -54,7 +54,7 @@ func ParseSocialInput(input string, platform string) (*ParsedSocial, error) {
 	}
 
 	// Check if platform is supported
-	config, exists := platforms[platform]
+	config, exists := platforms[strings.ToLower(platform)]
 	if !exists {
 		return nil, fmt.Errorf("unsupported platform: %s", platform)
 	}

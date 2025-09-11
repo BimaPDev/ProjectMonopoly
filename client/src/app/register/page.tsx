@@ -61,9 +61,8 @@ export default function RegisterPage() {
         throw new Error(errorData.message || "Registration failed. Please try again.");
       }
   
-        if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Registration failed. Please try again.");
+      if(response.statusText == "pq: duplicate key value violates unique constraint \"users_username_key\""){
+        throw new Error("Username already exists");
       }
   
       const data = await response.json();
