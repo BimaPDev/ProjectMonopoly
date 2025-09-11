@@ -24,13 +24,15 @@ export function UploadContext({token, groupID} : uploadContextProps){
     const [preview, setPreview] = useState("");
     const [dragActive, setDragActive] = useState(false);
     const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-    
+    const [inputToggle, setInputToggle] = useState(false)
     
     function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         handleFile(file);
     }
-
+    function toggleInput(){
+      setInputToggle(!inputToggle)
+    }
     async function handleSubmit(){
         try{
             const formData = new FormData();
@@ -91,6 +93,7 @@ export function UploadContext({token, groupID} : uploadContextProps){
   }
     function handleFile(file: File | undefined) {
     if (file) {
+      setInputToggle(true)
       // Save the file
       setSelectedFile(file);
       setFiles(prev => [...prev, file]);
@@ -178,7 +181,7 @@ export function UploadContext({token, groupID} : uploadContextProps){
                         : ""
                         }
                         
-                        {preview ? (
+                        {inputToggle ? (
                           <div className="absolute inset-0 rounded-lg overflow-hidden">
                             {selectedFile && ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(
                               selectedFile.name.split('.').pop()?.toLowerCase() || ''
@@ -240,13 +243,21 @@ export function UploadContext({token, groupID} : uploadContextProps){
                           {/* Submit Button */}
                           <div className="flex justify-end mt-6 pt-4 border-t border-gray-700">
                             <div className="flex gap-3">
-                                
+                              
                               <Button 
                                 variant="outline" 
                                 onClick={() => setOpen(false)}
                               >
                                 Cancel
                               </Button>
+                              <Input
+                                ref={fileRef}
+                                type="file"
+                                accept=".pdf,.txt,.doc,.docx"
+                                className="hidden"
+                                onChange={onFileChange}
+                              />
+                              <Button onClick={() => toggleInput()}> Hide Preview</Button>
                               <Button 
                                 onClick={() => {
                                   handleSubmit()
