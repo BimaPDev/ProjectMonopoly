@@ -45,19 +45,19 @@ export function UploadContext({token, groupID} : uploadContextProps){
             // Add group_id
             formData.append('group_id', groupID.toString());
 
-            // const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/upload`,{
-            //     method: 'POST',
-            //     headers: {
-            //         'Authorization': `Bearer ${token}`
-            //     },
-            //     body: formData
-            // });
+            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/upload`,{
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
 
-            // if (!res.ok) {
-            //     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
-            // }
+            if (!res.ok) {
+                throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+            }
 
-            // const result = await res.json();
+            const result = await res.json();
             console.log('Upload successful:', formData);
 
         }catch(error: unknown){
@@ -93,7 +93,7 @@ export function UploadContext({token, groupID} : uploadContextProps){
   }
     function handleFile(file: File | undefined) {
     if (file) {
-      setInputToggle(true)
+      
       // Save the file
       setSelectedFile(file);
       setFiles(prev => [...prev, file]);
@@ -170,7 +170,7 @@ export function UploadContext({token, groupID} : uploadContextProps){
                         onDragOver={handleDrag}
                         onDrop={handleDrop}
                       >
-                        {files && files.length ==0 ?
+                        {files ?
                         <Input
                           ref={fileRef}
                           type="file"
@@ -250,13 +250,7 @@ export function UploadContext({token, groupID} : uploadContextProps){
                               >
                                 Cancel
                               </Button>
-                              <Input
-                                ref={fileRef}
-                                type="file"
-                                accept=".pdf,.txt,.doc,.docx"
-                                className="hidden"
-                                onChange={onFileChange}
-                              />
+                              
                               <Button onClick={() => toggleInput()}> Hide Preview</Button>
                               <Button 
                                 onClick={() => {
