@@ -39,6 +39,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { socialPlatforms } from "@/components/socialPlatforms";
+
 // Updated schema to include group selection
 const formSchema = z.object({
   title: z.string().optional(),
@@ -47,7 +48,6 @@ const formSchema = z.object({
   groupId: z.number().min(1, "Group is required"),
   scheduledDate: z.date().optional(),
 });
-
 
 export default function UploadPage() {
   const [loading, setLoading] = useState(false);
@@ -259,397 +259,425 @@ export default function UploadPage() {
   }
 
   return (
-    <TooltipProvider>
-      <div className="container py-10 mx-auto">
-        <div className="space-y-8">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Create New Post</h1>
-            <p className="text-muted-foreground">
-              Upload and schedule your content across multiple platforms. Visit <span className="text-blue-500 underline"><a href="/dashboard/settings">settings</a></span> to add login info before upload.
-            </p>
-          </div>
+    <div className="min-h-screen bg-black text-white">
+      <TooltipProvider>
+        <div className="container py-10 mx-auto max-w-6xl">
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="space-y-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-white">Create New Post</h1>
+              <p className="text-gray-400 text-lg">
+                Upload and schedule your content across multiple platforms. Visit{" "}
+                <a href="/dashboard/settings" className="text-blue-400 underline hover:text-blue-300 transition-colors">
+                  settings
+                </a>{" "}
+                to add login info before upload.
+              </p>
+            </div>
 
-          <Progress value={progress} className="w-full" />
-
-          {/* Success Message */}
-          {uploadSuccess && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 border border-green-200 rounded-lg bg-green-50"
-            >
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="w-5 h-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-green-800">
-                    Upload successful! Your content has been uploaded and scheduled.
-                  </p>
-                </div>
+            {/* Progress Bar */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-300">Upload Progress</span>
+                <span className="text-sm text-gray-400">{progress}%</span>
               </div>
-            </motion.div>
-          )}
+              <Progress value={progress} className="w-full h-2 bg-gray-800" />
+            </div>
 
-          <div className="grid gap-8 lg:grid-cols-2">
-            <AnimatePresence mode="sync">
-              {step === 1 && (
-                <motion.div
-                  key="step1"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex flex-col gap-6"
-                >
-                  <Card>
-                    <CardContent className="p-6">
-                      <div
-                        className={cn(
-                          "relative flex min-h-[400px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
-                          dragActive
-                            ? "border-primary bg-primary/10"
-                            : "border-muted-foreground/25 hover:border-primary hover:bg-primary/5",
-                          preview && "border-none"
-                        )}
-                        onClick={() => fileRef.current?.click()}
-                        onDragEnter={handleDrag}
-                        onDragLeave={handleDrag}
-                        onDragOver={handleDrag}
-                        onDrop={handleDrop}
-                      >
-                        <Input
-                          ref={fileRef}
-                          type="file"
-                          accept="image/*,video/*"
-                          className="hidden"
-                          onChange={onFileChange}
-                        />
-                        {preview ? (
-                          <img
-                            src={preview}
-                            alt="Preview"
-                            className="absolute object-cover w-full h-full rounded-lg"
-                          />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center p-4 space-y-4 text-center">
-                            <div className="p-4 rounded-full bg-primary/10">
-                              <Upload className="w-8 h-8 text-primary" />
-                            </div>
-                            <div className="space-y-2">
-                              <p className="text-lg font-medium">
-                                Drop your image here, or click to browse
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Supports JPG, PNG, MP4 or MOV (max. 50MB)
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-
-              {step === 2 && (
-                <motion.div
-                  key="step2"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Card className="relative">
-                    <CardContent className="p-6">
-                      {preview && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute z-10 right-2 top-2"
-                            onClick={() => {
-                              setSelectedFile(null);
-                              setPreview("");
-                              setStep(1);
-                              setProgress(33);
-                              setUploadSuccess(false);
-                              if (fileRef.current) {
-                                fileRef.current.value = "";
-                              }
-                            }}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                          <img
-                            src={preview}
-                            alt="Preview"
-                            className="object-cover w-full rounded-lg aspect-square"
-                          />
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-
+            {/* Success Message */}
+            {uploadSuccess && (
               <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-6"
+                className="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-4"
               >
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-6"
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-emerald-300">
+                      Upload successful! Your content has been uploaded and scheduled.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            <div className="grid gap-8 lg:grid-cols-2">
+              <AnimatePresence mode="sync">
+                {step === 1 && (
+                  <motion.div
+                    key="step1"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col gap-6"
                   >
-                    <Card>
-                      <CardContent className="p-6 space-y-6">
-                        <FormField
-                          control={form.control}
-                          name="title"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Title</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter a title for your post"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardContent className="p-6">
+                        <div
+                          className={cn(
+                            "relative flex min-h-[400px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
+                            dragActive
+                              ? "border-blue-500 bg-blue-500/5"
+                              : "border-gray-700 hover:border-blue-500 hover:bg-gray-800/50",
+                            preview && "border-none"
                           )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="hashtags"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center space-x-2">
-                                <FormLabel>Hashtags</FormLabel>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help">
-                                      <Info className="w-4 h-4 text-muted-foreground" />
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs">
-                                    <p>Add hashtags to increase the visibility of your post. Separate hashtags with spaces (e.g. #trending #viral)</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Add hashtags separated by spaces (e.g. #trending #viral)"
-                                  className="min-h-[100px] resize-none"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Add hashtags to increase visibility of your post
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-6 space-y-6">
-                        <FormField
-                          control={form.control}
-                          name="groupId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Group</FormLabel>
-                              <div className="pl-4 space-y-2">
-                                {groups.map((g) => (
-                                  <div key={g.ID} className="flex items-center">
-                                    <input
-                                      type="radio"
-                                      id={`group-${g.ID}`}
-                                      className="mr-2"
-                                      value={g.ID}
-                                      checked={field.value === g.ID}
-                                      onChange={() => field.onChange(g.ID)}
-                                      disabled={groupsLoading}
-                                    />
-                                    <span>{g.name || "No Groups"}</span>
-                                    <span className="block pl-2 text-xs text-zinc-500 dark:text-zinc-400"> ({g.description || "No description"})</span>
-                                  </div>
-                                ))}
-                              </div>
-                              {groupEmptyErr && (
-                                <p className="mt-1 text-sm text-red-500">
-                                  No groups found. Please create a group in the settings.
-                                </p>
-                              )}
-                              
-                              {groupsLoading && (
-                                <p className="mt-1 text-sm text-gray-500">Loading your groups…</p>
-                              )}
-
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="platform"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center space-x-2">
-                                <FormLabel>Platform</FormLabel>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help">
-                                      <Info className="w-4 h-4 text-muted-foreground" />
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Choose the social media platforms where you want to publish this content</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                          onClick={() => fileRef.current?.click()}
+                          onDragEnter={handleDrag}
+                          onDragLeave={handleDrag}
+                          onDragOver={handleDrag}
+                          onDrop={handleDrop}
+                        >
+                          <Input
+                            ref={fileRef}
+                            type="file"
+                            accept="image/*,video/*"
+                            className="hidden"
+                            onChange={onFileChange}
+                          />
+                          {preview ? (
+                            <img
+                              src={preview}
+                              alt="Preview"
+                              className="absolute object-cover w-full h-full rounded-lg"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center p-4 space-y-4 text-center">
+                              <div className="p-4 rounded-full bg-blue-500/10">
+                                <Upload className="w-8 h-8 text-blue-400" />
                               </div>
                               <div className="space-y-2">
-                                {socialPlatforms.map((platform) => (
-                                  <div key={platform.id} className="flex items-center space-x-2">
-                                    <input
-                                      type="checkbox"
-                                      id={`platform-${platform.id}`}
-                                      className="mr-2"
-                                      value={platform.id}
-                                      checked={field.value?.includes(platform.id) || false}
-                                      onChange={(e) => {
-                                        const currentValues = field.value || [];
-                                        let newValues;
-                                        
-                                        if (e.target.checked) {
-                                          // Add the platform if checked
-                                          newValues = [...currentValues, platform.id];
-                                        } else {
-                                          // Remove the platform if unchecked
-                                          newValues = currentValues.filter(id => id !== platform.id);
-                                        }
-                                        
-                                        field.onChange(newValues);
-                                        setProgress(66); // Update progress when platform changes
-                                      }}
-                                    />
-                                    <label 
-                                      htmlFor={`platform-${platform.id}`} 
-                                      className="flex items-center space-x-2 cursor-pointer"
-                                    >
-                                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${platform.color}`}>
-                                        <platform.icon className="w-4 h-4 text-white" />
-                                      </span>
-                                      <span>{platform.id}</span>
-                                    </label>
-                                  </div>
-                                ))}
+                                <p className="text-lg font-medium text-white">
+                                  Drop your image here, or click to browse
+                                </p>
+                                <p className="text-sm text-gray-400">
+                                  Supports JPG, PNG, MP4 or MOV (max. 50MB)
+                                </p>
                               </div>
-                              <FormMessage />
-                            </FormItem>
+                            </div>
                           )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="scheduledDate"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <div className="flex items-center space-x-2">
-                                <FormLabel>Schedule (Optional)</FormLabel>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help">
-                                      <Info className="w-4 h-4 text-muted-foreground" />
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Choose a future date to schedule your post automatically</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "w-full pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                      )}
-                                    >
-                                      <CalendarIcon className="w-4 h-4 mr-2" />
-                                      {field.value
-                                        ? format(field.value, "PPP")
-                                        : "Pick a date (optional)"}
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={(date) => {
-                                      field.onChange(date);
-                                      setProgress(100);
-                                    }}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormDescription>
-                                Schedule your post for a future date (optional)
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        </div>
                       </CardContent>
                     </Card>
+                  </motion.div>
+                )}
 
-                    <div className="flex justify-end space-x-4">
-                      {(step === 2 || selectedFile) && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const confirmReset = window.confirm("Are you sure you want to start over? This will clear all your current progress.");
-                            if (confirmReset) {
-                              resetForm();
-                            }
-                          }}
-                          disabled={loading}
-                        >
-                          Start Over
-                        </Button>
-                      )}
-                      <Button type="submit" disabled={loading || !selectedFile} size="lg">
-                        {loading && (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {step === 2 && (
+                  <motion.div
+                    key="step2"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="relative bg-gray-900 border-gray-800">
+                      <CardContent className="p-6">
+                        {preview && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute z-10 right-2 top-2 bg-gray-800/80 hover:bg-gray-700 text-white"
+                              onClick={() => {
+                                setSelectedFile(null);
+                                setPreview("");
+                                setStep(1);
+                                setProgress(33);
+                                setUploadSuccess(false);
+                                if (fileRef.current) {
+                                  fileRef.current.value = "";
+                                }
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                            <img
+                              src={preview}
+                              alt="Preview"
+                              className="object-cover w-full rounded-lg aspect-square"
+                            />
+                          </>
                         )}
-                        {loading ? "Uploading..." : "Upload Post"}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </motion.div>
-            </AnimatePresence>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
+                <motion.div
+                  key="form"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-6"
+                >
+                  <Form {...form}>
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-6"
+                    >
+                      {/* Content Details */}
+                      <Card className="bg-gray-900 border-gray-800">
+                        <CardContent className="p-6 space-y-6">
+                          <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-white">Title</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Enter a title for your post"
+                                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 focus:border-blue-500"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="hashtags"
+                            render={({ field }) => (
+                              <FormItem>
+                                <div className="flex items-center space-x-2">
+                                  <FormLabel className="text-white">Hashtags</FormLabel>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help">
+                                        <Info className="w-4 h-4 text-gray-400" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs bg-gray-800 border-gray-700 text-white">
+                                      <p>Add hashtags to increase the visibility of your post. Separate hashtags with spaces (e.g. #trending #viral)</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Add hashtags separated by spaces (e.g. #trending #viral)"
+                                    className="min-h-[100px] resize-none bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 focus:border-blue-500"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-gray-400">
+                                  Add hashtags to increase visibility of your post
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </CardContent>
+                      </Card>
+
+                      {/* Platform & Scheduling */}
+                      <Card className="bg-gray-900 border-gray-800">
+                        <CardContent className="p-6 space-y-6">
+                          <FormField
+                            control={form.control}
+                            name="groupId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-white">Group</FormLabel>
+                                <div className="space-y-3">
+                                  {groups.map((g) => (
+                                    <div key={g.ID} className="flex items-center space-x-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
+                                      <input
+                                        type="radio"
+                                        id={`group-${g.ID}`}
+                                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500 focus:ring-2"
+                                        value={g.ID}
+                                        checked={field.value === g.ID}
+                                        onChange={() => field.onChange(g.ID)}
+                                        disabled={groupsLoading}
+                                      />
+                                      <div className="flex-1">
+                                        <span className="text-white font-medium">{g.name || "No Groups"}</span>
+                                        <span className="block text-xs text-gray-400">
+                                          {g.description || "No description"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                {groupEmptyErr && (
+                                  <p className="mt-1 text-sm text-red-400">
+                                    No groups found. Please create a group in the settings.
+                                  </p>
+                                )}
+                                
+                                {groupsLoading && (
+                                  <p className="mt-1 text-sm text-gray-400">Loading your groups…</p>
+                                )}
+
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="platform"
+                            render={({ field }) => (
+                              <FormItem>
+                                <div className="flex items-center space-x-2">
+                                  <FormLabel className="text-white">Platform</FormLabel>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help">
+                                        <Info className="w-4 h-4 text-gray-400" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-gray-800 border-gray-700 text-white">
+                                      <p>Choose the social media platforms where you want to publish this content</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                                <div className="space-y-3">
+                                  {socialPlatforms.map((platform) => (
+                                    <div key={platform.id} className="flex items-center space-x-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
+                                      <input
+                                        type="checkbox"
+                                        id={`platform-${platform.id}`}
+                                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                                        value={platform.id}
+                                        checked={field.value?.includes(platform.id) || false}
+                                        onChange={(e) => {
+                                          const currentValues = field.value || [];
+                                          let newValues;
+                                          
+                                          if (e.target.checked) {
+                                            // Add the platform if checked
+                                            newValues = [...currentValues, platform.id];
+                                          } else {
+                                            // Remove the platform if unchecked
+                                            newValues = currentValues.filter(id => id !== platform.id);
+                                          }
+                                          
+                                          field.onChange(newValues);
+                                          setProgress(66); // Update progress when platform changes
+                                        }}
+                                      />
+                                      <label 
+                                        htmlFor={`platform-${platform.id}`} 
+                                        className="flex items-center space-x-3 cursor-pointer flex-1"
+                                      >
+                                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${platform.color}`}>
+                                          <platform.icon className="w-4 h-4 text-white" />
+                                        </span>
+                                        <span className="text-white font-medium">{platform.id}</span>
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="scheduledDate"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col">
+                                <div className="flex items-center space-x-2">
+                                  <FormLabel className="text-white">Schedule (Optional)</FormLabel>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help">
+                                        <Info className="w-4 h-4 text-gray-400" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-gray-800 border-gray-700 text-white">
+                                      <p>Choose a future date to schedule your post automatically</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                          "w-full pl-3 text-left font-normal bg-gray-800 border-gray-700 text-white hover:bg-gray-700",
+                                          !field.value && "text-gray-400"
+                                        )}
+                                      >
+                                        <CalendarIcon className="w-4 h-4 mr-2" />
+                                        {field.value
+                                          ? format(field.value, "PPP")
+                                          : "Pick a date (optional)"}
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    className="w-auto p-0 bg-gray-800 border-gray-700"
+                                    align="start"
+                                  >
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value}
+                                      onSelect={(date) => {
+                                        field.onChange(date);
+                                        setProgress(100);
+                                      }}
+                                      initialFocus
+                                      className="text-white"
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                                <FormDescription className="text-gray-400">
+                                  Schedule your post for a future date (optional)
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </CardContent>
+                      </Card>
+
+                      <div className="flex justify-end space-x-4">
+                        {(step === 2 || selectedFile) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const confirmReset = window.confirm("Are you sure you want to start over? This will clear all your current progress.");
+                              if (confirmReset) {
+                                resetForm();
+                              }
+                            }}
+                            disabled={loading}
+                            className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white"
+                          >
+                            Start Over
+                          </Button>
+                        )}
+                        <Button 
+                          type="submit" 
+                          disabled={loading || !selectedFile} 
+                          size="lg"
+                          className="bg-blue-600 hover:bg-blue-700 text-white border-none"
+                        >
+                          {loading && (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          )}
+                          {loading ? "Uploading..." : "Upload Post"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
         </div>
-      </div>
-    </TooltipProvider>
+      </TooltipProvider>
+    </div>
   );
 }
