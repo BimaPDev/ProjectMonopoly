@@ -159,7 +159,7 @@ rich==13.9.4
 rpds-py==0.24.0
 safetensors==0.4.5
 scikit-learn==1.7.1
-scipy==1.16
+scipy==1.15
 selenium==4.17.2
 shellingham==1.5.4
 six==1.17.0
