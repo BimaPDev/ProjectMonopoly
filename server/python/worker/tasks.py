@@ -175,3 +175,5 @@ def process_document(document_id: str, job_id: int | None = None):
                         (str(e), job_id),
                     )
             return {"status": "failed", "document_id": document_id, "error": str(e)}
+
+
