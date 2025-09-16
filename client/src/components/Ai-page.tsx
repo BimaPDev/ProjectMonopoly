@@ -26,7 +26,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { GroupProvider } from "./groupContext";
+
 
 const models = [
   { id: "DeepSeek", name: "DeepSeek", icon: "✨"},
@@ -67,6 +67,8 @@ export function AIPage() {
   const [inputFocused, setInputFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [token, setToken] = useState(localStorage.getItem("token"))
+  const { activeGroup } = useGroup()
+  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -106,7 +108,7 @@ export function AIPage() {
     if (!input.trim() && files.length === 0) return;
 
     const formData = new FormData();
-    formData.append("prompt", input);
+    formData.append("question", input);
     files.forEach((file) => {
       formData.append("files", file);
     });
@@ -128,10 +130,31 @@ export function AIPage() {
       thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)]
     );
 
+
+//         --header 'content-type: application/json' \
+//   --data '{
+//   "group_id": 1,
+//   "question": "Is Bubble Sort acceptable for small arrays in our pipeline? Recommend and justify.",
+//   "limit": 6,
+//   "model": "gemma3:latest",
+//   "mode": "opinion",
+//   "allow_outside": true,
+//   "output": "short memo",
+//   "tone": "neutral"
+// }'
     try {
-     
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/ai/deepseek`, {
+        formData.append('group_id', activeGroup?.ID?.toString() || '');
+        formData.append('model' , 'gemma3:latest');
+        formData.append('mode', 'opinion');
+        formData.append('allow_outside', 'true');
+        formData.append('output', 'short memo');
+        formData.append('tone', 'neutral');
+
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/ask`, {
         method: "POST",
+        headers: {
+                  'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
         body: formData,
       });
 
@@ -189,7 +212,7 @@ export function AIPage() {
             <div className="flex items-center gap-3">
               <UploadContext
                 token={token || ""}
-                groupID={useGroup().activeGroup?.ID || 0}
+                groupID={activeGroup?.ID || 0}
                 
               />
             </div>
