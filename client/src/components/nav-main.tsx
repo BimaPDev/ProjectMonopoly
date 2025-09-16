@@ -1,6 +1,6 @@
 // components/nav-main.tsx
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { useLocation, Link } from "react-router-dom"
 import { ChevronRight, LucideIcon } from "lucide-react"
 
 import {
@@ -30,7 +30,8 @@ interface NavMainProps {
 }
 
 export function NavMain({ items }: NavMainProps) {
-  const pathname = usePathname()
+  const location = useLocation()
+  const pathname = location.pathname
 
   const isItemActive = (item: NavMainProps['items'][0]) => {
     return item.isActive ?? (pathname === item.url)
@@ -48,15 +49,15 @@ export function NavMain({ items }: NavMainProps) {
         isActive={isItemActive(item)}
         tooltip={item.title}
       >
-        <a 
-          href={item.url} 
+        <Link 
+          to={item.url} 
           className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
         >
           {item.icon && (
             <item.icon className="h-4 w-4 transition-colors duration-200 group-hover:scale-110" />
           )}
           <span className="font-medium">{item.title}</span>
-        </a>
+        </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
   )

@@ -507,7 +507,7 @@ export default function UploadPage() {
                                 </div>
                                 {groupEmptyErr && (
                                   <p className="mt-1 text-sm text-red-400">
-                                    No groups found. Please create a group in the settings.
+                                    No groups found. Please create a group before uploading.
                                   </p>
                                 )}
                                 

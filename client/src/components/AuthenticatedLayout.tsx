@@ -31,7 +31,7 @@ export default function AuthenticatedLayout() {
       settings: 'Settings'
     };
 
-    const breadcrumbs = [];
+    const breadcrumbs: React.ReactElement[] = [];
     let currentPath = '';
 
     pathSegments.forEach((segment, index) => {

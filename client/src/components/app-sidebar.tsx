@@ -1,6 +1,6 @@
 // components/AppSidebar.tsx
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { useLocation } from "react-router-dom"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar"
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
@@ -8,7 +8,8 @@ import { TeamSwitcher } from "./team-switcher"
 import { GalleryHorizontalEnd, Home, BotIcon, MessageCircle, Users2 } from "lucide-react"
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
-  const pathname = usePathname()
+  const location = useLocation()
+  const pathname = location.pathname
 
   const teams = [
     { name: "DoogWood Gaming", logo: GalleryHorizontalEnd, plan: "Enterprise" },
