@@ -111,7 +111,6 @@ packaging==24.1
 pandas==2.2.3
 parse==1.20.1
 pdfminer.six==20250506
-pdfplumber==0.11.7
 pillow==10.4.0
 platformdirs==4.3.8
 playwright==1.51.0
@@ -129,14 +128,12 @@ psycopg2-binary==2.9.10
 pycparser==2.21
 pydantic==2.11.3
 pydantic_core==2.33.1
-pyee==12.1.1
 Pygments==2.19.1
 PyJWT==2.10.1
 PyMuPDF==1.24.9
 PyMuPDFb==1.24.9
 pyOpenSSL==25.0.0
 pyparsing==3.2.1
-pypdfium2==4.30.0
 pyperclip==1.9.0
 pyppeteer==1.0.2
 pyquery==2.0.0
