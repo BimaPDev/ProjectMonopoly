@@ -1,38 +1,36 @@
-version: '3.8'
-
 services:
   frontend:
     build: ./client
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
+    ports: ["80:80"]
+    depends_on: [backend]
     restart: always
 
   backend:
     build: ./server
-    ports:
-      - "8080:8080"
+    ports: ["8080:8080"]
     environment:
-      - DATABASE_URL=postgres://myuser:mypassword@db:5432/mydb
-      - DOCS_DIR=/data/docs
+      DATABASE_URL: postgresql://root:secret@postgres:5432/project_monopoly?sslmode=disable
+      DOCS_DIR: /data/docs
     volumes: [docs_data:/data/docs]
     depends_on:
-      - db
+      postgres:
+        condition: service_healthy
     restart: always
 
   python:
     build: ./server/python
-    depends_on:
-      - db
-      - ollama
-    restart: always
     environment:
-      - DOCS_DIR=/data/docs
+      DOCS_DIR: /data/docs
     volumes: [docs_data:/data/docs]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: always
 
-  db:
-    image: postgres:15
+  postgres:
+    image: pgvector/pgvector:pg15
     container_name: postgres
     restart: always
     environment:
@@ -41,24 +39,25 @@ services:
       POSTGRES_DB: project_monopoly
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-      
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d project_monopoly"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
     restart: always
-    ports:
-      - "11434:11434"
+    ports: ["11434:11434"]
     volumes:
       - ollama_data:/root/.ollama
     environment:
-      - OLLAMA_ORIGINS=*
+      OLLAMA_ORIGINS: "*"
     entrypoint: ["ollama", "serve"]
 
-  
 volumes:
   postgres_data:
   ollama_data:
-  docs_data: {}
+  docs_data:
