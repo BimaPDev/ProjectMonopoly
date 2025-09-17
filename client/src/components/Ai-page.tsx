@@ -142,20 +142,24 @@ export function AIPage() {
 //   "output": "short memo",
 //   "tone": "neutral"
 // }'
-    try {
-        formData.append('group_id', activeGroup?.ID?.toString() || '');
-        formData.append('model' , 'gemma3:latest');
-        formData.append('mode', 'opinion');
-        formData.append('allow_outside', 'true');
-        formData.append('output', 'short memo');
-        formData.append('tone', 'neutral');
-
+    
+  try {
+      const requestBody = {
+        group_id: parseInt(activeGroup?.ID?.toString() || '1'),
+        question: input,
+        limit: 6,
+        model: 'gemma3:latest',
+        mode: 'opinion',
+        allow_outside: true,
+        output: 'short memo',
+        tone: 'neutral'
+      };
       const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/ask`, {
         method: "POST",
         headers: {
                   'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: formData,
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -170,7 +174,7 @@ export function AIPage() {
         ...prev,
         { 
           role: "assistant", 
-          content: data.response,
+          content: data.answer,
           timestamp: new Date()
         },
       ]);
