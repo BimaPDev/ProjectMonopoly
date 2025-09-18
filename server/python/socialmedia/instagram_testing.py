@@ -11,8 +11,8 @@ from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 
 # ──────────────── 1. CONFIGURATION ─────────────────────
-INSTAGRAM_USERNAME = "davidisdatboi"
-INSTAGRAM_PASSWORD = "Fiyin@2004"
+INSTAGRAM_USERNAME = "dogw.ood6"
+INSTAGRAM_PASSWORD = "qwert1233@"
 
 AUTH_PATH = "auth.json"
 PAGE_LOAD_WAIT = 3  # seconds to wait after each driver.get()
