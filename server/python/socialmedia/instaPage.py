@@ -43,7 +43,7 @@ def prefix_words_with_hash(caption: str) -> str:
     return " ".join(f"{tok}" for tok in tokens if tok.strip())
 
 class InstagramScraper:
-    def __init__(self, username=None, password=None, cookies_path="instagram_cookies.pkl"):
+    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl"):
         self.username = username
         self.password = password
         self.cookies_path = cookies_path
@@ -52,10 +52,13 @@ class InstagramScraper:
         
     def setup_driver(self):
         chrome_options = Options()
-        chrome_options.headless = False
+        chrome_options.headless = False  # Keep this False for debugging
         chrome_options.add_argument("--disable-notifications")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
         try:
             from webdriver_manager.chrome import ChromeDriverManager
             self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
@@ -226,7 +229,7 @@ class InstagramScraper:
                 print(f"Error processing {post_url}: {e}")
                 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"{profile_name}_posts_{timestamp}.json"
+        json_filename = f"socialmedia/scrape_result/{profile_name}_posts_{timestamp}.json"
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all posts to {json_filename}\n")

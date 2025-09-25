@@ -176,4 +176,31 @@ def process_document(document_id: str, job_id: int | None = None):
                     )
             return {"status": "failed", "document_id": document_id, "error": str(e)}
 
+# ---------- NEW: Weekly Instagram Scraping ----------
+@app.task(name="worker.tasks.weekly_instagram_scrape", queue="celery")
+def weekly_instagram_scrape():
+    """
+    Weekly Instagram scraping task that processes all Instagram competitors
+    that haven't been scraped in the last 7 days.
+    """
+    log.info("🕷️ Starting weekly Instagram scraping task")
+    
+    try:
+        # Imported here to avoid circular imports
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        from socialmedia.weekly_scraper import WeeklyInstagramScraper
+        
+        scraper = WeeklyInstagramScraper()
+        scraper.run_weekly_scrape()
+        
+        log.info("🕷️ Weekly Instagram scraping task completed successfully")
+        return {"status": "success", "message": "Weekly Instagram scraping completed"}
+        
+    except Exception as e:
+        log.exception("Weekly Instagram scraping task failed")
+        return {"status": "failed", "error": str(e)}
+
 
