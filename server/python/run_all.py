@@ -12,6 +12,7 @@ FLOWER_PORT = os.getenv("FLOWER_PORT", "5555")
 
 CELERY_APP  = "worker.celery_app"
 DISPATCH_MOD= "worker.auto_dispatch"
+BEAT_MOD    = "worker.weekly_scheduler"
 
 def wait_port(host, port, timeout=10):
     t0 = time.time()
@@ -38,7 +39,7 @@ def start_redis():
 def start_celery_worker(env):
     print(f"📦 starting celery x{CONCURRENCY}")
     return subprocess.Popen(
-        ["celery","-A",CELERY_APP,"worker","-Q","celery","-l","info","--concurrency",str(CONCURRENCY)],
+        [sys.executable,"-m","celery","-A",CELERY_APP,"worker","-Q","celery","-l","info","--concurrency",str(CONCURRENCY)],
         cwd=REPO_ROOT, env=env
     )
 
@@ -51,7 +52,12 @@ def start_dispatcher(env):
 def start_flower(env):
     if not START_FLOWER: return None
     print(f"🌸 starting flower :{FLOWER_PORT}")
-    return subprocess.Popen(["celery","-A",CELERY_APP,"flower",f"--port={FLOWER_PORT}"], cwd=REPO_ROOT, env=env)
+    return subprocess.Popen([sys.executable,"-m","celery","-A",CELERY_APP,"flower",f"--port={FLOWER_PORT}"], cwd=REPO_ROOT, env=env)
+
+# Start beat scheduler for periodic tasks
+def start_beat_scheduler(env):
+    print("starting beat scheduler")
+    return subprocess.Popen([sys.executable,"-m","celery","-A",CELERY_APP,"beat","-l","info"], cwd=REPO_ROOT, env=env)
 
 # Terminate a subprocess if running
 def kill(proc):
@@ -70,12 +76,13 @@ if __name__ == "__main__":
     env.setdefault("DOCS_DIR", DOCS_DIR)
 
     # init handles to avoid NameError
-    redis_proc = worker = dispatcher = flower = None
+    redis_proc = worker = dispatcher = flower = beat = None
 
     try:
         redis_proc = start_redis()
         worker = start_celery_worker(env)
         dispatcher = start_dispatcher(env)
+        beat = start_beat_scheduler(env)
         flower = start_flower(env)
 
         print(f"\n✅ running. broker: {BROKER_URL}  docs: {DOCS_DIR}")
@@ -87,11 +94,13 @@ if __name__ == "__main__":
                 raise RuntimeError("celery worker exited")
             if dispatcher and dispatcher.poll() is not None:
                 raise RuntimeError("dispatcher exited")
+            if beat and beat.poll() is not None:
+                raise RuntimeError("beat scheduler exited")
             if flower and flower.poll() is not None:
                 print("flower exited; continuing"); flower = None
             time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:
-        for p in [flower, dispatcher, worker, redis_proc]:
+        for p in [flower, beat, dispatcher, worker, redis_proc]:
             kill(p)

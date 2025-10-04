@@ -1,3 +1,4 @@
-from .InstagramScaper import Instagram
+# Import the Instagram scraper from instaPage
+from .instaPage import InstagramScraper
 
-__all__ = ['Instagram'] 
+__all__ = ['InstagramScraper'] 

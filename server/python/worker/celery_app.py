@@ -21,3 +21,15 @@ app.conf.update(
     broker_transport_options={"visibility_timeout": 3600},  # Redis ack timeout
     result_expires=3600,
 )
+
+# Beat schedule for periodic tasks
+app.conf.beat_schedule = {
+    'weekly-instagram-scrape': {
+        'task': 'worker.tasks.weekly_instagram_scrape',
+        'schedule': 60.0 * 60.0 * 24.0 * 7.0,  # Every 7 days (in seconds)
+        'options': {
+            'queue': 'celery',
+            'priority': 5,  # Lower priority than urgent tasks
+        }
+    },
+}

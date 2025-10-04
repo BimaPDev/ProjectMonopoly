@@ -40,7 +40,7 @@ def random_delay(min_seconds=1, max_seconds=3):
 
 
 class TikTokScraper:
-    def __init__(self, cookies_path="tiktok_cookies.pkl"):
+    def __init__(self, cookies_path="cookies/tiktok_cookies.pkl"):
         self.cookies_path = cookies_path
         self.driver = None
         self.setup_driver()
@@ -216,7 +216,7 @@ class TikTokScraper:
                 continue
                 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"{profile_name}_tiktoks_{timestamp}.json"
+        json_filename = f"socialmedia/scrape_result/{profile_name}_tiktoks_{timestamp}.json"
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all videos to {json_filename}")
@@ -474,7 +474,7 @@ class TikTokScraper:
                 print(f"Error processing {video_url}: {e}")
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"{hashtag[1:]}_tiktoks_{timestamp}.json"
+        json_filename = f"socialmedia/scrape_result/{hashtag[1:]}_tiktoks_{timestamp}.json"
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all videos to {json_filename}")
@@ -604,7 +604,7 @@ class TikTokScraper:
                 print(f"Error processing {video_url}: {e}")
                 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"tiktok_explore_{timestamp}.json"
+        json_filename = f"socialmedia/scrape_result/tiktok_explore_{timestamp}.json"
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all explore videos to {json_filename}")
