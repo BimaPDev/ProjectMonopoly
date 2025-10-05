@@ -7,12 +7,39 @@ from datetime import datetime
 import re
 import os
 import sys
+import hashlib
 from urllib.parse import urlparse
 
 def extract_post_id(url):
     # Extract post ID from instagram URL
     match = re.search(r'/p/([^/]+)/', url)
     return match.group(1) if match else None
+
+def normalize_caption(caption):
+    """
+    Normalize caption for consistent comparison.
+    - Remove extra whitespace
+    - Convert to lowercase
+    - Remove special characters that might vary
+    """
+    if not caption:
+        return ""
+    
+    # Remove extra whitespace and normalize
+    normalized = re.sub(r'\s+', ' ', caption.strip().lower())
+    
+    # Remove common Instagram variations
+    normalized = re.sub(r'[^\w\s#@]', '', normalized)  # Keep only alphanumeric, spaces, #, @
+    
+    return normalized
+
+def generate_caption_hash(caption):
+    """
+    Generate a hash for the normalized caption.
+    This will be used for deduplication.
+    """
+    normalized = normalize_caption(caption)
+    return hashlib.sha256(normalized.encode('utf-8')).hexdigest()
 
 def parse_engagement(likes_str, comments_str):
     # Parse engagement data from string values
@@ -143,14 +170,27 @@ def upload_posts_to_db(json_file_path):
                         "type": "image" if post.get('media_urls') else "unknown"
                     }
                     
-                    # Insert or update post
+                    # Generate caption hash for deduplication
+                    caption = post.get('caption', '')
+                    caption_hash = generate_caption_hash(caption)
+                    
+                    # Check if post with this caption already exists
+                    cur.execute("""
+                        SELECT COUNT(*) FROM competitor_posts 
+                        WHERE competitor_id = %s AND caption_hash = %s
+                    """, (competitor_id, caption_hash))
+                    existed_before = cur.fetchone()[0] > 0
+                    
+                    # Insert or update post using caption-based deduplication
                     cur.execute("""
                         INSERT INTO competitor_posts (
                             competitor_id, platform, post_id, content, media,
-                            posted_at, engagement, hashtags, scraped_at
+                            posted_at, engagement, hashtags, scraped_at, caption_hash
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (platform, post_id) DO UPDATE SET
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (competitor_id, caption_hash) DO UPDATE SET
+                            platform = EXCLUDED.platform,
+                            post_id = EXCLUDED.post_id,
                             content = EXCLUDED.content,
                             media = EXCLUDED.media,
                             posted_at = EXCLUDED.posted_at,
@@ -162,10 +202,15 @@ def upload_posts_to_db(json_file_path):
                         post_id,post.get('caption', ''),
                         json.dumps(media_data),posted_at,
                         json.dumps(engagement),post.get('hashtags', []),
-                        datetime.now()
+                        datetime.now(), caption_hash
                     ))
+                    
+                    if existed_before:
+                        print(f"🔄 Updated post: {post_id} (caption match)")
+                    else:
+                        print(f"✅ New post: {post_id}")
+                    
                     uploaded_count += 1
-                    print(f"Uploaded post: {post_id}")
                     
                 except Exception as e:
                     print(f"Error processing post {post.get('url', 'unknown')}: {e}")
