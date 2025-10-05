@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import CompetitorAddForm from "@/components/competitorAddForm.tsx"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -241,7 +241,8 @@ export function CompetitorsPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center flex-1 gap-4">
                               <div className="flex items-center w-[150px]">
-                                <Avatar className="h-9 w-9" src={competitor.profile_url}>
+                                <Avatar className="h-9 w-9">
+                                  <AvatarImage src={competitor.profile_url} />
                                   <AvatarFallback>
                                     {competitor.username.slice(0, 2)}
                                   </AvatarFallback>
@@ -354,19 +355,19 @@ export function CompetitorsPage() {
                                                   <div className="flex items-center gap-2">
                                                     <Heart className="w-6 h-6 text-red-500" />
                                                     <span className="text-base font-medium text-slate-700">
-                                                  {post.engagement.likes.toLocaleString()}
+                                                  {post.engagement?.likes.toLocaleString()}
                                                 </span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
                                                     <Share className="w-6 h-6 text-blue-500"/>
                                                     <span className="text-base font-medium text-slate-700">
-                                                  {post.engagement.shares.toLocaleString()}
+                                                  {post.engagement?.shares.toLocaleString()}
                                                 </span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
                                                     <CgComment className="w-6 h-6 text-green-500"/>
                                                     <span className="text-base font-medium text-slate-700">
-                                                  {post.engagement.comments.toLocaleString()}
+                                                  {post.engagement?.comments.toLocaleString()}
                                                 </span>
                                                   </div>
                                                 </div>
