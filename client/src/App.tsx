@@ -16,6 +16,7 @@ import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CreateGroupSettings from "./app/settings/page";
+import GameContextTest from "./app/gameContext/page.tsx";
 
 // Add the GroupProvider import
 import { GroupProvider } from "./components/groupContext.tsx"; // Adjust the path as needed
@@ -25,36 +26,37 @@ const googleClientId = "1054535744463-vofp68rffke3c3m9r1o4vaq6ss0iggt1.apps.goog
 
 function App() {
   return (
-      <GoogleOAuthProvider clientId={googleClientId}>
-        <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
-          <Routes>
-            {/* 🔹 Public Routes (No Authentication) */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
+        <Routes>
+          {/* 🔹 Public Routes (No Authentication) */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-            {/* 🔒 Protected Dashboard Routes - Wrapped with GroupProvider */}
-            <Route element={
-              <ProtectedRoute>
-                <GroupProvider>
-                  <AuthenticatedLayout />
-                </GroupProvider>
-              </ProtectedRoute>
-            }>
-              {/* 🔹 Dashboard Routes */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/dashboard/posts" element={<Upload />} />
-              <Route path="/dashboard/competitors" element={<Competitors />} />
-              <Route path="/dashboard/competitors/live" element={<LiveFeedPage />} />
-              <Route path="/dashboard/ai" element={<Ai />} />
-              <Route path="/dashboard/settings" element={<CreateGroupSettings />} />
-            </Route>
+          {/* 🔒 Protected Dashboard Routes - Wrapped with GroupProvider */}
+          <Route element={
+            <ProtectedRoute>
+              <GroupProvider>
+                <AuthenticatedLayout />
+              </GroupProvider>
+            </ProtectedRoute>
+          }>
+            {/* 🔹 Dashboard Routes */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/posts" element={<Upload />} />
+            <Route path="/dashboard/competitors" element={<Competitors />} />
+            <Route path="/dashboard/competitors/live" element={<LiveFeedPage />} />
+            <Route path="/dashboard/ai" element={<Ai />} />
+            <Route path="/dashboard/settings" element={<CreateGroupSettings />} />
+            <Route path="/dashboard/gamecontext" element={<GameContextTest />} />
+          </Route>
 
-            {/* 🔹 Catch-all Route for 404s */}
-            <Route path="*" element={<div>404 Page Not Found</div>} />
-          </Routes>
-        </NextThemesProvider>
-      </GoogleOAuthProvider>
+          {/* 🔹 Catch-all Route for 404s */}
+          <Route path="*" element={<div>404 Page Not Found</div>} />
+        </Routes>
+      </NextThemesProvider>
+    </GoogleOAuthProvider>
   );
 }
 

@@ -120,6 +120,9 @@ func main() {
 
 	mux.HandleFunc("/api/workshop/ask", auth.JWTMiddleware(handlers.WorkshopAskHandler(queries)))
 
+	mux.HandleFunc("/api/games/extract", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request){
+		handlers.ExtractGameContext(w,r,queries)
+	}))
 
 
 

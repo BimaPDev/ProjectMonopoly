@@ -237,3 +237,19 @@ CREATE TABLE IF NOT EXISTS document_ingest_jobs (
 DROP TRIGGER IF EXISTS trg_touch_ingest_jobs ON document_ingest_jobs;
 CREATE TRIGGER trg_touch_ingest_jobs
 BEFORE UPDATE ON document_ingest_jobs FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+
+create table if not exists game_contexts(
+  id serial primary key,
+  user_id int not null references users(id) on delete cascade,
+  groupid int not null referenecs groups(id) on delete cascade,
+  game_name not null varchar(255),
+  description text,
+  target_audience text,
+  key_features text,
+  tone text,
+  unique_selling_points text,
+  created_at TIMESTAMP not null default now(),
+  updated_at timestamp not null default now()
+
+)

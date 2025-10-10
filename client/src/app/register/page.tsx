@@ -1,9 +1,9 @@
 "use client";
 import { useState } from 'react';
 import { GoogleLogin } from "@react-oauth/google";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 export default function RegisterPage() {
-  
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -14,63 +14,95 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [signSuccess, setSuccess] = useState(false);
-  const handleChange = (e) => {
+  interface FormData {
+    username: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+  }
+
+  interface ChangeEventTarget {
+    id: keyof FormData;
+    value: string;
+  }
+
+  interface ChangeEvent {
+    target: ChangeEventTarget;
+  }
+
+  const handleChange = (e: ChangeEvent) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-  
+
     // Basic validation
     if (!formData.email || !formData.password) {
       setError('Email and password are required');
       setLoading(false);
       return;
     }
-  
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
       return;
     }
-  
+
     if (!agreeToTerms) {
       setError('You must agree to the terms and conditions');
       setLoading(false);
       return;
     }
-  
+
     try {
-      
-        const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
+
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           username: formData.username,
-          email: formData.email, 
+          email: formData.email,
           password: formData.password
         }),
       });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
 
-        throw new Error(errorData.message || "Registration failed. Please try again.");
+      if (!response.ok) {
+        let errorMessage = "";
+        const errorData = await response.json();
+        try {
+          if (errorData.error?.includes("users_username_key") ||
+            errorData.message?.toLowerCase().includes("username already exists")) {
+            errorMessage = "Username already exists";
+          }
+          else if (errorData.error?.includes("users_email_key") ||
+            errorData.message?.toLowerCase().includes("email already exists")) {
+            errorMessage = "Email already exists";
+          }
+          else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else {
+            errorMessage = "Registration failed.";
+          }
+        } catch (parseError) {
+          console.error("Failed to parse error response:", parseError);
+          errorMessage = "Registration failed";
+        }
+
+        setError(errorMessage);
+        throw new Error(errorMessage);
       }
-  
-      if(response.statusText == "pq: duplicate key value violates unique constraint \"users_username_key\""){
-        throw new Error("Username already exists");
-      }
-  
-      const data = await response.json();
-  
+
+
+
       // store email and username
-      localStorage.setItem("username",formData.username)
-      localStorage.setItem("email",formData.email);
-      
+      localStorage.setItem("username", formData.username)
+      localStorage.setItem("email", formData.email);
+
       setSuccess(true);
       setError("Account created please log in");
     } catch (err) {
@@ -84,11 +116,23 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleSignInSuccess = async (credentialResponse) => {
+  interface GoogleCredentialResponse {
+    credential: string;
+    select_by?: string;
+    clientId?: string;
+  }
+
+  interface RegisterResponse {
+    token?: string;
+    message?: string;
+    [key: string]: any;
+  }
+
+  const handleGoogleSignInSuccess = async (credentialResponse: GoogleCredentialResponse) => {
     console.log("Google Sign-In Success:", credentialResponse);
-    
+
     const googleToken = credentialResponse.credential;
-    
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
         method: "POST",
@@ -97,20 +141,19 @@ export default function RegisterPage() {
           googleToken,
         }),
       });
-  
-      const data = await response.json();
-  
+
+      const data: RegisterResponse = await response.json();
+
       if (!response.ok) {
-        setError(data.message);
+        setError(data.message ?? "Registration failed");
         return;
       }
-  
+
       // Store token and session ID
-      localStorage.setItem("token", data.token);
-      
-  
+      localStorage.setItem("token", data.token ?? "");
+
       alert("User registered successfully!");
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -135,26 +178,25 @@ export default function RegisterPage() {
       }}
     >
       <div className="w-full max-w-md">
-       
-        <div className="absolute inset-0 z-0 bg-black bg-opacity-60 backdrop-blur-sm"></div>
-        
+
+
         <div className="relative z-10 flex flex-col items-center mb-8">
-          <img 
-            src="https://dogwoodgaming.com/wp-content/uploads/2021/12/dogwood-gaming-logo.png" 
+          <img
+            src="https://dogwoodgaming.com/wp-content/uploads/2021/12/dogwood-gaming-logo.png"
             alt="Dogwood Gaming Logo"
             className="w-64 h-auto mb-6 drop-shadow-lg"
           />
-          <h1 className="mb-2 text-4xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          <h1 className="mb-2 text-4xl font-extrabold tracking-wide text-transparent text-white bg-clip-text">
             Join Dogwood Gaming
           </h1>
           <p className="max-w-sm text-center text-gray-300">
             Create your account to access exclusive gaming tools and resources
           </p>
         </div>
-        
-        
-        
-        <div className="relative z-10 p-8 border border-gray-800 shadow-2xl bg-gradient-to-b from-gray-900 to-black rounded-xl backdrop-blur">
+
+
+
+        <div className="relative z-10 p-8 border border-gray-800 shadow-2xl bg-gradient-to-b from-gray-900 to-black backdrop-blur">
           {error && (
             <div className="p-4 mb-6 text-sm text-white bg-red-900 border-l-4 border-red-500 rounded bg-opacity-70 animate-pulse">
               <div className="flex items-center">
@@ -165,9 +207,9 @@ export default function RegisterPage() {
               </div>
             </div>
           )}
-          
+
           <form className="space-y-6" onSubmit={handleSubmit}>
-            
+
             <GoogleLogin
               onSuccess={handleGoogleSignInSuccess}
               onError={handleGoogleSignInError}
@@ -176,7 +218,7 @@ export default function RegisterPage() {
                 <button
                   onClick={renderProps.onClick}
                   disabled={renderProps.disabled}
-                  className="flex items-center justify-center w-full px-4 py-3 font-medium text-gray-800 transition duration-300 transform bg-white rounded-lg hover:bg-gray-100 hover:scale-105"
+                  className="flex items-center justify-center w-full px-4 py-3 font-medium text-gray-800 transition duration-300 transform bg-white hover:bg-gray-100 hover:scale-105"
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path
@@ -188,7 +230,7 @@ export default function RegisterPage() {
                 </button>
               )}
             />
-            
+
             {/* Divider */}
             <div className="relative flex items-center py-2">
               <div className="flex-grow border-t border-gray-700"></div>
@@ -197,18 +239,18 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-1">
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">Username</label>
-              <div className="relative rounded-md shadow-sm">
+              <div className="relative shadow-sm">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                   </svg>
                 </div>
-                <input 
-                  type="text" 
-                  id="username" 
+                <input
+                  type="text"
+                  id="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Username"
                   required
                 />
@@ -216,25 +258,25 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-1">
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email Address</label>
-              <div className="relative rounded-md shadow-sm">
+              <div className="relative shadow-sm">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                   </svg>
                 </div>
-                <input 
-                  type="email" 
-                  id="email" 
+                <input
+                  type="email"
+                  id="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="you@example.com"
                   required
                 />
               </div>
             </div>
-            
-            
+
+
             <div className="space-y-1">
               <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
               <div className="relative rounded-md shadow-sm">
@@ -243,40 +285,40 @@ export default function RegisterPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
-                <input 
-                  type="password" 
-                  id="password" 
+                <input
+                  type="password"
+                  id="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                   required
                 />
               </div>
             </div>
-            
-            
+
+
             <div className="space-y-1">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">Confirm Password</label>
-              <div className="relative rounded-md shadow-sm">
+              <div className="relative shadow-sm">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </div>
-                <input 
-                  type="password" 
-                  id="confirmPassword" 
+                <input
+                  type="password"
+                  id="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 rounded-lg bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                   required
                 />
               </div>
             </div>
-            
-            
+
+
             <div className="flex items-start">
               <div className="flex items-center h-5">
                 <input
@@ -293,12 +335,12 @@ export default function RegisterPage() {
                 </label>
               </div>
             </div>
-            
-            
+
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 font-bold text-white transition duration-300 transform rounded-lg shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:translate-y-1 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 font-bold text-white transition duration-300 border border-white hover:border-purple-500"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -308,27 +350,27 @@ export default function RegisterPage() {
                   </svg>
                   Creating Account...
                 </span>
-              ) : 'CREATE ACCOUNT'}
+              ) : 'Create Account'}
             </button>
-            
-            {/* {signSuccess &&(
-          <div className='relative flex'>
-            <div className='w-full text-center bg-black y-full'>
-            <span style={{margin:0, color:"red",fontSize:"25px"}}>&#33;</span> <span style={{fontWeight:"bold"}}> Account has been created, please log in.</span>
-           </div>
-          </div>
-        )} */}
-            
+
+            {/* {signSuccess && (
+              <div className='relative flex'>
+                <div className='w-full text-center bg-black y-full'>
+                  <span style={{ margin: 0, color: "red", fontSize: "25px" }}>&#33;</span> <span style={{ fontWeight: "bold" }}> Account has been created, please log in.</span>
+                </div>
+              </div>
+            )} */}
+
             <div className="mt-6 text-sm text-center text-gray-400">
-              Already have an account? 
+              Already have an account?
               <a href="/login" className="ml-1 text-purple-400 transition duration-200 hover:text-purple-300 hover:underline">
                 Sign in
               </a>
             </div>
           </form>
         </div>
-        
-        
+
+
         <div className="relative z-10 mt-8 text-xs text-center text-gray-500">
           <p>© 2025 Dogwood Gaming. All rights reserved.</p>
           <div className="mt-2">
