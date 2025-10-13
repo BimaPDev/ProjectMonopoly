@@ -15,12 +15,35 @@ import (
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 )
 type GameContextResponse struct {
-	GameName             string `json:"game_name"`
-	Description          string `json:"description"`
-	TargetAudience       string `json:"target_audience"`
-	KeyFeatures          string `json:"key_features"`
-	Tone                 string `json:"tone"`
-	UniqueSellingPoints  string `json:"unique_selling_points"`
+	// Section 1: Basic Game Information
+	GameTitle    string   `json:"game_title"`
+	StudioName   string   `json:"studio_name"`
+	GameSummary  string   `json:"game_summary"`
+	Platforms    []string `json:"platforms"`
+	EngineTech   string   `json:"engine_tech"`
+
+	// Section 2: Core Identity
+	PrimaryGenre    string `json:"primary_genre"`
+	Subgenre        string `json:"subgenre"`
+	KeyMechanics    string `json:"key_mechanics"`
+	PlaytimeLength  string `json:"playtime_length"`
+	ArtStyle        string `json:"art_style"`
+	Tone            string `json:"tone"`
+
+	// Section 3: Target Audience
+	IntendedAudience  string `json:"intended_audience"`
+	AgeRange          string `json:"age_range"`
+	PlayerMotivation  string `json:"player_motivation"`
+	ComparableGames   string `json:"comparable_games"`
+
+	// Section 4: Marketing Goals
+	MarketingObjective string `json:"marketing_objective"`
+	KeyEventsDates     string `json:"key_events_dates"`
+	CallToAction       string `json:"call_to_action"`
+
+	// Section 5: Restrictions / Boundaries
+	ContentRestrictions  string `json:"content_restrictions"`
+	CompetitorsToAvoid   string `json:"competitors_to_avoid"`
 }
 
 type OllamaRequest struct {
@@ -87,30 +110,74 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	} else {
 		fmt.Printf("File content: %s\n", fc)
 	}
-	prompt := fmt.Sprintf(`Extract marketing information about a game from the following document.
+	prompt := fmt.Sprintf(`Extract comprehensive marketing and game information from the following document.
 
-		Return a JSON object with these exact fields:
-		- game_name: string
-		- description: string (2-3 paragraphs)
-		- target_audience: string
-		- key_features: string
-		- tone: string
-		- unique_selling_points: string
+Return a JSON object with these exact fields organized by section:
 
-		Example output:
-		{
-		"game_name": "Mystic Legends",
-		"description": "Mystic Legends is an epic fantasy RPG that combines strategic combat with deep narrative choices. Players embark on a journey through a richly detailed world where every decision shapes the story. The game features a unique magic system that evolves based on player choices.",
-		"target_audience": "Core gamers aged 18-35 who enjoy deep RPGs, fantasy settings, and narrative-driven experiences. Appeals to fans of games like The Witcher, Dragon Age, and Baldur's Gate.",
-		"key_features": "• Dynamic magic system that evolves with player choices\n• Branching narrative with 50+ hours of content\n• Strategic real-time combat\n• Fully voiced companions with unique storylines\n• Player choices impact world state",
-		"tone": "Epic and immersive, with a focus on adventure and discovery. Serious but accessible, emphasizing the weight of player decisions.",
-		"unique_selling_points": "The only RPG where your magic abilities fundamentally change based on moral choices. Every playthrough offers a completely different magical experience."
-		}
+SECTION 1 - Basic Game Information:
+- game_title: string (the official game title)
+- studio_name: string (developer/studio name)
+- game_summary: string (one-sentence summary)
+- platforms: array of strings (e.g., ["PC", "Console", "Mobile"])
+- engine_tech: string (game engine or tech stack)
 
-		Document text:
-		%s
+SECTION 2 - Core Identity:
+- primary_genre: string (main genre)
+- subgenre: string (gameplay style or subgenre)
+- key_mechanics: string (3-5 key features or mechanics, bullet-pointed)
+- playtime_length: string (e.g., "short session", "mid-length campaign", "endless")
+- art_style: string (visual style)
+- tone: string (overall tone/mood)
 
-		Return ONLY the JSON object, no additional text.`, fc)
+SECTION 3 - Target Audience:
+- intended_audience: string (who the game is for)
+- age_range: string (target age range)
+- player_motivation: string (what players get from the game)
+- comparable_games: string (similar/comparable games)
+
+SECTION 4 - Marketing Goals:
+- marketing_objective: string (main marketing goal)
+- key_events_dates: string (important dates or events)
+- call_to_action: string (preferred CTA)
+
+SECTION 5 - Restrictions/Boundaries:
+- content_restrictions: string (content to avoid)
+- competitors_to_avoid: string (competitors or topics to not mention)
+
+Example output:
+{
+  "game_title": "Mystic Legends",
+  "studio_name": "Epic Quest Studios",
+  "game_summary": "An epic fantasy RPG where player choices shape a magical world.",
+  "platforms": ["PC", "Console"],
+  "engine_tech": "Unreal Engine 5",
+  "primary_genre": "RPG",
+  "subgenre": "Action RPG with narrative focus",
+  "key_mechanics": "• Dynamic magic system\n• Branching narrative\n• Strategic combat\n• Player choice consequences",
+  "playtime_length": "50+ hour campaign",
+  "art_style": "Stylized realistic 3D",
+  "tone": "Epic and immersive with serious themes",
+  "intended_audience": "Core gamers who enjoy deep RPGs and fantasy settings",
+  "age_range": "18-35",
+  "player_motivation": "Mastery, exploration, narrative engagement",
+  "comparable_games": "The Witcher 3, Dragon Age, Baldur's Gate 3",
+  "marketing_objective": "Wishlist growth",
+  "key_events_dates": "Demo release Q2 2024, Early Access Q4 2024",
+  "call_to_action": "Add to Wishlist on Steam",
+  "content_restrictions": "Avoid graphic violence depictions in marketing",
+  "competitors_to_avoid": ""
+}
+
+Rules:
+- If information is not in the document, use reasonable inferences
+- If truly unknown, use empty string ""
+- Keep all responses marketing-focused and actionable
+- Ensure valid JSON format
+
+Document text:
+%s
+
+Return ONLY the JSON object, no additional text.`, fc)
 	message := []map[string]interface{}{
 		{
 			"role": "system",

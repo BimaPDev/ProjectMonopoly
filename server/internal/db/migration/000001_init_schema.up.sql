@@ -239,17 +239,48 @@ CREATE TRIGGER trg_touch_ingest_jobs
 BEFORE UPDATE ON document_ingest_jobs FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 
-create table if not exists game_contexts(
-  id serial primary key,
-  user_id int not null references users(id) on delete cascade,
-  groupid int not null referenecs groups(id) on delete cascade,
-  game_name not null varchar(255),
-  description text,
-  target_audience text,
-  key_features text,
-  tone text,
-  unique_selling_points text,
-  created_at TIMESTAMP not null default now(),
-  updated_at timestamp not null default now()
+CREATE TABLE IF NOT EXISTS game_contexts (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id INT REFERENCES groups(id) ON DELETE CASCADE,
 
-)
+  -- Section 1: Basic Game Information
+  game_title VARCHAR(255) NOT NULL,
+  studio_name VARCHAR(255),
+  game_summary TEXT,
+  platforms TEXT[], -- ['PC', 'Console', 'Mobile', 'VR']
+  engine_tech VARCHAR(255),
+
+  -- Section 2: Core Identity
+  primary_genre VARCHAR(100),
+  subgenre VARCHAR(100),
+  key_mechanics TEXT, -- comma-separated or JSON
+  playtime_length VARCHAR(100), -- e.g., "short session", "mid-length campaign"
+  art_style VARCHAR(100),
+  tone VARCHAR(100),
+
+  -- Section 3: Target Audience
+  intended_audience TEXT,
+  age_range VARCHAR(50),
+  player_motivation TEXT,
+  comparable_games TEXT, -- comma-separated game names
+
+  -- Section 4: Marketing Goals
+  marketing_objective VARCHAR(50), -- 'awareness', 'wishlist', 'demo', etc.
+  key_events_dates TEXT, -- JSON or text describing events
+  call_to_action VARCHAR(255),
+
+  -- Section 5: Restrictions / Boundaries
+  content_restrictions TEXT,
+  competitors_to_avoid TEXT,
+
+  -- Metadata
+  extraction_method VARCHAR(20) DEFAULT 'manual', -- 'manual' or 'ai_extracted'
+  original_file_name VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Index for faster queries by user and group
+CREATE INDEX IF NOT EXISTS idx_game_contexts_user_id ON game_contexts(user_id);
+CREATE INDEX IF NOT EXISTS idx_game_contexts_group_id ON game_contexts(group_id);

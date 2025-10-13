@@ -5,28 +5,31 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } fr
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 import { TeamSwitcher } from "./team-switcher"
-import { GalleryHorizontalEnd, Home, BotIcon, MessageCircle, Users2 } from "lucide-react"
+import { Home, BotIcon, MessageCircle, Users2 } from "lucide-react"
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
   const pathname = location.pathname
 
-  const teams = [
-    { name: "DoogWood Gaming", logo: GalleryHorizontalEnd, plan: "Enterprise" },
-  ]
-
   // Build your nav items and mark the active one
   const navMainItems = [
-    { title: "Dashboard",    url: "/dashboard",             icon: Home    },
-    { title: "Media Workshop",    url: "/dashboard/ai",          icon: BotIcon },
-    { title: "Posts",         url: "/dashboard/posts",       icon: MessageCircle },
-    { title: "Competitors",   url: "/dashboard/competitors", icon: Users2 },
+    { title: "Dashboard", url: "/dashboard", icon: Home },
+    {
+      title: "Media Workshop",
+      url: "/dashboard/ai",
+      icon: BotIcon,
+      items: [
+        { title: "AI Assistant", url: "/dashboard/ai" },
+        { title: "Game Context", url: "/dashboard/gamecontext" }
+      ]
+    },
+    { title: "Posts", url: "/dashboard/posts", icon: MessageCircle },
+    { title: "Competitors", url: "/dashboard/competitors", icon: Users2 },
   ].map(item => ({
     ...item,
     isActive: pathname === item.url,
-    
   }))
-  
+
   const [userData, setUserData] = React.useState({
     name: "",
     email: "",
@@ -43,7 +46,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams} />
+        <TeamSwitcher />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMainItems} />

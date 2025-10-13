@@ -3,42 +3,93 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { FileText, Loader2, Upload, Sparkles, CheckCircle2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { UpdateIcon } from "@radix-ui/react-icons";
 
-export default function GameContextTest() {
+interface GameContextData {
+    game_title: string;
+    studio_name: string;
+    game_summary: string;
+    platforms: string[];
+    engine_tech: string;
+    primary_genre: string;
+    subgenre: string;
+    key_mechanics: string;
+    playtime_length: string;
+    art_style: string;
+    tone: string;
+    intended_audience: string;
+    age_range: string;
+    player_motivation: string;
+    comparable_games: string;
+    marketing_objective: string;
+    key_events_dates: string;
+    call_to_action: string;
+    content_restrictions: string;
+    competitors_to_avoid: string;
+}
+
+export default function GameContextPage() {
+    const [inputMethod, setInputMethod] = useState<"upload" | "manual" | null>(null);
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
-    const [response, setResponse] = useState<any>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [extractedData, setExtractedData] = useState<GameContextData | null>(null);
+    const [formData, setFormData] = useState<GameContextData>({
+        game_title: "",
+        studio_name: "",
+        game_summary: "",
+        platforms: [],
+        engine_tech: "",
+        primary_genre: "",
+        subgenre: "",
+        key_mechanics: "",
+        playtime_length: "",
+        art_style: "",
+        tone: "",
+        intended_audience: "",
+        age_range: "",
+        player_motivation: "",
+        comparable_games: "",
+        marketing_objective: "",
+        key_events_dates: "",
+        call_to_action: "",
+        content_restrictions: "",
+        competitors_to_avoid: "",
+    });
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setFile(e.target.files[0]);
-            setResponse(null);
-            setError(null);
         }
     };
 
-    const handleUpload = async () => {
+    const handleFileUpload = async () => {
         if (!file) {
-            setError("Please select a file first");
+            toast({
+                title: "No file selected",
+                description: "Please select a file to upload",
+                variant: "destructive",
+            });
             return;
         }
 
         setLoading(true);
-        setError(null);
-        setResponse(null);
 
         try {
-            const formData = new FormData();
-            formData.append("file", file);
+            const formDataPayload = new FormData();
+            formDataPayload.append("file", file);
 
             const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/games/extract`, {
                 method: "POST",
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 },
-                body: formData,
+                body: formDataPayload,
             });
 
             if (!res.ok) {
@@ -47,70 +98,59 @@ export default function GameContextTest() {
             }
 
             const data = await res.json();
-            setResponse(data);
+            setExtractedData(data);
+            setFormData(data);
+
+            toast({
+                title: "Success!",
+                description: "AI extracted the game information. Please review and edit as needed.",
+            });
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Upload failed");
+            toast({
+                title: "Upload Failed",
+                description: err instanceof Error ? err.message : "Something went wrong",
+                variant: "destructive",
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <div className="min-h-screen p-8 text-white bg-black">
-            <div className="max-w-4xl mx-auto space-y-6">
-                <h1 className="text-3xl font-bold">Game Context Extraction Test</h1>
+    const handleInputChange = (field: keyof GameContextData, value: string | string[]) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
 
-                <Card className="bg-gray-900 border-gray-800">
-                    <CardHeader>
-                        <CardTitle className="text-white">Upload Test File</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div>
-                            <Input
-                                type="file"
-                                accept=".txt,.pdf"
-                                onChange={handleFileChange}
-                                className="text-white bg-gray-800 border-gray-700"
-                            />
-                            {file && (
-                                <p className="mt-2 text-sm text-gray-400">
-                                    Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)
-                                </p>
-                            )}
-                        </div>
+    const handleSubmit = async () => {
+        // TODO: Implement save to database
+        console.log("Saving to database:", formData);
+        toast({
+            title: "Coming soon!",
+            description: "Save to database functionality will be implemented next.",
+        });
+    };
 
-                        <Button
-                            onClick={handleUpload}
-                            disabled={!file || loading}
-                            className="bg-blue-600 hover:bg-blue-700"
-                        >
-                            {loading ? "Processing..." : "Upload & Extract"}
-                        </Button>
-                    </CardContent>
-                </Card>
+    if (!inputMethod) {
+        return (
+            <div className="flex flex-col min-h-screen p-10 text-white">
+                <div className="flex flex-col justify-start ml-10">
+                    <h1 className="text-3xl font-bold">Add Game Context</h1>
+                    <h2 className="text-slate-400">Choose how you'd like to add game information</h2>
+                </div>
+                <div className="grid gap-6 mt-5 md:grid-cols-2">
+                    <div className="flex flex-col items-center justify-center max-w-xl border hover:border-purple-500">
+                        <div className="p-5 rounded-full bg-blue-400/70 "> <Upload /></div>
+                        hi
+                    </div>
+                    <div>
 
-                {error && (
-                    <Card className="bg-red-900/20 border-red-500/30">
-                        <CardContent className="pt-6">
-                            <h3 className="font-semibold text-red-400">Error:</h3>
-                            <pre className="mt-2 text-sm text-red-300 whitespace-pre-wrap">{error}</pre>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {response && (
-                    <Card className="bg-gray-900 border-gray-800">
-                        <CardHeader>
-                            <CardTitle className="text-white">Backend Response:</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <pre className="p-4 overflow-auto text-sm text-gray-300 rounded bg-gray-950">
-                                {JSON.stringify(response, null, 2)}
-                            </pre>
-                        </CardContent>
-                    </Card>
-                )}
+                    </div>
+                </div>
             </div>
+        );
+    }
+    return (
+        <div>
+
         </div>
     );
 }

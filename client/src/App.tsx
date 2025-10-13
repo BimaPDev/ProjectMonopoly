@@ -16,7 +16,7 @@ import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CreateGroupSettings from "./app/settings/page";
-import GameContextTest from "./app/gameContext/page.tsx";
+import GameContextTest from "./app/gamecontext/page.tsx";
 
 // Add the GroupProvider import
 import { GroupProvider } from "./components/groupContext.tsx"; // Adjust the path as needed
