@@ -133,31 +133,33 @@ export default function GameContextPage() {
 
     if (!inputMethod) {
         return (
-            <div className="flex flex-col flex-wrap min-h-screen p-10 text-white">
+            <div className="flex flex-col flex-wrap p-10 text-white h-100vh ">
                 <div className="flex flex-col justify-start ">
                     <h1 className="text-3xl font-bold">Add Game Context</h1>
                     <h2 className="text-slate-400">Choose how you'd like to add game information</h2>
                 </div>
-                <div className="grid flex-wrap gap-0 mt-5 md:grid-cols-2">
-                    <div className="flex flex-col flex-wrap items-center justify-center max-w-xl border hover:border-purple-500 hover:cursor-pointer"
-                        onClick={() => setInputMethod("upload")}
-                    >
-                        <div className="p-3 mt-5 rounded-full bg-blue-500/20"> <Upload className="text-blue-400" /></div>
-                        <div className="flex flex-col items-center justify-center p-5 mt-2">
-                            <h1 className="text-xl font-semibold">Upload Document</h1>
-                            <h2 className="text-sm text-slate-500">Let AI extract information from your PDF or TXT file</h2>
-                            <h2 className="text-sm text-slate-500"> Get a chance to review before submit</h2>
+                <div className="flex items-center justify-center min-w-full">
+                    <div className="grid min-w-full gap-5 px-10 mt-5 md:grid-cols-2">
+                        <div className="flex flex-col flex-wrap items-center justify-center max-w-xl border hover:border-purple-500 hover:cursor-pointer"
+                            onClick={() => setInputMethod("upload")}
+                        >
+                            <div className="p-3 mt-5 rounded-full bg-blue-500/20"> <Upload className="text-blue-400" /></div>
+                            <div className="flex flex-col items-center justify-center p-5 mt-2">
+                                <h1 className="text-xl font-semibold">Upload Document</h1>
+                                <h2 className="text-sm text-slate-500">Let AI extract information from your PDF or TXT file</h2>
+                                <h2 className="text-sm text-slate-500"> Get a chance to review before submit</h2>
 
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex flex-col flex-wrap items-center justify-center max-w-xl border hover:border-purple-500 hover:cursor-pointer"
-                        onClick={() => setInputMethod("manual")}
-                    >
-                        <div className="p-3 mt-5 rounded-full bg-purple-500/20"> <FileText className="text-purple-400" /></div>
-                        <div className="flex flex-col items-center justify-center p-5 mt-2">
-                            <h1 className="text-xl font-semibold">Manual Entry</h1>
-                            <h2 className="text-sm text-slate-500">Fill out the form yourself</h2>
+                        <div className="flex flex-col flex-wrap items-center justify-center max-w-xl border hover:border-purple-500 hover:cursor-pointer"
+                            onClick={() => setInputMethod("manual")}
+                        >
+                            <div className="p-3 mt-5 rounded-full bg-purple-500/20"> <FileText className="text-purple-400" /></div>
+                            <div className="flex flex-col items-center justify-center p-5 mt-2">
+                                <h1 className="text-xl font-semibold">Manual Entry</h1>
+                                <h2 className="text-sm text-slate-500">Fill out the form yourself</h2>
 
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -248,8 +250,34 @@ export default function GameContextPage() {
         );
     }
     return (
-        <div>
-
+        <div className="p-8 text-white min-h-100">
+            <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        {extractedData ?
+                            <div>
+                                <h1 className="text-2xl font-bold"> Review and edit game context</h1>
+                                <h2 className="text-slate-500"> Ai has extracted the information. Review and edit before submitting</h2>
+                            </div> :
+                            <div>
+                                <h1 className="text-2xl font-bold">Enter game context</h1>
+                                <h2 className="text-slate-500"> Provide details about your game</h2>
+                            </div>
+                        }
+                    </div>
+                    <Button
+                        variant="ghost"
+                        onClick={() => {
+                            setInputMethod(null);
+                            setExtractedData(null);
+                            setFile(null);
+                        }}
+                        className="text-gray-400 hover:text-white"
+                    >
+                        Start Over
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 }

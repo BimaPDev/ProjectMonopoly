@@ -66,14 +66,14 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 // TriggerFollowersScript handles requests to trigger the followers Python script
 func TriggerFollowersScript(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	w.Header().Set("Content-Type", "application/json")
-	print("SCRIPT TRIGGERED")
-	// Debug: Log the incoming request (if needed for troubleshooting)
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-		return
-	}
-	fmt.Printf("Raw request body: %s\n", string(body))
+	// print("SCRIPT TRIGGERED")
+	// // Debug: Log the incoming request (if needed for troubleshooting)
+	// body, err := io.ReadAll(r.Body)
+	// if err != nil {
+	// 	http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+	// 	return
+	// }
+	// fmt.Printf("Raw request body: %s\n", string(body))
 
 	// Call the GetFollowers function from utils	
 	utils.GetFollowers(w,r, queries)
