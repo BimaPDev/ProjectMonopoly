@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { FileText, Loader2, Upload, Sparkles, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { UpdateIcon } from "@radix-ui/react-icons";
+import { useRef } from "react";
 
 interface GameContextData {
     game_title: string;
@@ -37,6 +38,7 @@ interface GameContextData {
 export default function GameContextPage() {
     const [inputMethod, setInputMethod] = useState<"upload" | "manual" | null>(null);
     const [file, setFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [extractedData, setExtractedData] = useState<GameContextData | null>(null);
     const [formData, setFormData] = useState<GameContextData>({
@@ -131,21 +133,118 @@ export default function GameContextPage() {
 
     if (!inputMethod) {
         return (
-            <div className="flex flex-col min-h-screen p-10 text-white">
-                <div className="flex flex-col justify-start ml-10">
+            <div className="flex flex-col flex-wrap min-h-screen p-10 text-white">
+                <div className="flex flex-col justify-start ">
                     <h1 className="text-3xl font-bold">Add Game Context</h1>
                     <h2 className="text-slate-400">Choose how you'd like to add game information</h2>
                 </div>
-                <div className="grid gap-6 mt-5 md:grid-cols-2">
-                    <div className="flex flex-col items-center justify-center max-w-xl border hover:border-purple-500">
-                        <div className="p-5 rounded-full bg-blue-400/70 "> <Upload /></div>
-                        hi
-                    </div>
-                    <div>
+                <div className="grid flex-wrap gap-0 mt-5 md:grid-cols-2">
+                    <div className="flex flex-col flex-wrap items-center justify-center max-w-xl border hover:border-purple-500 hover:cursor-pointer"
+                        onClick={() => setInputMethod("upload")}
+                    >
+                        <div className="p-3 mt-5 rounded-full bg-blue-500/20"> <Upload className="text-blue-400" /></div>
+                        <div className="flex flex-col items-center justify-center p-5 mt-2">
+                            <h1 className="text-xl font-semibold">Upload Document</h1>
+                            <h2 className="text-sm text-slate-500">Let AI extract information from your PDF or TXT file</h2>
+                            <h2 className="text-sm text-slate-500"> Get a chance to review before submit</h2>
 
+                        </div>
+                    </div>
+                    <div className="flex flex-col flex-wrap items-center justify-center max-w-xl border hover:border-purple-500 hover:cursor-pointer"
+                        onClick={() => setInputMethod("manual")}
+                    >
+                        <div className="p-3 mt-5 rounded-full bg-purple-500/20"> <FileText className="text-purple-400" /></div>
+                        <div className="flex flex-col items-center justify-center p-5 mt-2">
+                            <h1 className="text-xl font-semibold">Manual Entry</h1>
+                            <h2 className="text-sm text-slate-500">Fill out the form yourself</h2>
+
+                        </div>
                     </div>
                 </div>
             </div>
+        );
+
+    }
+    if (inputMethod == "upload" && !extractedData) {
+        return (
+            <div className="min-h-screen p-8 text-white">
+                <div className="max-w-2xl mx-auto">
+                    <Button
+                        variant="ghost"
+                        onClick={() => setInputMethod(null)}
+                        className="mb-6 text-gray-400 hover:text-white"
+                    >
+                        ← Back
+                    </Button>
+                    <div className="p-12 border border-white border-dashed hover:border-purple-500 hover:cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}>
+                        <Input
+                            type="file"
+                            accept=".pdf,.txt"
+                            className="hidden"
+                            onChange={handleFileChange}
+                            ref={fileInputRef}
+                        />
+
+
+                        <div className="flex flex-col items-center justify-center p-4 space-y-4 text-center">
+                            <div className="p-4 rounded-full bg-blue-500/10">
+                                <Upload className="w-8 h-8 text-blue-400" />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-lg font-medium text-white">
+                                    Click to upload files
+                                </p>
+                                <p className="text-sm text-gray-400">
+                                    Supports PNG and TXT (max. 10MB)
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    {file && (
+                        <div className="flex items-center justify-between p-4 mt-3 bg-gray-800 ">
+                            <div className="flex items-center gap-3">
+                                <FileText className="w-8 h-8 text-blue-400" />
+                                <div>
+                                    <p className="font-medium text-white">{file.name}</p>
+                                    <p className="text-sm text-gray-400">
+                                        {(file.size / 1024).toFixed(2)} KB
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setFile(null)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                Remove
+                            </Button>
+                        </div>
+                    )}
+
+                    <Button
+                        onClick={handleFileUpload}
+                        disabled={!file || loading}
+                        className="w-full mt-5 bg-blue-600 hover:bg-blue-700"
+                        size="lg"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Extracting Information...
+                            </>
+                        ) : (
+                            <>
+                                Extract with AI
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div >
         );
     }
     return (
