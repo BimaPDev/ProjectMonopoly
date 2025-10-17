@@ -158,7 +158,32 @@ export default function GameContextPage() {
         };
     }
 
-
+    const handleReset = () => {
+        setFormData({
+            game_title: "",
+            studio_name: "",
+            game_summary: "",
+            platforms: [],
+            engine_tech: "",
+            primary_genre: "",
+            subgenre: "",
+            key_mechanics: "",
+            playtime_length: "",
+            art_style: "",
+            tone: "",
+            intended_audience: "",
+            age_range: "",
+            player_motivation: "",
+            comparable_games: "",
+            marketing_objective: "",
+            key_events_dates: "",
+            call_to_action: "",
+            content_restrictions: "",
+            competitors_to_avoid: "",
+        });
+        setExtractedData(null);
+        setFile(null);
+    }
 
 
     const handleInputChange = (field: keyof GameContextData, value: string | string[]) => {
@@ -358,17 +383,26 @@ export default function GameContextPage() {
                             </div>
                         }
                     </div>
-                    <Button
-                        variant="ghost"
-                        onClick={() => {
-                            setInputMethod(null);
-                            setExtractedData(null);
-                            setFile(null);
-                        }}
-                        className="text-gray-400 hover:text-white"
-                    >
-                        Start Over
-                    </Button>
+                    <div className="flex">
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                setInputMethod(null);
+                            }}
+                            className="text-gray-400 hover:text-white"
+                        >
+                            Go Back
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                handleReset();
+                            }}
+                            className="text-gray-400 hover:text-white"
+                        >
+                            Start Over
+                        </Button>
+                    </div>
                 </div>
                 {extractedData && (
                     <div className="flex items-center gap-3 p-4 mb-6 border bg-green-900/20 border-green-500/30">
@@ -454,10 +488,10 @@ export default function GameContextPage() {
                                 </div>
                                 <div className="flex w-full gap-10">
                                     <div className="w-full mt-2">
-                                        <Label htmlFor="game_summary">Key mechanics / Features</Label>
+                                        <Label htmlFor="key_mechanics">Key mechanics / Features</Label>
                                         <Textarea
                                             id="key_mechanics"
-                                            value={formData.game_summary}
+                                            value={formData.key_mechanics}
                                             onChange={(value) => { handleInputChange("key_mechanics", value.target.value) }}
                                             placeholder="e.g. Customizable Cars, Procedural Levels"
                                         />
@@ -519,26 +553,7 @@ export default function GameContextPage() {
                                         />
 
                                     </div>
-                                    <div className="flex gap-2">
-                                        <div className="flex flex-col w-[70%]">
-                                            <Label htmlFor="Player Motivation">Player Motivation</Label>
-                                            <Textarea
-                                                id="player_motivation"
-                                                value={formData.player_motivation}
-                                                onChange={(value) => { handleInputChange("player_motivation", value.target.value) }}
-                                                placeholder="What do players get out of this? Fun, relaxation, mastery, creativity, competition, etc"
-                                            />
-                                        </div>
-                                        <FormField
-                                            label="Age Range"
-                                            placeholder="e.g. Teen 13-18, Young Adult"
-                                            id="age_range"
-                                            value={formData.age_range}
-                                            onChange={(value) => handleInputChange("age_range", value.target.value)}
-                                            className="w-[50%]"
-                                        />
 
-                                    </div>
                                     <div className="flex items-baseline w-full gap-5 mt-2">
                                         <FormField
                                             label="Comparable Games"
