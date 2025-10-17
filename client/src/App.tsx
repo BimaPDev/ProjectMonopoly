@@ -16,7 +16,7 @@ import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CreateGroupSettings from "./app/settings/page";
-import GameContextTest from "./app/gamecontext/page.tsx";
+import GameContextPage from "./app/gamecontext/page.tsx";
 
 // Add the GroupProvider import
 import { GroupProvider } from "./components/groupContext.tsx"; // Adjust the path as needed
@@ -50,7 +50,7 @@ function App() {
             <Route path="/dashboard/competitors/live" element={<LiveFeedPage />} />
             <Route path="/dashboard/ai" element={<Ai />} />
             <Route path="/dashboard/settings" element={<CreateGroupSettings />} />
-            <Route path="/dashboard/gamecontext" element={<GameContextTest />} />
+            <Route path="/dashboard/gamecontext" element={<GameContextPage />} />
           </Route>
 
           {/* 🔹 Catch-all Route for 404s */}
