@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"

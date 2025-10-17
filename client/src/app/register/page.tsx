@@ -21,16 +21,7 @@ export default function RegisterPage() {
     confirmPassword: string;
   }
 
-  interface ChangeEventTarget {
-    id: keyof FormData;
-    value: string;
-  }
-
-  interface ChangeEvent {
-    target: ChangeEventTarget;
-  }
-
-  const handleChange = (e: ChangeEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
@@ -170,12 +161,8 @@ export default function RegisterPage() {
 
   return (
     <div
-      className="flex items-center justify-center min-h-screen px-6 py-12 text-white"
-      style={{
-        background: "linear-gradient(135deg, #212121, #000000)",
-        backgroundSize: "cover",
-        backgroundAttachment: "fixed"
-      }}
+      className="flex items-center justify-center min-h-screen px-6 py-12 text-white bg-black"
+
     >
       <div className="w-full max-w-md">
 
@@ -196,7 +183,7 @@ export default function RegisterPage() {
 
 
 
-        <div className="relative z-10 p-8 border border-gray-800 shadow-2xl bg-gradient-to-b from-gray-900 to-black backdrop-blur">
+        <div className="relative z-10 p-8 ">
           {error && (
             <div className="p-4 mb-6 text-sm text-white bg-red-900 border-l-4 border-red-500 rounded bg-opacity-70 animate-pulse">
               <div className="flex items-center">
@@ -250,7 +237,7 @@ export default function RegisterPage() {
                   id="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-black border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Username"
                   required
                 />
@@ -269,7 +256,7 @@ export default function RegisterPage() {
                   id="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-black border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="you@example.com"
                   required
                 />
@@ -290,7 +277,7 @@ export default function RegisterPage() {
                   id="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-black border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                   required
                 />
@@ -311,7 +298,7 @@ export default function RegisterPage() {
                   id="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full py-3 pl-10 pr-4 transition duration-200 bg-black border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                   required
                 />
@@ -326,7 +313,7 @@ export default function RegisterPage() {
                   type="checkbox"
                   checked={agreeToTerms}
                   onChange={() => setAgreeToTerms(!agreeToTerms)}
-                  className="w-4 h-4 text-purple-600 transition duration-200 bg-gray-800 border-gray-700 rounded focus:ring-purple-500"
+                  className="w-4 h-4 text-purple-600 transition duration-200 bg-black border-gray-700 rounded focus:ring-purple-500"
                 />
               </div>
               <div className="ml-3 text-sm">

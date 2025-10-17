@@ -290,3 +290,22 @@ WHERE platform = $1 AND username = $2;
 UPDATE group_items
 SET data = @data::jsonb, updated_at = NOW()
 WHERE group_id = @group_id AND platform = @platform;
+
+-- name: CreateGameContext :one
+INSERT INTO game_contexts (
+    user_id, group_id,
+    game_title, studio_name, game_summary, platforms, engine_tech,
+    primary_genre, subgenre, key_mechanics, playtime_length, art_style, tone,
+    intended_audience, age_range, player_motivation, comparable_games,
+    marketing_objective, key_events_dates, call_to_action,
+    content_restrictions, competitors_to_avoid
+)
+VALUES (
+    $1, $2,
+    $3, $4, $5, $6, $7,
+    $8, $9, $10, $11, $12, $13,
+    $14, $15, $16, $17,
+    $18, $19, $20,
+    $21, $22
+)
+RETURNING *;

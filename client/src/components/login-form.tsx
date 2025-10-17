@@ -110,7 +110,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       <div className="flex flex-col items-center justify-center min-h-screen overflow-hidden">
         {/* Login Form */}
         <div>
-          <Card className="w-full max-w-3xl overflow-hidden text-white bg-black border border-gray-800 shadow-lg">
+          <Card className="w-full max-w-3xl overflow-hidden text-white">
             <CardContent className="grid md:grid-cols-2">
               {/* Left Side: Login Form */}
               <form className="p-6 space-y-6 md:p-8" onSubmit={handleLogin}>
@@ -147,7 +147,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                         id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full py-3 pl-10 pr-4 transition duration-200 bg-black border border-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         placeholder="you@example.com"
                         required
                       />
@@ -167,7 +167,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full py-3 pl-10 pr-4 transition duration-200 bg-gray-800 border border-gray-700 bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full py-3 pl-10 pr-4 transition duration-200 bg-black border border-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         placeholder="••••••••"
                         required
                       />

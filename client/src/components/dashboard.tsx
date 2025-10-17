@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import{ useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowDownIcon,
   ArrowRightIcon,
@@ -10,12 +10,12 @@ import {
   CircleIcon,
   CrossCircledIcon,
   LightningBoltIcon,
-  QuestionMarkCircledIcon, 
+  QuestionMarkCircledIcon,
   ReloadIcon,
   StopwatchIcon,
 } from "@radix-ui/react-icons";
 
-import {Loader2Icon, ChartArea,Users, TrendingUp, CheckCheckIcon, Circle } from "lucide-react";
+import { Loader2Icon, ChartArea, Users, TrendingUp, CheckCheckIcon, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,8 +28,8 @@ import { Arrow } from "@radix-ui/react-tooltip";
 import { Calendar, Clock, Check, AlertCircle, Edit, Trash2, Play } from 'lucide-react';
 
 const developmentItems = [
-  {item: "Analytics", status: "ip"},
-  {item: "Log Out", status: "p"},
+  { item: "Analytics", status: "ip" },
+  { item: "Log Out", status: "p" },
 ]
 
 const getStatusColor = (status: string) => {
@@ -67,47 +67,47 @@ interface Campaign {
 export function Dashboard() {
   const [followers, setFollowers] = useState(0);
   const [loading, setLoading] = useState(false);
-  const { activeGroup} = useGroup();
+  const { activeGroup } = useGroup();
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
-  
+
   const filteredCampaigns = campaigns.filter(campaign => {
     if (selectedFilter === 'all') return true;
     return campaign.status === selectedFilter;
   });
 
   async function fetchUserID() {
-      const username = localStorage.getItem("username");
-      const email = localStorage.getItem("email");
-      const token = localStorage.getItem("token");
-      if(!localStorage.getItem("userID") ) {
-        try {
-          console.log("Fetching userid...");
-          const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/UserID`, {
-            method: "POST",
-            headers: {'Content-Type': "application/json", "Authorization": `Bearer ${token}`},
-            body: JSON.stringify({
-              username,
-              email,
-            }),
-          });
+    const username = localStorage.getItem("username");
+    const email = localStorage.getItem("email");
+    const token = localStorage.getItem("token");
+    if (!localStorage.getItem("userID")) {
+      try {
+        console.log("Fetching userid...");
+        const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/UserID`, {
+          method: "POST",
+          headers: { 'Content-Type': "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({
+            username,
+            email,
+          }),
+        });
 
-          if (!response.ok) {
-            console.log("Failed to get userID");
-            return;
-          }
-
-          const data = await response.json();
-          const userID = data.userID;
-          localStorage.setItem("userID", userID);
-
-        } catch (e) {
-          console.log("Error getting userID:", e);
+        if (!response.ok) {
+          console.log("Failed to get userID");
+          return;
         }
+
+        const data = await response.json();
+        const userID = data.userID;
+        localStorage.setItem("userID", userID);
+
+      } catch (e) {
+        console.log("Error getting userID:", e);
       }
     }
-  
+  }
+
   async function fetchFollowers() {
     setLoading(true)
     try {
@@ -116,7 +116,7 @@ export function Dashboard() {
       setFollowers(data);
     } catch (error) {
       console.error("Error fetching followers:", error);
-    }finally{
+    } finally {
       setLoading(false);
     }
   }
@@ -137,7 +137,7 @@ export function Dashboard() {
   async function fetchPosts() {
     try {
       const res = await fetch(
-          `${import.meta.env.VITE_API_CALL}/api/UploadItemsByGroupID?groupID=${activeGroup.ID}`
+        `${import.meta.env.VITE_API_CALL}/api/UploadItemsByGroupID?groupID=${activeGroup.ID}`
       );
 
       if (!res.ok) {
@@ -155,22 +155,22 @@ export function Dashboard() {
   }
 
   useEffect(() => {
-      fetchPosts()
-      fetchUserID()
-  },[])
+    fetchPosts()
+    fetchUserID()
+  }, [])
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen text-white bg-black">
       <Tabs defaultValue="overview" className="w-full">
         <div className="border-b border-gray-800">
-          <TabsList className="bg-transparent border-none h-auto p-0">
-            <TabsTrigger 
-              value="overview" 
+          <TabsList className="h-auto p-0 bg-transparent border-none">
+            <TabsTrigger
+              value="overview"
               className="bg-transparent text-gray-400 data-[state=active]:text-white data-[state=active]:bg-gray-900 border-b-2 border-transparent data-[state=active]:border-blue-500 rounded-none px-6 py-4"
             >
               Overview
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="analytics"
               className="bg-transparent text-gray-400 data-[state=active]:text-white data-[state=active]:bg-gray-900 border-b-2 border-transparent data-[state=active]:border-blue-500 rounded-none px-6 py-4"
             >
@@ -182,12 +182,12 @@ export function Dashboard() {
         <TabsContent value="overview" className="mt-0">
           <div className="w-full px-6 py-8 mx-auto max-w-7xl">
             {/* Stats Cards */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+            <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3">
               {/* Followers Card */}
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+              <div className="p-6 transition-colors bg-black border border-gray-800 rounded-xl hover:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
-                    <div className="bg-blue-500/10 p-3 rounded-lg">
+                    <div className="p-3 rounded-lg bg-blue-500/10">
                       <Users className="w-6 h-6 text-blue-400" />
                     </div>
                     <div>
@@ -197,15 +197,15 @@ export function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-emerald-400 flex items-center">
+                  <p className="flex items-center text-xs text-emerald-400">
                     <TrendingUp className="w-3 h-3 mr-1" />
-                    
+
                   </p>
                 </div>
-                <Button 
-                  onClick={fetchFollowers} 
-                  disabled={loading} 
-                  className="w-full mt-4 bg-blue-600 hover:bg-blue-700 border-none text-white"
+                <Button
+                  onClick={fetchFollowers}
+                  disabled={loading}
+                  className="w-full mt-4 text-white bg-blue-600 border-none hover:bg-blue-700"
                 >
                   {loading ? (
                     <div className="flex items-center justify-center">
@@ -222,21 +222,21 @@ export function Dashboard() {
               </div>
 
               {/* Placeholder Cards */}
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-emerald-500/10 p-3 rounded-lg">
+              <div className="p-6 transition-colors bg-black border border-gray-800 rounded-xl hover:border-gray-700">
+                <div className="flex items-center mb-4 space-x-3">
+                  <div className="p-3 rounded-lg bg-emerald-500/10">
                     <ChartArea className="w-6 h-6 text-emerald-400" />
                   </div>
                   <div>
                     {/* engagement rate */}
                   </div>
                 </div>
-                 {/* engagement rate increase decrease */}
+                {/* engagement rate increase decrease */}
               </div>
 
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-purple-500/10 p-3 rounded-lg">
+              <div className="p-6 transition-colors border border-gray bg-black-900 rounded-xl hover:border-gray-700">
+                <div className="flex items-center mb-4 space-x-3">
+                  <div className="p-3 rounded-lg bg-purple-500/10">
                     <LightningBoltIcon className="w-6 h-6 text-purple-400" />
                   </div>
                   <div>
@@ -249,16 +249,16 @@ export function Dashboard() {
             </div>
 
             {/* Development Status */}
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="bg-amber-500/10 p-3 rounded-lg">
+            <div className="p-6 mb-8 bg-black border border-gray-800 rounded-xl">
+              <div className="flex items-center mb-6 space-x-3">
+                <div className="p-3 rounded-lg bg-amber-500/10">
                   <LightningBoltIcon className="w-6 h-6 text-amber-400" />
                 </div>
                 <h2 className="text-xl font-semibold text-white">Development Status</h2>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 {developmentItems.map((feature, index) => (
-                  <div key={index} className="bg-gray-800 border border-gray-700 rounded-lg p-4 flex items-center space-x-3">
+                  <div key={index} className="flex items-center p-4 space-x-3 bg-gray-800 border border-gray-700 rounded-lg">
                     {feature.status === "c" ? (
                       <CheckCheckIcon className="w-5 h-5 text-emerald-400" />
                     ) : feature.status === "ip" ? (
@@ -266,17 +266,17 @@ export function Dashboard() {
                     ) : (
                       <Circle className="w-5 h-5 text-gray-500" />
                     )}
-                    <span className="text-sm text-white font-medium">{feature.item}</span>
+                    <span className="text-sm font-medium text-white">{feature.item}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Recent Posts */}
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <div className="p-6 border border-gray-800 bg-black-900 rounded-xl">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-emerald-500/10 p-3 rounded-lg">
+                  <div className="p-3 rounded-lg bg-emerald-500/10">
                     <Clock className="w-6 h-6 text-emerald-400" />
                   </div>
                   <h2 className="text-xl font-semibold text-white">Recent Campaigns</h2>
@@ -285,7 +285,7 @@ export function Dashboard() {
                   onClick={() => fetchPosts()}
                   variant="outline"
                   size="sm"
-                  className="border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                  className="text-gray-300 bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-white"
                 >
                   <ReloadIcon className="w-4 h-4 mr-2" />
                   Reload
@@ -299,11 +299,10 @@ export function Dashboard() {
                     <button
                       key={filter}
                       onClick={() => setSelectedFilter(filter)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        selectedFilter === filter
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
-                      }`}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedFilter === filter
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                        }`}
                     >
                       {filter.charAt(0).toUpperCase() + filter.slice(1)}
                     </button>
@@ -313,21 +312,21 @@ export function Dashboard() {
 
               {/* Loading State */}
               {loading && (
-                <div className="text-center py-12">
-                  <div className="text-gray-400 mb-4">
+                <div className="py-12 text-center">
+                  <div className="mb-4 text-gray-400">
                     <Loader2Icon className="w-16 h-16 mx-auto animate-spin" />
                   </div>
-                  <h3 className="text-lg font-medium text-white mb-2">Loading campaigns...</h3>
+                  <h3 className="mb-2 text-lg font-medium text-white">Loading campaigns...</h3>
                 </div>
               )}
 
               {/* Error State */}
               {error && (
-                <div className="text-center py-12">
-                  <div className="text-red-400 mb-4">
+                <div className="py-12 text-center">
+                  <div className="mb-4 text-red-400">
                     <AlertCircle className="w-16 h-16 mx-auto" />
                   </div>
-                  <h3 className="text-lg font-medium text-white mb-2">Error loading campaigns</h3>
+                  <h3 className="mb-2 text-lg font-medium text-white">Error loading campaigns</h3>
                   <p className="text-gray-400">{error}</p>
                 </div>
               )}
@@ -336,11 +335,11 @@ export function Dashboard() {
               {!loading && !error && (
                 <div className="space-y-4">
                   {filteredCampaigns.map((campaign) => (
-                    <div key={campaign.id} className="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors">
+                    <div key={campaign.id} className="p-6 transition-colors bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600">
                       {/* Header */}
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-mono text-gray-300 bg-gray-700 px-3 py-1 rounded">
+                          <span className="px-3 py-1 font-mono text-sm text-gray-300 bg-gray-700 rounded">
                             Group {campaign.group_id}
                           </span>
                           {campaign.valid ? (
@@ -356,18 +355,18 @@ export function Dashboard() {
 
                       {/* Campaign ID */}
                       <div className="mb-4">
-                        <p className="text-xs text-gray-400 mb-1">Campaign ID</p>
-                        <p className="text-sm font-mono text-gray-300 break-all">{campaign.id}</p>
+                        <p className="mb-1 text-xs text-gray-400">Campaign ID</p>
+                        <p className="font-mono text-sm text-gray-300 break-all">{campaign.id}</p>
                       </div>
 
                       {/* Platforms */}
                       <div className="mb-4">
-                        <p className="text-xs text-gray-400 mb-2">Platforms</p>
-                        <div className="flex gap-2 flex-wrap">
+                        <p className="mb-2 text-xs text-gray-400">Platforms</p>
+                        <div className="flex flex-wrap gap-2">
                           {campaign.platforms.map((platform) => (
                             <span
                               key={platform}
-                              className="flex items-center gap-2 px-3 py-1 bg-gray-700 border border-gray-600 text-gray-200 rounded-lg text-xs font-medium"
+                              className="flex items-center gap-2 px-3 py-1 text-xs font-medium text-gray-200 bg-gray-700 border border-gray-600 rounded-lg"
                             >
                               <span>{getPlatformIcon(platform)}</span>
                               {platform}
@@ -388,11 +387,11 @@ export function Dashboard() {
 
               {/* Empty State */}
               {!loading && !error && filteredCampaigns.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="text-gray-500 mb-4">
+                <div className="py-12 text-center">
+                  <div className="mb-4 text-gray-500">
                     <Clock className="w-16 h-16 mx-auto" />
                   </div>
-                  <h3 className="text-lg font-medium text-white mb-2">No campaigns found</h3>
+                  <h3 className="mb-2 text-lg font-medium text-white">No campaigns found</h3>
                   <p className="text-gray-400">No campaigns match your current filter selection.</p>
                 </div>
               )}
@@ -403,11 +402,11 @@ export function Dashboard() {
         <TabsContent value="analytics" className="mt-0">
           <div className="w-full px-6 py-16 mx-auto max-w-7xl">
             <div className="text-center">
-              <div className="bg-blue-500/10 p-6 rounded-2xl inline-block mb-6">
+              <div className="inline-block p-6 mb-6 bg-blue-500/10 rounded-2xl">
                 <ChartArea className="w-12 h-12 text-blue-400" />
               </div>
-              <h3 className="text-2xl font-semibold text-white mb-3">Analytics Coming Soon</h3>
-              <p className="text-gray-400 max-w-md mx-auto">
+              <h3 className="mb-3 text-2xl font-semibold text-white">Analytics Coming Soon</h3>
+              <p className="max-w-md mx-auto text-gray-400">
                 Advanced analytics and insights will be available here to help you track your social media performance.
               </p>
             </div>
