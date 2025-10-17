@@ -1,11 +1,8 @@
 export default function LandingPage() {
   return (
     <div
-      className="min-h-screen text-white"
-      style={{
-        background: "linear-gradient(135deg, #222, #000)",
-        backgroundSize: "cover"
-      }}
+      className="flex items-center justify-center min-h-screen text-white bg-black"
+
     >
       <div className="container flex flex-col items-center px-4 py-12 mx-auto">
         <div className="w-full max-w-md mb-12">
@@ -26,7 +23,7 @@ export default function LandingPage() {
         </div>
 
         {/* Card with buttons */}
-        <div className="w-full max-w-md p-8 bg-gray-900 border border-gray-800 shadow-2xl bg-opacity-70">
+        <div className="w-full max-w-md p-8">
           <h2 className="mb-6 text-2xl font-bold text-center">Ready to Level Up?</h2>
 
           <div className="space-y-4">

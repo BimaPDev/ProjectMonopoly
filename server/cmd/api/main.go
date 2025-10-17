@@ -123,6 +123,9 @@ func main() {
 	mux.HandleFunc("/api/games/extract", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request){
 		handlers.ExtractGameContext(w,r,queries)
 	}))
+	mux.HandleFunc("/api/games/input", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request){
+		handlers.SaveGameContext(w,r, queries)
+	}))
 
 
 

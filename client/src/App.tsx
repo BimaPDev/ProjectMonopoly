@@ -20,6 +20,7 @@ import GameContextTest from "./app/gamecontext/page.tsx";
 
 // Add the GroupProvider import
 import { GroupProvider } from "./components/groupContext.tsx"; // Adjust the path as needed
+import { Toaster } from "@/components/ui/toaster";
 
 // Add your Google Client ID here
 const googleClientId = "1054535744463-vofp68rffke3c3m9r1o4vaq6ss0iggt1.apps.googleusercontent.com"
@@ -55,6 +56,7 @@ function App() {
           {/* 🔹 Catch-all Route for 404s */}
           <Route path="*" element={<div>404 Page Not Found</div>} />
         </Routes>
+        <Toaster />
       </NextThemesProvider>
     </GoogleOAuthProvider>
   );

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,10 +12,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ledongthuc/pdf"
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/ledongthuc/pdf"
 )
-type GameContextResponse struct {
+
+// For JSON input/output - uses regular strings
+type GameContextRequest struct {
+	// Identifiers
+	GroupID *int32 `json:"group_id,omitempty"`
+
 	// Section 1: Basic Game Information
 	GameTitle    string   `json:"game_title"`
 	StudioName   string   `json:"studio_name"`
@@ -46,6 +52,15 @@ type GameContextResponse struct {
 	CompetitorsToAvoid   string `json:"competitors_to_avoid"`
 }
 
+// Helper function to convert string to sql.NullString
+func toNullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
+
+
 type OllamaRequest struct {
 	Model    string                   `json:"model"`
 	Messages []map[string]interface{} `json:"messages"`
@@ -58,9 +73,67 @@ type OllamaResponse struct {
 		} `json:"message"`
 	} `json:"choices"`
 }
+func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries){
+	if r.Method != http.MethodPost{
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed);
+		return
+	}
+
+	// Extract user_id from context (set by JWT middleware)
+	userID, ok := r.Context().Value("userID").(int32)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	var req GameContextRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Convert group_id to sql.NullInt32
+	var groupID sql.NullInt32
+	if req.GroupID != nil && *req.GroupID > 0 {
+		groupID = sql.NullInt32{Int32: *req.GroupID, Valid: true}
+	}
+
+	response, err := queries.CreateGameContext(r.Context(), db.CreateGameContextParams{
+		UserID:              userID,
+		GroupID:             groupID,
+		GameTitle:           req.GameTitle,
+		StudioName:          toNullString(req.StudioName),
+		GameSummary:         toNullString(req.GameSummary),
+		Platforms:           req.Platforms,
+		EngineTech:          toNullString(req.EngineTech),
+		PrimaryGenre:        toNullString(req.PrimaryGenre),
+		Subgenre:            toNullString(req.Subgenre),
+		KeyMechanics:        toNullString(req.KeyMechanics),
+		PlaytimeLength:      toNullString(req.PlaytimeLength),
+		ArtStyle:            toNullString(req.ArtStyle),
+		Tone:                toNullString(req.Tone),
+		IntendedAudience:    toNullString(req.IntendedAudience),
+		AgeRange:            toNullString(req.AgeRange),
+		PlayerMotivation:    toNullString(req.PlayerMotivation),
+		ComparableGames:     toNullString(req.ComparableGames),
+		MarketingObjective:  toNullString(req.MarketingObjective),
+		KeyEventsDates:      toNullString(req.KeyEventsDates),
+		CallToAction:        toNullString(req.CallToAction),
+		ContentRestrictions: toNullString(req.ContentRestrictions),
+		CompetitorsToAvoid:  toNullString(req.CompetitorsToAvoid),
+	})
+
+	if err != nil{
+		http.Error(w,fmt.Sprintf("Could not save to database: %v", err), http.StatusInternalServerError);
+		return;
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response);
+}
 func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries){
 	if r.Method != http.MethodPost{
-		http.Error(w, fmt.Sprintf("Wrong method"), http.StatusBadRequest)
+		http.Error(w, "Wrong method", http.StatusBadRequest)
 		return
 	}
 	
@@ -82,7 +155,7 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	if files :=r.MultipartForm.File["file"]; len(files) > 0{
 		file = files[0]
 	}else{
-		http.Error(w, fmt.Sprintf("Failed to get file"), http.StatusBadRequest)
+		http.Error(w, "Failed to get file", http.StatusBadRequest)
 		return
 	}
 	ext := strings.ToLower(filepath.Ext(file.Filename))
@@ -229,19 +302,24 @@ Return ONLY the JSON object, no additional text.`, fc)
 
 	// Extract the JSON content from AI response
 	aiContent := ollamaResp.Choices[0].Message.Content
-	
+
+	// Log the raw AI content for debugging
+	fmt.Printf("Raw AI Content: %s\n", aiContent)
+
+	// Clean the content - remove any markdown formatting
+	aiContent = strings.TrimSpace(aiContent)
+	aiContent = strings.TrimPrefix(aiContent, "```json")
+	aiContent = strings.TrimPrefix(aiContent, "```")
+	aiContent = strings.TrimSuffix(aiContent, "```")
+	aiContent = strings.TrimSpace(aiContent)
+
+	fmt.Printf("Cleaned AI Content: %s\n", aiContent)
+
 	// Parse the AI's JSON response
-	var gameContext GameContextResponse
+	var gameContext GameContextRequest
 	if err := json.Unmarshal([]byte(aiContent), &gameContext); err != nil {
-		// Try to extract JSON from markdown code blocks if present
-		aiContent = strings.TrimPrefix(aiContent, "```json\n")
-		aiContent = strings.TrimSuffix(aiContent, "\n```")
-		aiContent = strings.TrimSpace(aiContent)
-		
-		if err := json.Unmarshal([]byte(aiContent), &gameContext); err != nil {
-			http.Error(w, fmt.Sprintf("Failed to parse AI response as JSON: %v\nContent: %s", err, aiContent), http.StatusInternalServerError)
-			return
-		}
+		http.Error(w, fmt.Sprintf("Failed to parse AI response as JSON: %v\nCleaned Content: %s", err, aiContent), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
