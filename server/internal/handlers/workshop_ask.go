@@ -11,7 +11,9 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -19,6 +21,55 @@ import (
 )
 
 var citeRe = regexp.MustCompile(`\[p\.(\d+)\]`)
+
+// ---------------- Conversation Memory (2h TTL, last 3 turns) ----------------
+
+type pastTurn struct {
+	Question string
+	Answer   string
+	Context  string
+	Hits     []askHit
+	At       time.Time
+}
+
+var convMem = struct {
+	sync.Mutex
+	M map[string][]pastTurn
+}{M: make(map[string][]pastTurn)}
+
+func memKey(userID, groupID int32) string {
+	return fmt.Sprintf("%d:%d", userID, groupID)
+}
+
+func pushTurn(userID, groupID int32, t pastTurn) {
+	convMem.Lock()
+	defer convMem.Unlock()
+
+	k := memKey(userID, groupID)
+	h := append(convMem.M[k], t)
+
+	// keep last 3 turns, drop >2h old
+	cut := time.Now().Add(-2 * time.Hour)
+	out := make([]pastTurn, 0, 3)
+	for i := len(h) - 1; i >= 0 && len(out) < 3; i-- {
+		if h[i].At.After(cut) {
+			out = append(out, h[i])
+		}
+	}
+	// reverse back to chronological
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	convMem.M[k] = out
+}
+
+func getHistory(userID, groupID int32) []pastTurn {
+	convMem.Lock()
+	defer convMem.Unlock()
+	return append([]pastTurn(nil), convMem.M[memKey(userID, groupID)]...)
+}
+
+// ---------------------------------------------------------------------------
 
 type askReq struct {
 	GroupID      int32  `json:"group_id"`
@@ -53,7 +104,7 @@ func envOr(k, d string) string {
 func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := ctxUserID(r)
-		
+
 		var ar askReq
 		if err := json.NewDecoder(r.Body).Decode(&ar); err != nil || ar.GroupID == 0 || strings.TrimSpace(ar.Question) == "" {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -65,6 +116,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 		}
 
 		ctx := r.Context()
+		history := getHistory(int32(userID), ar.GroupID) // last ≤3 turns in past 2h
 
 		// Exact search with full question
 		rows, _ := q.SearchChunks(ctx, db.SearchChunksParams{
@@ -123,6 +175,19 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 		// Build context + hits list
 		hits := make([]askHit, 0, len(rows))
 		var b strings.Builder
+
+		// Short conversation transcript for continuity
+		if len(history) > 0 {
+			b.WriteString("Conversation so far:\n")
+			for _, t := range history {
+				prevAns := t.Answer
+				if len(prevAns) > 400 {
+					prevAns = prevAns[:400] + "..."
+				}
+				fmt.Fprintf(&b, "Q: %s\nA: %s\n\n", strings.TrimSpace(t.Question), strings.TrimSpace(prevAns))
+			}
+		}
+
 		if len(rows) > 0 {
 			b.WriteString("Context:\n")
 			for i, rr := range rows {
@@ -147,6 +212,15 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 					Snippet:    snip,
 				})
 			}
+		} else if len(history) > 0 {
+			// No fresh rows. Reuse prior Context block to keep thread alive.
+			b.WriteString("Context:\n")
+			lastCtx := history[len(history)-1].Context
+			if strings.TrimSpace(lastCtx) == "" {
+				b.WriteString("<none>\n")
+			} else {
+				b.WriteString(lastCtx + "\n")
+			}
 		}
 
 		// Model + host
@@ -165,7 +239,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 
 		// No-context handling
 		var sys, user string
-		if len(rows) == 0 {
+		if len(rows) == 0 && len(history) == 0 {
 			if !ar.AllowOutside {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(askResp{
@@ -207,15 +281,26 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			}
 		}
 
-		// Require numeric page citations when context existed
-		if len(rows) > 0 && citeRe.FindStringIndex(ans) == nil {
+		// Require numeric page citations when any Context existed (fresh or reused) and not opinion
+		if (len(rows) > 0 || len(history) > 0) && citeRe.FindStringIndex(ans) == nil && mode != "opinion" {
 			ans = "Unable to generate a grounded answer with page citations from your PDFs."
 		}
+
+		// Save turn to memory
+		pushTurn(int32(userID), ar.GroupID, pastTurn{
+			Question: ar.Question,
+			Answer:   strings.TrimSpace(ans),
+			Context:  b.String(),
+			Hits:     hits,
+			At:       time.Now(),
+		})
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(askResp{Answer: strings.TrimSpace(ans), Hits: hits})
 	}
 }
+
+// -------------------- helpers --------------------
 
 func buildStrictUserPrompt(contextBlock, question string) string {
 	var b strings.Builder
@@ -257,7 +342,12 @@ func buildOpinionNoContext(ar askReq) string {
 }
 
 func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, opts map[string]any) (string, error) {
-	// Try /api/chat
+	// Wake Ollama/model (handles idle unloads)
+	_ = pingOllama(host, 10*time.Second)
+
+	client := &http.Client{Timeout: ollamaTimeout()}
+
+	// Try /api/chat with retries/backoff
 	body := map[string]any{
 		"model":   model,
 		"stream":  false,
@@ -268,19 +358,29 @@ func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, o
 		},
 	}
 	b, _ := json.Marshal(body)
-	req, _ := http.NewRequestWithContext(ctx, "POST", host+"/api/chat", bytes.NewReader(b))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := (&http.Client{Timeout: 60 * time.Second}).Do(req)
-	if err == nil && resp != nil && resp.StatusCode == 200 {
-		defer resp.Body.Close()
-		var out struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
+
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		req, _ := http.NewRequestWithContext(ctx, "POST", host+"/api/chat", bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
+		if err == nil && resp != nil && resp.StatusCode == 200 {
+			defer resp.Body.Close()
+			var out struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			}
+			if json.NewDecoder(resp.Body).Decode(&out) == nil {
+				return strings.TrimSpace(out.Message.Content), nil
+			}
+		} else {
+			if resp != nil {
+				resp.Body.Close()
+			}
+			lastErr = err
 		}
-		if json.NewDecoder(resp.Body).Decode(&out) == nil {
-			return strings.TrimSpace(out.Message.Content), nil
-		}
+		time.Sleep(time.Duration(attempt*2) * time.Second) // backoff
 	}
 
 	// Fallback /api/generate
@@ -293,8 +393,11 @@ func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, o
 	gb, _ := json.Marshal(gen)
 	req2, _ := http.NewRequestWithContext(ctx, "POST", host+"/api/generate", bytes.NewReader(gb))
 	req2.Header.Set("Content-Type", "application/json")
-	resp2, err2 := (&http.Client{Timeout: 60 * time.Second}).Do(req2)
+	resp2, err2 := client.Do(req2)
 	if err2 != nil {
+		if lastErr != nil {
+			return "", lastErr
+		}
 		return "", err2
 	}
 	defer resp2.Body.Close()
@@ -311,7 +414,27 @@ func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, o
 	return strings.TrimSpace(gout.Response), nil
 }
 
-// helpers
+// configurable timeout (default 180s) to survive cold-start loads
+func ollamaTimeout() time.Duration {
+	if v := os.Getenv("OLLAMA_TIMEOUT_SEC"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return 180 * time.Second
+}
+
+// quick ping to wake Ollama/model
+func pingOllama(host string, to time.Duration) error {
+	c := &http.Client{Timeout: to}
+	req, _ := http.NewRequest("GET", host+"/api/tags", nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
 
 func orDefault(s, d string) string {
 	if strings.TrimSpace(s) == "" {
