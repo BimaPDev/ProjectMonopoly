@@ -266,13 +266,13 @@ Return ONLY the JSON object, no additional text.`, fc)
 		Messages: messages,
 	}
 	b, _ := json.Marshal(reqBody)
-
+	fmt.Printf("Built a body with: %v", reqBody);
 	// Reasonable timeout: 90s should be enough for a 3B model
 	// If it takes longer, the model is likely too large or not loaded
 	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error calling Ollama at %s: %v", chatURL, err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error calling Ollama  %v", err), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
