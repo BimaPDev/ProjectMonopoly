@@ -81,7 +81,6 @@ type ollamaChatResponse struct {
 }
 
 // ---------------- Handlers ----------------
-
 func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)

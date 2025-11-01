@@ -11,6 +11,9 @@ services:
     environment:
       DATABASE_URL: postgresql://root:secret@postgres:5432/project_monopoly?sslmode=disable
       DOCS_DIR: /data/docs
+      OLLAMA_URL: http://ollama:11434/v1/chat/completions
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: gemma3:latest
     volumes: [docs_data:/data/docs]
     depends_on:
       postgres:

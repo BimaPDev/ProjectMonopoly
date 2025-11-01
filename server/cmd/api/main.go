@@ -128,11 +128,18 @@ func main() {
 		handlers.SaveGameContext(w,r, queries)
 	}))
 
-
+chatURL := "http://ollama:11434/api/chat"
+	model := "qwen2.5:3b-instruct"
+	fmt.Println("Warming up Ollama...")
+	
+	handlers.WarmupOllama(chatURL, model)
+	fmt.Println("Ollama ready!")
 
 	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
 	handlerWithCORS := middleware.CORSMiddleware(mux)
 	port := ":8080"
 	fmt.Printf("✅ API server is running on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, handlerWithCORS))
+
+	
 }
