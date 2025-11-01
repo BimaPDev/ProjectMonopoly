@@ -59,7 +59,7 @@ services:
     environment:
       - OLLAMA_ORIGINS=*
       - OLLAMA_KEEP_ALIVE=10m
-      - OLLAMA_NUM_THREAD=0 
+      - OLLAMA_NUM_THREAD=4
     deploy:
       resources:
         limits:
