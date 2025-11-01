@@ -241,7 +241,7 @@ JSON only:`, fc)
 		Model:   model,
 		Stream:  false,
 		Options: map[string]any{
-			"num_ctx":        1024, // OPTIMIZED: Reduced from 2048
+			"num_ctx":        3072, // OPTIMIZED: Reduced from 2048
 			"num_predict":    200,  // OPTIMIZED: Reduced from 384
 			"temperature":    0.1,  // OPTIMIZED: Lowered from 0.3
 			"top_p":          0.9,
