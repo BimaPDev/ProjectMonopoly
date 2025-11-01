@@ -79,7 +79,26 @@ type ollamaChatResponse struct {
 	} `json:"message"`
 	Done bool `json:"done"`
 }
-
+// Add after line 86 (after type definitions)
+func WarmupOllama(chatURL, model string) error {
+	reqBody := ollamaChatRequest{
+		Model:   model,
+		Stream:  false,
+		Options: map[string]any{"num_predict": 1},
+		Messages: []map[string]string{
+			{"role": "user", "content": "Hi"},
+		},
+	}
+	b, _ := json.Marshal(reqBody)
+	
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
 // ---------------- Handlers ----------------
 func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	if r.Method != http.MethodPost {
