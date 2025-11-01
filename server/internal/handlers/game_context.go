@@ -1,3 +1,4 @@
+// internal/handlers/game_context.go
 package handlers
 
 import (
@@ -11,36 +12,38 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/ledongthuc/pdf"
 )
 
-// For JSON input/output - uses regular strings
+// ---------------- Models ----------------
+
 type GameContextRequest struct {
 	// Identifiers
 	GroupID *int32 `json:"group_id,omitempty"`
 
 	// Section 1: Basic Game Information
-	GameTitle    string   `json:"game_title"`
-	StudioName   string   `json:"studio_name"`
-	GameSummary  string   `json:"game_summary"`
-	Platforms    []string `json:"platforms"`
-	EngineTech   string   `json:"engine_tech"`
+	GameTitle   string   `json:"game_title"`
+	StudioName  string   `json:"studio_name"`
+	GameSummary string   `json:"game_summary"`
+	Platforms   []string `json:"platforms"`
+	EngineTech  string   `json:"engine_tech"`
 
 	// Section 2: Core Identity
-	PrimaryGenre    string `json:"primary_genre"`
-	Subgenre        string `json:"subgenre"`
-	KeyMechanics    string `json:"key_mechanics"`
-	PlaytimeLength  string `json:"playtime_length"`
-	ArtStyle        string `json:"art_style"`
-	Tone            string `json:"tone"`
+	PrimaryGenre   string `json:"primary_genre"`
+	Subgenre       string `json:"subgenre"`
+	KeyMechanics   string `json:"key_mechanics"`
+	PlaytimeLength string `json:"playtime_length"`
+	ArtStyle       string `json:"art_style"`
+	Tone           string `json:"tone"`
 
 	// Section 3: Target Audience
-	IntendedAudience  string `json:"intended_audience"`
-	AgeRange          string `json:"age_range"`
-	PlayerMotivation  string `json:"player_motivation"`
-	ComparableGames   string `json:"comparable_games"`
+	IntendedAudience string `json:"intended_audience"`
+	AgeRange         string `json:"age_range"`
+	PlayerMotivation string `json:"player_motivation"`
+	ComparableGames  string `json:"comparable_games"`
 
 	// Section 4: Marketing Goals
 	MarketingObjective string `json:"marketing_objective"`
@@ -48,34 +51,40 @@ type GameContextRequest struct {
 	CallToAction       string `json:"call_to_action"`
 
 	// Section 5: Restrictions / Boundaries
-	ContentRestrictions  string `json:"content_restrictions"`
-	CompetitorsToAvoid   string `json:"competitors_to_avoid"`
+	ContentRestrictions string `json:"content_restrictions"`
+	CompetitorsToAvoid  string `json:"competitors_to_avoid"`
 }
 
-// Helper function to convert string to sql.NullString
 func toNullString(s string) sql.NullString {
-	if s == "" {
+	if strings.TrimSpace(s) == "" {
 		return sql.NullString{Valid: false}
 	}
 	return sql.NullString{String: s, Valid: true}
 }
 
+// ---------------- Ollama types ----------------
 
-type OllamaRequest struct {
-	Model    string                   `json:"model"`
-	Messages []map[string]interface{} `json:"messages"`
+type ollamaChatRequest struct {
+	Model    string              `json:"model"`
+	Stream   bool                `json:"stream"`
+	Options  map[string]any      `json:"options,omitempty"`
+	Messages []map[string]string `json:"messages"`
 }
 
-type OllamaResponse struct {
-	Choices []struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
-	} `json:"choices"`
+type ollamaChatResponse struct {
+	Model   string `json:"model"`
+	Message struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	} `json:"message"`
+	Done bool `json:"done"`
 }
-func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries){
-	if r.Method != http.MethodPost{
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed);
+
+// ---------------- Handlers ----------------
+
+func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -122,210 +131,183 @@ func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries
 		ContentRestrictions: toNullString(req.ContentRestrictions),
 		CompetitorsToAvoid:  toNullString(req.CompetitorsToAvoid),
 	})
-
-	if err != nil{
-		http.Error(w,fmt.Sprintf("Could not save to database: %v", err), http.StatusInternalServerError);
-		return;
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Could not save to database: %v", err), http.StatusInternalServerError)
+		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response);
+	_ = json.NewEncoder(w).Encode(response)
 }
-func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries){
-	if r.Method != http.MethodPost{
+
+func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Wrong method", http.StatusBadRequest)
 		return
 	}
-	
+	// Reuse shared helper defined elsewhere in your package
 	setCORSHeaders(w)
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434/v1/chat/completions"
+
+	// Base host (no /v1, no /api suffix here)
+	ollamaHost := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
+	if ollamaHost == "" {
+		// Works inside Docker network (backend -> ollama)
+		ollamaHost = "http://ollama:11434"
 	}
-	model := os.Getenv("OLLAMA_MODEL")
+	ollamaHost = strings.TrimRight(ollamaHost, "/")
+	for _, bad := range []string{"/v1", "/v1/", "/api", "/api/"} {
+		ollamaHost = strings.TrimSuffix(ollamaHost, bad)
+	}
+	chatURL := ollamaHost + "/api/chat"
+
+	model := strings.TrimSpace(os.Getenv("OLLAMA_MODEL"))
 	if model == "" {
-		model = "gemma3"
+		model = "qwen2.5:3b-instruct"
 	}
-	if err := r.ParseMultipartForm(10 << 20);
-	err != nil{
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse form: %v", err), http.StatusBadRequest)
 		return
 	}
+
 	var file *multipart.FileHeader
-	if files :=r.MultipartForm.File["file"]; len(files) > 0{
+	if files := r.MultipartForm.File["file"]; len(files) > 0 {
 		file = files[0]
-	}else{
+	} else {
 		http.Error(w, "Failed to get file", http.StatusBadRequest)
 		return
 	}
+
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext != ".txt" && ext != ".pdf" {
-		http.Error(w, "Only .txt and .pdf files are supported", http.StatusInternalServerError)
+		http.Error(w, "Only .txt and .pdf files are supported", http.StatusBadRequest)
 		return
 	}
+
 	var fc string
 	var err error
-
 	if ext == ".pdf" {
 		fc, err = readPDFContent(file)
 	} else {
 		fc, err = readFileContent(file)
 	}
-
-	if err != nil{
+	if err != nil {
 		http.Error(w, fmt.Sprintf("Error reading file: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Log first 500 chars of file content for debugging
-	if len(fc) > 500 {
-		fmt.Printf("File content preview (first 500 chars): %s\n", fc[:500])
-	} else {
-		fmt.Printf("File content: %s\n", fc)
+	// Clamp size to keep latency/memory sane on 4 vCPU / 8 GB
+	// Reduced to 8000 to improve inference speed
+	const maxDoc = 8000
+	if len(fc) > maxDoc {
+		fc = fc[:maxDoc] + "..."
 	}
+
 	prompt := fmt.Sprintf(`Extract comprehensive marketing and game information from the following document.
 
 Return a JSON object with these exact fields organized by section:
 
 SECTION 1 - Basic Game Information:
-- game_title: string (the official game title)
-- studio_name: string (developer/studio name)
-- game_summary: string (one-sentence summary)
-- platforms: array of strings (e.g., ["PC", "Console", "Mobile"])
-- engine_tech: string (game engine or tech stack)
+- game_title: string
+- studio_name: string
+- game_summary: string
+- platforms: array of strings
+- engine_tech: string
 
 SECTION 2 - Core Identity:
-- primary_genre: string (main genre)
-- subgenre: string (gameplay style or subgenre)
-- key_mechanics: string (3-5 key features or mechanics, bullet-pointed)
-- playtime_length: string (e.g., "short session", "mid-length campaign", "endless")
-- art_style: string (visual style)
-- tone: string (overall tone/mood)
+- primary_genre: string
+- subgenre: string
+- key_mechanics: string
+- playtime_length: string
+- art_style: string
+- tone: string
 
 SECTION 3 - Target Audience:
-- intended_audience: string (who the game is for)
-- age_range: string (target age range)
-- player_motivation: string (what players get from the game)
-- comparable_games: string (similar/comparable games)
+- intended_audience: string
+- age_range: string
+- player_motivation: string
+- comparable_games: string
 
 SECTION 4 - Marketing Goals:
-- marketing_objective: string (main marketing goal)
-- key_events_dates: string (important dates or events)
-- call_to_action: string (preferred CTA)
+- marketing_objective: string
+- key_events_dates: string
+- call_to_action: string
 
 SECTION 5 - Restrictions/Boundaries:
-- content_restrictions: string (content to avoid)
-- competitors_to_avoid: string (competitors or topics to not mention)
-
-Example output:
-{
-  "game_title": "Mystic Legends",
-  "studio_name": "Epic Quest Studios",
-  "game_summary": "An epic fantasy RPG where player choices shape a magical world.",
-  "platforms": ["PC", "Console"],
-  "engine_tech": "Unreal Engine 5",
-  "primary_genre": "RPG",
-  "subgenre": "Action RPG with narrative focus",
-  "key_mechanics": "• Dynamic magic system\n• Branching narrative\n• Strategic combat\n• Player choice consequences",
-  "playtime_length": "50+ hour campaign",
-  "art_style": "Stylized realistic 3D",
-  "tone": "Epic and immersive with serious themes",
-  "intended_audience": "Core gamers who enjoy deep RPGs and fantasy settings",
-  "age_range": "18-35",
-  "player_motivation": "Mastery, exploration, narrative engagement",
-  "comparable_games": "The Witcher 3, Dragon Age, Baldur's Gate 3",
-  "marketing_objective": "Wishlist growth",
-  "key_events_dates": "Demo release Q2 2024, Early Access Q4 2024",
-  "call_to_action": "Add to Wishlist on Steam",
-  "content_restrictions": "Avoid graphic violence depictions in marketing",
-  "competitors_to_avoid": ""
-}
+- content_restrictions: string
+- competitors_to_avoid: string
 
 Rules:
-- If information is not in the document, use reasonable inferences
-- If truly unknown, use empty string ""
-- Keep all responses marketing-focused and actionable
-- Ensure valid JSON format
+- If a field is not in the document, set it to "" (empty string).
+- Keep output strictly valid JSON. No explanations.
 
 Document text:
 %s
 
 Return ONLY the JSON object, no additional text.`, fc)
-	message := []map[string]interface{}{
-		{
-			"role": "system",
-			"content": "You are a marketing analyst specializing in video game marketing. You extract structured, marketing-relevant information from game documentation.",
+
+	messages := []map[string]string{
+		{"role": "system", "content": "You are a marketing analyst specializing in video game marketing. Extract structured, marketing-relevant info as valid JSON."},
+		{"role": "user", "content": prompt},
+	}
+
+	reqBody := ollamaChatRequest{
+		Model:   model,
+		Stream:  false,
+		Options: map[string]any{
+			"num_ctx":        2048,  // Reduce from 4096 - faster inference
+			"num_predict":    384,   // Reduce from 512 - your JSON is ~350 tokens max
+			"repeat_penalty": 1.1,
+			"top_p":          0.9,
+			"temperature":    0.3,
+			"seed":           13,
 		},
-		{
-			"role": "user",
-			"content": prompt,
-		},
-
+		Messages: messages,
 	}
-	ollamaReq := OllamaRequest{
-		Model: model,
-		Messages: message,
-	}
+	b, _ := json.Marshal(reqBody)
 
-	OLRequest, err := json.Marshal(ollamaReq)
-	if err != nil{
-		http.Error(w, fmt.Sprintf("Failed to marshal request %v", err), http.StatusInternalServerError)
+	// Reasonable timeout: 90s should be enough for a 3B model
+	// If it takes longer, the model is likely too large or not loaded
+	client := &http.Client{Timeout: 180 * time.Second}
+	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error calling Ollama at %s: %v", chatURL, err), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		rb, _ := io.ReadAll(resp.Body)
+		http.Error(w, fmt.Sprintf("Ollama API error (%d): %s", resp.StatusCode, string(rb)), http.StatusInternalServerError)
 		return
 	}
 
-	ollamaRes, err := http.Post(ollamaURL, "application/json", bytes.NewBuffer(OLRequest))
-	if err != nil{
-		http.Error(w, fmt.Sprintf("Error calling ollama api %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer ollamaRes.Body.Close()
-	if ollamaRes.StatusCode != http.StatusOK{
-		body, _ := io.ReadAll(ollamaRes.Body)
-		http.Error(w, fmt.Sprintf("Ollama API error %v", string(body)), http.StatusInternalServerError)
+	rb, _ := io.ReadAll(resp.Body)
+	var oc ollamaChatResponse
+	if err := json.Unmarshal(rb, &oc); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse Ollama response: %v\nRaw: %s", err, string(rb)), http.StatusInternalServerError)
 		return
 	}
 
-	body, _ := io.ReadAll(ollamaRes.Body)
-	
-	var ollamaResp OllamaResponse
-	err = json.Unmarshal(body, &ollamaResp)
-	if err != nil{
-		http.Error(w, fmt.Sprintf("Error unmarshalling ollama response %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Check if we got a valid response
-	if len(ollamaResp.Choices) == 0 {
-		http.Error(w, "No response from AI model", http.StatusInternalServerError)
-		return
-	}
-
-	// Extract the JSON content from AI response
-	aiContent := ollamaResp.Choices[0].Message.Content
-
-	// Log the raw AI content for debugging
-	fmt.Printf("Raw AI Content: %s\n", aiContent)
-
-	// Clean the content - remove any markdown formatting
-	aiContent = strings.TrimSpace(aiContent)
+	aiContent := strings.TrimSpace(oc.Message.Content)
 	aiContent = strings.TrimPrefix(aiContent, "```json")
 	aiContent = strings.TrimPrefix(aiContent, "```")
 	aiContent = strings.TrimSuffix(aiContent, "```")
 	aiContent = strings.TrimSpace(aiContent)
 
-	fmt.Printf("Cleaned AI Content: %s\n", aiContent)
-
-	// Parse the AI's JSON response
 	var gameContext GameContextRequest
 	if err := json.Unmarshal([]byte(aiContent), &gameContext); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse AI response as JSON: %v\nCleaned Content: %s", err, aiContent), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to parse AI response as JSON: %v\nCleaned Content:\n%s", err, aiContent), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(gameContext)
-
+	_ = json.NewEncoder(w).Encode(gameContext)
 }
+
+// ---------------- Helpers (file readers) ----------------
+
 func readFileContent(uploadedFile *multipart.FileHeader) (string, error) {
 	f, err := uploadedFile.Open()
 	if err != nil {
@@ -352,39 +334,31 @@ func readPDFContent(uploadedFile *multipart.FileHeader) (string, error) {
 		return "", fmt.Errorf("failed to read PDF file: %v", err)
 	}
 
-	// Create a bytes reader from the data
+	// Parse PDF from memory
 	reader := bytes.NewReader(data)
-
-	// Parse the PDF
 	pdfReader, err := pdf.NewReader(reader, int64(len(data)))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse PDF: %v", err)
 	}
 
-	// Extract text from all pages
 	var textContent strings.Builder
 	numPages := pdfReader.NumPage()
-
 	for pageNum := 1; pageNum <= numPages; pageNum++ {
 		page := pdfReader.Page(pageNum)
 		if page.V.IsNull() {
 			continue
 		}
-
 		text, err := page.GetPlainText(nil)
 		if err != nil {
-			fmt.Printf("Warning: failed to extract text from page %d: %v\n", pageNum, err)
+			// best effort: skip page on error
 			continue
 		}
-
 		textContent.WriteString(text)
 		textContent.WriteString("\n")
 	}
-
-	result := textContent.String()
-	if result == "" {
+	out := textContent.String()
+	if strings.TrimSpace(out) == "" {
 		return "", fmt.Errorf("no text content found in PDF")
 	}
-
-	return result, nil
+	return out, nil
 }
