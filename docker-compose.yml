@@ -7,14 +7,14 @@ services:
   backend:
     build: 
       context: ./server
-      no_cache: true  # Force fresh build
+      no_cache: true 
     ports: ["8080:8080"]
     environment:
       DATABASE_URL: postgresql://root:secret@postgres:5432/project_monopoly?sslmode=disable
       DOCS_DIR: /data/docs
       OLLAMA_URL: http://ollama:11434/v1/chat/completions
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: qwen2.5:3b-instruct  # FIXED: Use actual model
+      OLLAMA_MODEL: qwen2.5:3b-instruct
     volumes: [docs_data:/data/docs]
     depends_on:
       postgres:
