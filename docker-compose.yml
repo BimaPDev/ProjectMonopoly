@@ -58,7 +58,12 @@ services:
       - ollama_data:/root/.ollama
     environment:
       - OLLAMA_ORIGINS=*
-      - OLLAMA_KEEP_ALIVE=10m 
+      - OLLAMA_KEEP_ALIVE=10m
+      - OLLAMA_NUM_THREAD=0 
+    deploy:
+      resources:
+        limits:
+          cpus: '4' 
     entrypoint: ["ollama", "serve"]
 volumes:
   postgres_data:
