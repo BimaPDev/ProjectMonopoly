@@ -4,22 +4,24 @@ services:
     ports: ["80:80"]
     depends_on: [backend]
     restart: always
-
   backend:
-    build: ./server
+    build: 
+      context: ./server
+      no_cache: true  # Force fresh build
     ports: ["8080:8080"]
     environment:
       DATABASE_URL: postgresql://root:secret@postgres:5432/project_monopoly?sslmode=disable
       DOCS_DIR: /data/docs
       OLLAMA_URL: http://ollama:11434/v1/chat/completions
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: gemma3:latest
+      OLLAMA_MODEL: qwen2.5:3b-instruct  # FIXED: Use actual model
     volumes: [docs_data:/data/docs]
     depends_on:
       postgres:
         condition: service_healthy
+      ollama:
+        condition: service_started
     restart: always
-
   python:
     build: ./server/python
     environment:
@@ -31,7 +33,6 @@ services:
       ollama:
         condition: service_started
     restart: always
-
   postgres:
     image: pgvector/pgvector:pg15
     container_name: postgres
@@ -48,7 +49,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -58,9 +58,8 @@ services:
       - ollama_data:/root/.ollama
     environment:
       OLLAMA_ORIGINS: "*"
-      OLLAMA_KEEP_ALIVE: "10m"
+      OLLAMA_KEEP_ALIVE: "10m"  # ADDED: Keep model loaded
     entrypoint: ["ollama", "serve"]
-
 volumes:
   postgres_data:
   ollama_data:
