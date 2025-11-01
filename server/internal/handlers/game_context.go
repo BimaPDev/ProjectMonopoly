@@ -79,7 +79,8 @@ type ollamaChatResponse struct {
 	} `json:"message"`
 	Done bool `json:"done"`
 }
-// Add after line 86 (after type definitions)
+
+// WarmupOllama pre-loads the model to avoid first-request timeout
 func WarmupOllama(chatURL, model string) error {
 	reqBody := ollamaChatRequest{
 		Model:   model,
@@ -90,7 +91,7 @@ func WarmupOllama(chatURL, model string) error {
 		},
 	}
 	b, _ := json.Marshal(reqBody)
-	
+
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
@@ -99,7 +100,9 @@ func WarmupOllama(chatURL, model string) error {
 	defer resp.Body.Close()
 	return nil
 }
+
 // ---------------- Handlers ----------------
+
 func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -215,58 +218,22 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		return
 	}
 
-	// Clamp size to keep latency/memory sane on 4 vCPU / 8 GB
-	// Reduced to 8000 to improve inference speed
-	const maxDoc = 8000
+	// OPTIMIZED: Reduced from 8000 to 4000 for faster inference
+	const maxDoc = 4000
 	if len(fc) > maxDoc {
 		fc = fc[:maxDoc] + "..."
 	}
 
-	prompt := fmt.Sprintf(`Extract comprehensive marketing and game information from the following document.
+	// OPTIMIZED: Shorter, more efficient prompt
+	prompt := fmt.Sprintf(`Extract game marketing info as JSON (use "" if missing):
+{"game_title":"","studio_name":"","game_summary":"","platforms":[],"engine_tech":"","primary_genre":"","subgenre":"","key_mechanics":"","playtime_length":"","art_style":"","tone":"","intended_audience":"","age_range":"","player_motivation":"","comparable_games":"","marketing_objective":"","key_events_dates":"","call_to_action":"","content_restrictions":"","competitors_to_avoid":""}
 
-Return a JSON object with these exact fields organized by section:
+Document: %s
 
-SECTION 1 - Basic Game Information:
-- game_title: string
-- studio_name: string
-- game_summary: string
-- platforms: array of strings
-- engine_tech: string
+JSON only:`, fc)
 
-SECTION 2 - Core Identity:
-- primary_genre: string
-- subgenre: string
-- key_mechanics: string
-- playtime_length: string
-- art_style: string
-- tone: string
-
-SECTION 3 - Target Audience:
-- intended_audience: string
-- age_range: string
-- player_motivation: string
-- comparable_games: string
-
-SECTION 4 - Marketing Goals:
-- marketing_objective: string
-- key_events_dates: string
-- call_to_action: string
-
-SECTION 5 - Restrictions/Boundaries:
-- content_restrictions: string
-- competitors_to_avoid: string
-
-Rules:
-- If a field is not in the document, set it to "" (empty string).
-- Keep output strictly valid JSON. No explanations.
-
-Document text:
-%s
-
-Return ONLY the JSON object, no additional text.`, fc)
-
+	// OPTIMIZED: Removed redundant system message
 	messages := []map[string]string{
-		{"role": "system", "content": "You are a marketing analyst specializing in video game marketing. Extract structured, marketing-relevant info as valid JSON."},
 		{"role": "user", "content": prompt},
 	}
 
@@ -274,23 +241,20 @@ Return ONLY the JSON object, no additional text.`, fc)
 		Model:   model,
 		Stream:  false,
 		Options: map[string]any{
-			"num_ctx":        2048,  // Reduce from 4096 - faster inference
-			"num_predict":    384,   // Reduce from 512 - your JSON is ~350 tokens max
-			"repeat_penalty": 1.1,
+			"num_ctx":        1024, // OPTIMIZED: Reduced from 2048
+			"num_predict":    200,  // OPTIMIZED: Reduced from 384
+			"temperature":    0.1,  // OPTIMIZED: Lowered from 0.3
 			"top_p":          0.9,
-			"temperature":    0.3,
-			"seed":           13,
+			"repeat_penalty": 1.1,
 		},
 		Messages: messages,
 	}
 	b, _ := json.Marshal(reqBody)
-	fmt.Printf("Built a body with: %v", reqBody);
-	// Reasonable timeout: 90s should be enough for a 3B model
-	// If it takes longer, the model is likely too large or not loaded
+
 	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error calling Ollama  %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error calling Ollama: %v", err), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
