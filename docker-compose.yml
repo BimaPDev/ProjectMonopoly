@@ -57,8 +57,8 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     environment:
-      OLLAMA_ORIGINS: "*"
-      OLLAMA_KEEP_ALIVE: "10m"  # ADDED: Keep model loaded
+      - OLLAMA_ORIGINS=*
+      - OLLAMA_KEEP_ALIVE=10m 
     entrypoint: ["ollama", "serve"]
 volumes:
   postgres_data:
