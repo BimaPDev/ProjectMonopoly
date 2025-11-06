@@ -49,7 +49,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
- ollama:
+  ollama:
     image: ollama/ollama:latest
     container_name: ollama
     restart: always
