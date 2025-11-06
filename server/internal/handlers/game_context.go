@@ -254,7 +254,7 @@ func callOllama(chatURL, model, prompt string) (map[string]interface{}, error) {
 		Model:   model,
 		Stream:  false,
 		Options: map[string]any{
-			"num_ctx":        3072,
+			"num_ctx":        32768,
 			"num_predict":    200,
 			"temperature":    0.1,
 			"top_p":          0.9,
