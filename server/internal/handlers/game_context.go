@@ -218,21 +218,34 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		return
 	}
 
-	// OPTIMIZED: Reduced from 8000 to 4000 for faster inference
-	const maxDoc = 4000
-	if len(fc) > maxDoc {
-		fc = fc[:maxDoc] + "..."
+	// Use semantic chunking approach for better extraction
+	gameContext, err := extractInChunks(fc, chatURL, model)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to extract game context: %v", err), http.StatusInternalServerError)
+		return
 	}
 
-	// OPTIMIZED: Shorter, more efficient prompt
-	prompt := fmt.Sprintf(`Extract game marketing info as JSON (use "" if missing):
-{"game_title":"","studio_name":"","game_summary":"","platforms":[],"engine_tech":"","primary_genre":"","subgenre":"","key_mechanics":"","playtime_length":"","art_style":"","tone":"","intended_audience":"","age_range":"","player_motivation":"","comparable_games":"","marketing_objective":"","key_events_dates":"","call_to_action":"","content_restrictions":"","competitors_to_avoid":""}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(gameContext)
+}
 
-Document: %s
+// ---------------- Chunking Types ----------------
 
-JSON only:`, fc)
+type ChunkResult struct {
+	Section string
+	Data    map[string]interface{}
+	Error   error
+}
 
-	// OPTIMIZED: Removed redundant system message
+type chunkConfig struct {
+	fields []string
+	prompt string
+}
+
+// ---------------- Helpers (chunking) ----------------
+
+// callOllama makes a single call to Ollama with the given prompt
+func callOllama(chatURL, model, prompt string) (map[string]interface{}, error) {
 	messages := []map[string]string{
 		{"role": "user", "content": prompt},
 	}
@@ -241,9 +254,9 @@ JSON only:`, fc)
 		Model:   model,
 		Stream:  false,
 		Options: map[string]any{
-			"num_ctx":        3072, // OPTIMIZED: Reduced from 2048
-			"num_predict":    200,  // OPTIMIZED: Reduced from 384
-			"temperature":    0.1,  // OPTIMIZED: Lowered from 0.3
+			"num_ctx":        3072,
+			"num_predict":    200,
+			"temperature":    0.1,
 			"top_p":          0.9,
 			"repeat_penalty": 1.1,
 		},
@@ -254,22 +267,19 @@ JSON only:`, fc)
 	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error calling Ollama: %v", err), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("error calling Ollama: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		rb, _ := io.ReadAll(resp.Body)
-		http.Error(w, fmt.Sprintf("Ollama API error (%d): %s", resp.StatusCode, string(rb)), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("ollama API error (%d): %s", resp.StatusCode, string(rb))
 	}
 
 	rb, _ := io.ReadAll(resp.Body)
 	var oc ollamaChatResponse
 	if err := json.Unmarshal(rb, &oc); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse Ollama response: %v\nRaw: %s", err, string(rb)), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to parse Ollama response: %v", err)
 	}
 
 	aiContent := strings.TrimSpace(oc.Message.Content)
@@ -278,14 +288,145 @@ JSON only:`, fc)
 	aiContent = strings.TrimSuffix(aiContent, "```")
 	aiContent = strings.TrimSpace(aiContent)
 
-	var gameContext GameContextRequest
-	if err := json.Unmarshal([]byte(aiContent), &gameContext); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse AI response as JSON: %v\nCleaned Content:\n%s", err, aiContent), http.StatusInternalServerError)
-		return
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(aiContent), &data); err != nil {
+		return nil, fmt.Errorf("failed to parse AI response as JSON: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(gameContext)
+	return data, nil
+}
+
+// mergeChunkData merges data from a chunk result into the target GameContextRequest
+func mergeChunkData(target *GameContextRequest, source map[string]interface{}) {
+	if v, ok := source["game_title"].(string); ok && v != "" {
+		target.GameTitle = v
+	}
+	if v, ok := source["studio_name"].(string); ok && v != "" {
+		target.StudioName = v
+	}
+	if v, ok := source["game_summary"].(string); ok && v != "" {
+		target.GameSummary = v
+	}
+	if v, ok := source["platforms"].([]interface{}); ok && len(v) > 0 {
+		platforms := make([]string, 0, len(v))
+		for _, p := range v {
+			if ps, ok := p.(string); ok && ps != "" {
+				platforms = append(platforms, ps)
+			}
+		}
+		if len(platforms) > 0 {
+			target.Platforms = platforms
+		}
+	}
+	if v, ok := source["engine_tech"].(string); ok && v != "" {
+		target.EngineTech = v
+	}
+	if v, ok := source["primary_genre"].(string); ok && v != "" {
+		target.PrimaryGenre = v
+	}
+	if v, ok := source["subgenre"].(string); ok && v != "" {
+		target.Subgenre = v
+	}
+	if v, ok := source["key_mechanics"].(string); ok && v != "" {
+		target.KeyMechanics = v
+	}
+	if v, ok := source["playtime_length"].(string); ok && v != "" {
+		target.PlaytimeLength = v
+	}
+	if v, ok := source["art_style"].(string); ok && v != "" {
+		target.ArtStyle = v
+	}
+	if v, ok := source["tone"].(string); ok && v != "" {
+		target.Tone = v
+	}
+	if v, ok := source["intended_audience"].(string); ok && v != "" {
+		target.IntendedAudience = v
+	}
+	if v, ok := source["age_range"].(string); ok && v != "" {
+		target.AgeRange = v
+	}
+	if v, ok := source["player_motivation"].(string); ok && v != "" {
+		target.PlayerMotivation = v
+	}
+	if v, ok := source["comparable_games"].(string); ok && v != "" {
+		target.ComparableGames = v
+	}
+	if v, ok := source["marketing_objective"].(string); ok && v != "" {
+		target.MarketingObjective = v
+	}
+	if v, ok := source["key_events_dates"].(string); ok && v != "" {
+		target.KeyEventsDates = v
+	}
+	if v, ok := source["call_to_action"].(string); ok && v != "" {
+		target.CallToAction = v
+	}
+	if v, ok := source["content_restrictions"].(string); ok && v != "" {
+		target.ContentRestrictions = v
+	}
+	if v, ok := source["competitors_to_avoid"].(string); ok && v != "" {
+		target.CompetitorsToAvoid = v
+	}
+}
+
+// extractInChunks processes the document in semantic chunks using parallel LLM calls
+func extractInChunks(fc string, chatURL string, model string) (*GameContextRequest, error) {
+	// Define semantic sections with focused prompts
+	chunks := map[string]chunkConfig{
+		"basic": {
+			fields: []string{"game_title", "studio_name", "game_summary", "platforms", "engine_tech"},
+			prompt: `Extract basic game info as JSON (use "" if missing): {"game_title":"","studio_name":"","game_summary":"","platforms":[],"engine_tech":""}`,
+		},
+		"identity": {
+			fields: []string{"primary_genre", "subgenre", "key_mechanics", "playtime_length", "art_style", "tone"},
+			prompt: `Extract game identity as JSON (use "" if missing): {"primary_genre":"","subgenre":"","key_mechanics":"","playtime_length":"","art_style":"","tone":""}`,
+		},
+		"audience": {
+			fields: []string{"intended_audience", "age_range", "player_motivation", "comparable_games"},
+			prompt: `Extract target audience as JSON (use "" if missing): {"intended_audience":"","age_range":"","player_motivation":"","comparable_games":""}`,
+		},
+		"marketing": {
+			fields: []string{"marketing_objective", "key_events_dates", "call_to_action", "content_restrictions", "competitors_to_avoid"},
+			prompt: `Extract marketing info as JSON (use "" if missing): {"marketing_objective":"","key_events_dates":"","call_to_action":"","content_restrictions":"","competitors_to_avoid":""}`,
+		},
+	}
+
+	// Process chunks in parallel
+	results := make(chan ChunkResult, len(chunks))
+
+	for section, config := range chunks {
+		go func(sec string, cfg chunkConfig) {
+			// Truncate per chunk (allows 4x more total content to be processed)
+			chunkContent := fc
+			const maxPerChunk = 4000
+			if len(chunkContent) > maxPerChunk {
+				chunkContent = chunkContent[:maxPerChunk] + "..."
+			}
+
+			fullPrompt := fmt.Sprintf("%s\n\nDocument: %s\n\nJSON only:", cfg.prompt, chunkContent)
+
+			data, err := callOllama(chatURL, model, fullPrompt)
+			results <- ChunkResult{Section: sec, Data: data, Error: err}
+		}(section, config)
+	}
+
+	// Aggregate results
+	gameContext := &GameContextRequest{}
+	var errors []string
+
+	for i := 0; i < len(chunks); i++ {
+		result := <-results
+		if result.Error != nil {
+			errors = append(errors, fmt.Sprintf("chunk %s failed: %v", result.Section, result.Error))
+			continue
+		}
+		mergeChunkData(gameContext, result.Data)
+	}
+
+	if len(errors) > 0 {
+		return nil, fmt.Errorf("chunk processing errors: %s", strings.Join(errors, "; "))
+	}
+
+	return gameContext, nil
 }
 
 // ---------------- Helpers (file readers) ----------------
