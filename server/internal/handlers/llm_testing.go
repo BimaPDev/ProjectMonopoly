@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type LLMTestRequest struct {
@@ -14,9 +15,10 @@ type LLMTestRequest struct {
 }
 
 type LLMTestResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Error   string `json:"error,omitempty"`
+	Success  bool   `json:"success"`
+	Message  string `json:"message"`
+	Duration string `json:"duration,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // TestLLMHandler allows testing the LLM with a simple text prompt
@@ -65,6 +67,9 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	// Start timer
+	startTime := time.Now()
 
 	// Call Ollama directly
 	messages := []map[string]string{
@@ -127,11 +132,15 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Calculate duration
+	elapsed := time.Since(startTime)
+
 	// Return success with the LLM response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(LLMTestResponse{
-		Success: true,
-		Message: ollamaResp.Message.Content,
+		Success:  true,
+		Message:  ollamaResp.Message.Content,
+		Duration: elapsed.String(),
 	})
 }

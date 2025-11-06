@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 interface LLMTestResponse {
     success: boolean;
     message: string;
+    duration?: string;
     error?: string;
 }
 
@@ -165,11 +166,19 @@ export default function LLMTestPage() {
                             </CardHeader>
                             <CardContent>
                                 {response.success ? (
-                                    <div className="space-y-2">
-                                        <Label className="text-white">LLM Response:</Label>
-                                        <pre className="p-4 overflow-auto text-sm rounded-lg bg-gray-950 text-gray-300 max-h-[400px]">
-                                            {response.message}
-                                        </pre>
+                                    <div className="space-y-4">
+                                        {response.duration && (
+                                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                                <span className="font-semibold">Duration:</span>
+                                                <span className="text-green-400">{response.duration}</span>
+                                            </div>
+                                        )}
+                                        <div className="space-y-2">
+                                            <Label className="text-white">LLM Response:</Label>
+                                            <pre className="p-4 overflow-auto text-sm rounded-lg bg-gray-950 text-gray-300 max-h-[400px]">
+                                                {response.message}
+                                            </pre>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
