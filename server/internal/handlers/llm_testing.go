@@ -66,8 +66,26 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call the LLM using the callOllama helper
-	data, err := callOllama(chatURL, model, req.Prompt)
+	// Call Ollama directly
+	messages := []map[string]string{
+		{"role": "user", "content": req.Prompt},
+	}
+
+	reqBody := map[string]interface{}{
+		"model":    model,
+		"stream":   false,
+		"messages": messages,
+		"options": map[string]interface{}{
+			"num_ctx":        3072,
+			"num_predict":    200,
+			"temperature":    0.1,
+			"top_p":          0.9,
+			"repeat_penalty": 1.1,
+		},
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+	resp, err := http.Post(chatURL, "application/json", strings.NewReader(string(jsonData)))
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -77,15 +95,34 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	defer resp.Body.Close()
 
-	// Convert the map to a formatted JSON string for display
-	responseBytes, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
+	if resp.StatusCode != http.StatusOK {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(LLMTestResponse{
 			Success: false,
-			Error:   fmt.Sprintf("Failed to format response: %v", err),
+			Error:   fmt.Sprintf("Ollama returned status code: %d", resp.StatusCode),
+		})
+		return
+	}
+
+	// Parse Ollama response
+	var ollamaResp struct {
+		Model   string `json:"model"`
+		Message struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"message"`
+		Done bool `json:"done"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(LLMTestResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to parse Ollama response: %v", err),
 		})
 		return
 	}
@@ -95,6 +132,6 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(LLMTestResponse{
 		Success: true,
-		Message: string(responseBytes),
+		Message: ollamaResp.Message.Content,
 	})
 }
