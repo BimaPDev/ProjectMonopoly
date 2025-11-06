@@ -128,6 +128,9 @@ func main() {
 		handlers.SaveGameContext(w,r, queries)
 	}))
 
+	// Test LLM endpoint
+	mux.HandleFunc("/api/test/llm", auth.JWTMiddleware(handlers.TestLLMHandler))
+
 chatURL := "http://ollama:11434/api/chat"
 	model := "qwen2.5:3b-instruct"
 	fmt.Println("Warming up Ollama...")

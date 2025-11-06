@@ -267,7 +267,7 @@ func callOllama(chatURL, model, prompt string) (map[string]interface{}, error) {
 	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		return nil, fmt.Errorf("error calling Ollama: %v", err)
+		return nil, fmt.Errorf("asdfasdfsadfgahsdflgasdfigsdfig %v", err)
 	}
 	defer resp.Body.Close()
 
