@@ -49,7 +49,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-  ollama:
+ ollama:
     image: ollama/ollama:latest
     container_name: ollama
     restart: always
@@ -59,8 +59,8 @@ services:
     environment:
       - "OLLAMA_ORIGINS=*"
       - "OLLAMA_KEEP_ALIVE=10m"
-      - "OLLAMA_NUM_THREAD=9"
-      - "OLLAMA_CONTEXT_LENGTH=32768"
+      - "OLLAMA_NUM_THREADS=9"
+      - "OLLAMA_NUM_CTX=32768"    # Correct variable for context length
     cpus: "8"
     mem_limit: "32g"
     entrypoint: ["ollama", "serve"]
