@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 
@@ -134,9 +135,12 @@ func main() {
 chatURL := "http://ollama:11434/api/chat"
 	model := "qwen2.5:3b-instruct"
 	fmt.Println("Warming up Ollama...")
-	
+
+	startTime := time.Now()
 	handlers.WarmupOllama(chatURL, model)
-	fmt.Println("Ollama ready!")
+	elapsed := time.Since(startTime)
+
+	fmt.Printf("Ollama ready! (took %v)\n", elapsed)
 
 	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
 	handlerWithCORS := middleware.CORSMiddleware(mux)
