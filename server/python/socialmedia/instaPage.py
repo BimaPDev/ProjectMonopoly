@@ -43,9 +43,15 @@ def prefix_words_with_hash(caption: str) -> str:
     return " ".join(f"{tok}" for tok in tokens if tok.strip())
 
 class InstagramScraper:
-    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl"):
+    def __init__(self, username=None, password=None, cookies_path=None):
         self.username = username
         self.password = password
+        # Use absolute path for cookies if not provided
+        if cookies_path is None:
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            cookies_dir = os.path.join(parent_dir, "cookies")
+            os.makedirs(cookies_dir, exist_ok=True)
+            cookies_path = os.path.join(cookies_dir, "instagram_cookies.pkl")
         self.cookies_path = cookies_path
         self.driver = None
         self.setup_driver()
@@ -67,8 +73,15 @@ class InstagramScraper:
         self.driver.maximize_window()
         
     def save_cookies(self):
-        pickle.dump(self.driver.get_cookies(), open(self.cookies_path, "wb"))
-        print("Cookies saved successfully!")
+        # Ensure the directory exists before saving
+        cookies_dir = os.path.dirname(self.cookies_path)
+        if cookies_dir:
+            os.makedirs(cookies_dir, exist_ok=True)
+        try:
+            pickle.dump(self.driver.get_cookies(), open(self.cookies_path, "wb"))
+            print("Cookies saved successfully!")
+        except Exception as e:
+            print(f"Warning: failed to save cookies: {e}")
         
     def load_cookies(self):
         if os.path.exists(self.cookies_path):
@@ -229,7 +242,10 @@ class InstagramScraper:
                 print(f"Error processing {post_url}: {e}")
                 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"socialmedia/scrape_result/{profile_name}_posts_{timestamp}.json"
+        # Use absolute path based on this file's location
+        scrape_result_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
+        os.makedirs(scrape_result_dir, exist_ok=True)
+        json_filename = os.path.join(scrape_result_dir, f"{profile_name}_posts_{timestamp}.json")
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all posts to {json_filename}\n")

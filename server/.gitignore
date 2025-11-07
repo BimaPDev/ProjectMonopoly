@@ -1,1 +1,37 @@
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+*.log.*
+scraper.log
+
+# Data files
+dump.rdb
+*.rdb
+*.db
+*.sqlite
+
+# Output directories
+server/python/ai_web/output/
+server/python/socialmedia/scrape_result/
+server/python/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

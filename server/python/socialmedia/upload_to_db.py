@@ -68,23 +68,33 @@ def parse_posted_at(post_date_str):
         return None
 
 def get_database_connection():
-    # Get database connection
-    # Database connection parameters
-    # Update these to match your database configuration
-    conn_params = {
-        'host': 'localhost',
-        'port': 5432,
-        'database': 'project_monopoly',
-        'user': 'root',
-        'password': 'secret'
-    }
+    # Get database connection from environment variable or use defaults
+    database_url = os.getenv("DATABASE_URL")
     
-    try:
-        conn = psycopg2.connect(**conn_params)
-        return conn
-    except psycopg2.Error as e:
-        print(f"Error connecting to database: {e}")
-        sys.exit(1)
+    if database_url:
+        # Parse DATABASE_URL format: postgresql://user:password@host:port/database?sslmode=disable
+        try:
+            conn = psycopg2.connect(database_url)
+            return conn
+        except psycopg2.Error as e:
+            print(f"Error connecting to database with DATABASE_URL: {e}")
+            sys.exit(1)
+    else:
+        # Fallback to default connection parameters
+        conn_params = {
+            'host': 'localhost',
+            'port': 5432,
+            'database': 'project_monopoly',
+            'user': 'root',
+            'password': 'secret'
+        }
+        
+        try:
+            conn = psycopg2.connect(**conn_params)
+            return conn
+        except psycopg2.Error as e:
+            print(f"Error connecting to database: {e}")
+            sys.exit(1)
 
 def create_or_get_competitor(conn, platform, username, profile_url):
     # Check if competitor exists, else create new one
@@ -133,7 +143,11 @@ def upload_posts_to_db(json_file_path):
     try:
         # Determine competitor info from the first post
         first_post = posts_data[0]
-        url = first_post['url']
+        url = first_post.get('url')
+        
+        if not url:
+            print("Error: First post does not have a URL")
+            return False
         
         # Extract username from URL
         parsed_url = urlparse(url)
@@ -153,9 +167,14 @@ def upload_posts_to_db(json_file_path):
             for post in posts_data:
                 try:
                     # Extract post ID from URL
-                    post_id = extract_post_id(post['url'])
+                    post_url = post.get('url')
+                    if not post_url:
+                        print(f"Warning: Post missing URL, skipping")
+                        continue
+                    
+                    post_id = extract_post_id(post_url)
                     if not post_id:
-                        print(f"Warning: Could not extract post ID from URL: {post['url']}")
+                        print(f"Warning: Could not extract post ID from URL: {post_url}")
                         continue
                     
                     # Parse engagement data

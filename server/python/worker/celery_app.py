@@ -11,7 +11,7 @@ app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-    timezone=os.getenv("TZ", "UTC"),
+    timezone=os.getenv("TZ", "EST"),
     enable_utc=True,
 
     # Reliability and throughput

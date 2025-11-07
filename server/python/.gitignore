@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Database files
+*.db
+*.rdb
+celerybeat-schedule.db
+dump.rdb
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Cookies (sensitive data)
+cookies/*.pkl
+cookies/*.json
+socialmedia/auth.json
+
+# Generated output
+ai_web/output/
+socialmedia/scrape_result/*.json
+socialmedia/scrape_result/*.csv
+
+# Uploads
+uploads/*
+
+# Data files
+data/docs/*
+!data/docs/.gitkeep
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+

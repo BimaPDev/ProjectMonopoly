@@ -21,16 +21,32 @@ log = logging.getLogger(__name__)
 app.conf.beat_schedule = {
     'weekly-instagram-scrape': {
         'task': 'worker.tasks.weekly_instagram_scrape',
-        'schedule': crontab(hour=1, minute=0, day_of_week=1),  # Every Monday at 1 AM
+        'schedule': crontab(hour=3, minute=0, day_of_week=1),  # Every Monday at 3 AM
         'options': {
             'queue': 'celery',
             'priority': 5,  # Lower priority than urgent tasks
         }
     },
+    'daily-followers-scrape': {
+        'task': 'worker.tasks.scrape_followers',
+        'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM
+        'options': {
+            'queue': 'celery',
+            'priority': 5,
+        }
+    },
+    'weekly-hashtag-trends': {
+        'task': 'worker.tasks.scrape_hashtag_trends',
+        'schedule': crontab(hour=4, minute=0, day_of_week=1),  # Every Monday at 4 AM
+        'options': {
+            'queue': 'celery',
+            'priority': 5,
+        }
+    },
 }
 
 # Timezone configuration
-app.conf.timezone = 'UTC'
+app.conf.timezone = 'EST'
 
 def start_weekly_scheduler():
     """
@@ -44,7 +60,7 @@ def start_weekly_scheduler():
     current_app.control.purge()  # Clear any existing scheduled tasks
     
     # The beat scheduler will be started by run_all.py
-    log.info("✅ Weekly scheduler configured - will run every Sunday at 2 AM UTC")
+    log.info("✅ Weekly scheduler configured - will run every Sunday at 3 AM EST")
 
 if __name__ == "__main__":
     start_weekly_scheduler()

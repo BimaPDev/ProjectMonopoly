@@ -203,4 +203,94 @@ def weekly_instagram_scrape():
         log.exception("Weekly Instagram scraping task failed")
         return {"status": "failed", "error": str(e)}
 
+# ---------- Followers Scraping Task ----------
+@app.task(name="worker.tasks.scrape_followers", queue="celery")
+def scrape_followers():
+    """
+    Daily task to scrape follower counts from all social media platforms.
+    """
+    log.info("👥 Starting followers scraping task")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        from Followers.getFollowers import get_all_followers, insert_follower_count
+        import datetime
+        
+        total_followers, platform_breakdown = get_all_followers()
+        today = datetime.date.today()
+        record_id = insert_follower_count(today, total_followers, platform_breakdown)
+        
+        log.info(f"✅ Followers scraping completed: {total_followers:,} total followers (Record ID: {record_id})")
+        return {
+            "status": "success",
+            "date": today.isoformat(),
+            "total_followers": total_followers,
+            "platform_breakdown": platform_breakdown,
+            "record_id": record_id
+        }
+        
+    except Exception as e:
+        log.exception("Followers scraping task failed")
+        return {"status": "failed", "error": str(e)}
+
+# ---------- AI Web Scraping Task ----------
+@app.task(name="worker.tasks.ai_web_scrape", queue="celery")
+def ai_web_scrape():
+    """
+    Task to scrape web content using AI web scraper for marketing and game dev content.
+    """
+    log.info("🌐 Starting AI web scraping task")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        # Note: ai_scraper.main() may not return results, so we'll just execute it
+        # and handle any results via file output or logging
+        import importlib
+        scraper_module = importlib.import_module('ai_web.ai_scraper')
+        
+        # Execute the main function if it exists
+        if hasattr(scraper_module, 'main'):
+            result = scraper_module.main()
+        else:
+            log.warning("ai_scraper module doesn't have a main() function")
+            result = None
+        
+        log.info("✅ AI web scraping completed successfully")
+        return {"status": "success", "message": "AI web scraping completed", "result": result}
+        
+    except Exception as e:
+        log.exception("AI web scraping task failed")
+        return {"status": "failed", "error": str(e)}
+
+# ---------- Trends/Hashtag Scraping Task ----------
+@app.task(name="worker.tasks.scrape_hashtag_trends", queue="celery")
+def scrape_hashtag_trends():
+    """
+    Task to scrape trending hashtags from TikTok creative center.
+    """
+    log.info("📊 Starting hashtag trends scraping task")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        # Note: This needs to be updated to return results instead of just printing
+        from trends.hashtag import scrape_hashtags
+        
+        trends = scrape_hashtags()
+        
+        log.info(f"✅ Hashtag trends scraping completed: {len(trends) if trends else 0} trends found")
+        return {"status": "success", "trends": trends}
+        
+    except Exception as e:
+        log.exception("Hashtag trends scraping task failed")
+        return {"status": "failed", "error": str(e)}
+
 

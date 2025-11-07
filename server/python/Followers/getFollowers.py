@@ -6,6 +6,7 @@ import sys
 import datetime
 import re
 import logging
+import os
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 from contextlib import contextmanager
@@ -23,13 +24,45 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-# ── DATABASE SETUP ────────────────────────────────────────────────────────────
+# ── LOGGING SETUP ────────────────────────────────────────────────────────────
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO)
 
-def connectDB():
-    try:
-        conn = psycopg2.connect(
-    "dbname=project_monopoly user=root password=secret host=localhost port=5432 sslmode=disable"
+# ── CONFIG SETUP ────────────────────────────────────────────────────────────
+class Config:
+    """Configuration for follower scraping."""
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36"
+    ]
+    max_retries = 3
+    retry_delay = 2
+    max_workers = 3
+    selenium_timeout = 30
+    request_timeout = 10
+
+config = Config()
+
+# ── DATABASE SETUP ────────────────────────────────────────────────────────────
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://root:secret@localhost:5432/project_monopoly?sslmode=disable"
 )
+
+@contextmanager
+def get_db_connection():
+    """Context manager for database connections."""
+    conn = None
+    try:
+        # Parse DATABASE_URL if provided, otherwise use default
+        if DATABASE_URL.startswith("postgresql://"):
+            conn = psycopg2.connect(DATABASE_URL)
+        else:
+            conn = psycopg2.connect(
+                "dbname=project_monopoly user=root password=secret host=localhost port=5432 sslmode=disable"
+            )
         conn.autocommit = True
         yield conn
     except psycopg2.Error as e:
