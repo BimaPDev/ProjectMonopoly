@@ -53,7 +53,7 @@ type GameContextRequest struct {
 	// Section 5: Restrictions / Boundaries
 	ContentRestrictions string `json:"content_restrictions"`
 	CompetitorsToAvoid  string `json:"competitors_to_avoid"`
-	AdditionalInfo		string `json:"additional_info`
+	AdditionalInfo		string `json:"additional_info"`
 }
 
 func toNullString(s string) sql.NullString {
@@ -63,42 +63,67 @@ func toNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 
-// ---------------- Ollama types ----------------
+// ---------------- DeepSeek API types ----------------
 
-type ollamaChatRequest struct {
-	Model    string              `json:"model"`
-	Stream   bool                `json:"stream"`
-	Options  map[string]any      `json:"options,omitempty"`
-	Messages []map[string]string `json:"messages"`
+type deepseekChatRequest struct {
+	Model       string                   `json:"model"`
+	Messages    []map[string]string      `json:"messages"`
+	Stream      bool                     `json:"stream"`
+	Temperature float64                  `json:"temperature,omitempty"`
+	MaxTokens   int                      `json:"max_tokens,omitempty"`
 }
 
-type ollamaChatResponse struct {
+type deepseekChatResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
 	Model   string `json:"model"`
-	Message struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
-	} `json:"message"`
-	Done bool `json:"done"`
+	Choices []struct {
+		Index   int `json:"index"`
+		Message struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
+	} `json:"choices"`
+	Usage struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+		TotalTokens      int `json:"total_tokens"`
+	} `json:"usage"`
 }
 
-// WarmupOllama pre-loads the model to avoid first-request timeout
-func WarmupOllama(chatURL, model string) error {
-	reqBody := ollamaChatRequest{
-		Model:   model,
-		Stream:  false,
-		Options: map[string]any{"num_predict": 1},
+// WarmupDeepSeek makes a simple test call to verify API connectivity
+func WarmupDeepSeek(apiKey, model string) error {
+	reqBody := deepseekChatRequest{
+		Model:       model,
+		Stream:      false,
+		Temperature: 0.1,
+		MaxTokens:   10,
 		Messages: []map[string]string{
 			{"role": "user", "content": "Hi"},
 		},
 	}
 	b, _ := json.Marshal(reqBody)
 
-	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("POST", "https://api.deepseek.com/chat/completions", bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		rb, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("DeepSeek warmup failed (%d): %s", resp.StatusCode, string(rb))
+	}
 	return nil
 }
 
@@ -123,7 +148,7 @@ func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries
 		return
 	}
 
-	// Convert group_id to sql.NullInt32
+	
 	var groupID sql.NullInt32
 	if req.GroupID != nil && *req.GroupID > 0 {
 		groupID = sql.NullInt32{Int32: *req.GroupID, Valid: true}
@@ -169,24 +194,18 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		http.Error(w, "Wrong method", http.StatusBadRequest)
 		return
 	}
-	// Reuse shared helper defined elsewhere in your package
 	setCORSHeaders(w)
 
-	// Base host (no /v1, no /api suffix here)
-	ollamaHost := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
-	if ollamaHost == "" {
-		// Works inside Docker network (backend -> ollama)
-		ollamaHost = "http://localhost:11434"
+	
+	apiKey := ""
+	if apiKey == "" {
+		http.Error(w, "DEEPSEEK_API_KEY not configured", http.StatusInternalServerError)
+		return
 	}
-	ollamaHost = strings.TrimRight(ollamaHost, "/")
-	for _, bad := range []string{"/v1", "/v1/", "/api", "/api/"} {
-		ollamaHost = strings.TrimSuffix(ollamaHost, bad)
-	}
-	chatURL := ollamaHost + "/api/chat"
 
-	model := strings.TrimSpace(os.Getenv("OLLAMA_MODEL"))
+	model := strings.TrimSpace(os.Getenv("DEEPSEEK_MODEL"))
 	if model == "" {
-		model = "qwen2.5:3b-instruct"
+		model = "deepseek-chat"
 	}
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
@@ -221,7 +240,7 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	}
 
 	// Use semantic chunking approach for better extraction
-	gameContext, err := extractInChunks(fc, chatURL, model)
+	gameContext, err := extractInChunks(fc, apiKey, model)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to extract game context: %v", err), http.StatusInternalServerError)
 		return
@@ -246,28 +265,31 @@ type chunkConfig struct {
 
 // ---------------- Helpers (chunking) ----------------
 
-// callOllama makes a single call to Ollama with the given prompt
-func callOllama(chatURL, model, prompt string) (map[string]interface{}, error) {
+// callDeepSeek makes a single call to DeepSeek API with the given prompt
+func callDeepSeek(apiKey, model, prompt string) (map[string]interface{}, error) {
 	messages := []map[string]string{
 		{"role": "user", "content": prompt},
 	}
 
-	reqBody := ollamaChatRequest{
-		Model:   model,
-		Stream:  false,
-		Options: map[string]any{
-			"num_ctx":        32768,
-			"num_predict":    200,
-			"temperature":    0.1,
-			"top_p":          0.9,
-			"repeat_penalty": 1.1,
-		},
-		Messages: messages,
+	reqBody := deepseekChatRequest{
+		Model:       model,
+		Stream:      false,
+		Temperature: 0.1,
+		MaxTokens:   500,
+		Messages:    messages,
 	}
 	b, _ := json.Marshal(reqBody)
 
 	client := &http.Client{Timeout: 180 * time.Second}
-	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", "https://api.deepseek.com/chat/completions", bytes.NewBuffer(b))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("LLM POST ERROR %v", err)
 	}
@@ -275,16 +297,20 @@ func callOllama(chatURL, model, prompt string) (map[string]interface{}, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		rb, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama API error (%d): %s", resp.StatusCode, string(rb))
+		return nil, fmt.Errorf("DeepSeek API error (%d): %s", resp.StatusCode, string(rb))
 	}
 
 	rb, _ := io.ReadAll(resp.Body)
-	var oc ollamaChatResponse
-	if err := json.Unmarshal(rb, &oc); err != nil {
-		return nil, fmt.Errorf("failed to parse Ollama response: %v", err)
+	var deepseekResp deepseekChatResponse
+	if err := json.Unmarshal(rb, &deepseekResp); err != nil {
+		return nil, fmt.Errorf("failed to parse DeepSeek response: %v", err)
 	}
 
-	aiContent := strings.TrimSpace(oc.Message.Content)
+	if len(deepseekResp.Choices) == 0 {
+		return nil, fmt.Errorf("no choices returned from DeepSeek")
+	}
+
+	aiContent := strings.TrimSpace(deepseekResp.Choices[0].Message.Content)
 	aiContent = strings.TrimPrefix(aiContent, "```json")
 	aiContent = strings.TrimPrefix(aiContent, "```")
 	aiContent = strings.TrimSuffix(aiContent, "```")
@@ -371,8 +397,8 @@ func mergeChunkData(target *GameContextRequest, source map[string]interface{}) {
 }
 
 // extractInChunks processes the document in semantic chunks using parallel LLM calls
-func extractInChunks(fc string, chatURL string, model string) (*GameContextRequest, error) {
-	
+func extractInChunks(fc string, apiKey string, model string) (*GameContextRequest, error) {
+
 	chunks := map[string]chunkConfig{
 		"basic": {
 			fields: []string{"game_title", "studio_name", "game_summary", "platforms", "engine_tech"},
@@ -392,12 +418,12 @@ func extractInChunks(fc string, chatURL string, model string) (*GameContextReque
 		},
 	}
 
-	
+
 	results := make(chan ChunkResult, len(chunks))
 
 	for section, config := range chunks {
 		go func(sec string, cfg chunkConfig) {
-			
+
 			chunkContent := fc
 			const maxPerChunk = 4000
 			if len(chunkContent) > maxPerChunk {
@@ -406,7 +432,7 @@ func extractInChunks(fc string, chatURL string, model string) (*GameContextReque
 
 			fullPrompt := fmt.Sprintf("%s\n\nDocument: %s\n\nJSON only:", cfg.prompt, chunkContent)
 
-			data, err := callOllama(chatURL, model, fullPrompt)
+			data, err := callDeepSeek(apiKey, model, fullPrompt)
 			results <- ChunkResult{Section: sec, Data: data, Error: err}
 		}(section, config)
 	}
@@ -459,7 +485,7 @@ func readPDFContent(uploadedFile *multipart.FileHeader) (string, error) {
 		return "", fmt.Errorf("failed to read PDF file: %v", err)
 	}
 
-	
+
 	reader := bytes.NewReader(data)
 	pdfReader, err := pdf.NewReader(reader, int64(len(data)))
 	if err != nil {
