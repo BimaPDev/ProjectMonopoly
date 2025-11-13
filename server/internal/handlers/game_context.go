@@ -53,6 +53,7 @@ type GameContextRequest struct {
 	// Section 5: Restrictions / Boundaries
 	ContentRestrictions string `json:"content_restrictions"`
 	CompetitorsToAvoid  string `json:"competitors_to_avoid"`
+	AdditionalInfo		string `json:"additional_info`
 }
 
 func toNullString(s string) sql.NullString {
@@ -151,6 +152,7 @@ func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries
 		CallToAction:        toNullString(req.CallToAction),
 		ContentRestrictions: toNullString(req.ContentRestrictions),
 		CompetitorsToAvoid:  toNullString(req.CompetitorsToAvoid),
+		AdditionalInfo:	     toNullString(req.AdditionalInfo),
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Could not save to database: %v", err), http.StatusInternalServerError)
@@ -174,7 +176,7 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	ollamaHost := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
 	if ollamaHost == "" {
 		// Works inside Docker network (backend -> ollama)
-		ollamaHost = "http://ollama:11434"
+		ollamaHost = "http://localhost:11434"
 	}
 	ollamaHost = strings.TrimRight(ollamaHost, "/")
 	for _, bad := range []string{"/v1", "/v1/", "/api", "/api/"} {
@@ -267,7 +269,7 @@ func callOllama(chatURL, model, prompt string) (map[string]interface{}, error) {
 	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		return nil, fmt.Errorf("asdfasdfsadfgahsdflgasdfigsdfig %v", err)
+		return nil, fmt.Errorf("LLM POST ERROR %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -370,7 +372,7 @@ func mergeChunkData(target *GameContextRequest, source map[string]interface{}) {
 
 // extractInChunks processes the document in semantic chunks using parallel LLM calls
 func extractInChunks(fc string, chatURL string, model string) (*GameContextRequest, error) {
-	// Define semantic sections with focused prompts
+	
 	chunks := map[string]chunkConfig{
 		"basic": {
 			fields: []string{"game_title", "studio_name", "game_summary", "platforms", "engine_tech"},
@@ -390,12 +392,12 @@ func extractInChunks(fc string, chatURL string, model string) (*GameContextReque
 		},
 	}
 
-	// Process chunks in parallel
+	
 	results := make(chan ChunkResult, len(chunks))
 
 	for section, config := range chunks {
 		go func(sec string, cfg chunkConfig) {
-			// Truncate per chunk (allows 4x more total content to be processed)
+			
 			chunkContent := fc
 			const maxPerChunk = 4000
 			if len(chunkContent) > maxPerChunk {
@@ -457,7 +459,7 @@ func readPDFContent(uploadedFile *multipart.FileHeader) (string, error) {
 		return "", fmt.Errorf("failed to read PDF file: %v", err)
 	}
 
-	// Parse PDF from memory
+	
 	reader := bytes.NewReader(data)
 	pdfReader, err := pdf.NewReader(reader, int64(len(data)))
 	if err != nil {
@@ -473,7 +475,6 @@ func readPDFContent(uploadedFile *multipart.FileHeader) (string, error) {
 		}
 		text, err := page.GetPlainText(nil)
 		if err != nil {
-			// best effort: skip page on error
 			continue
 		}
 		textContent.WriteString(text)
