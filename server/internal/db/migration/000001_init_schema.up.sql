@@ -273,7 +273,7 @@ CREATE TABLE IF NOT EXISTS game_contexts (
   -- Section 5: Restrictions / Boundaries
   content_restrictions TEXT,
   competitors_to_avoid TEXT,
-
+  additional_info TEXT,
   -- Metadata
   extraction_method VARCHAR(20) DEFAULT 'manual', -- 'manual' or 'ai_extracted'
   original_file_name VARCHAR(255),

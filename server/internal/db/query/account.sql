@@ -298,7 +298,7 @@ INSERT INTO game_contexts (
     primary_genre, subgenre, key_mechanics, playtime_length, art_style, tone,
     intended_audience, age_range, player_motivation, comparable_games,
     marketing_objective, key_events_dates, call_to_action,
-    content_restrictions, competitors_to_avoid
+    content_restrictions, competitors_to_avoid, additional_info
 )
 VALUES (
     $1, $2,
@@ -306,6 +306,6 @@ VALUES (
     $8, $9, $10, $11, $12, $13,
     $14, $15, $16, $17,
     $18, $19, $20,
-    $21, $22
+    $21, $22 , $23
 )
 RETURNING *;

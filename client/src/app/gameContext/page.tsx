@@ -36,6 +36,7 @@ interface GameContextData {
     call_to_action: string;
     content_restrictions: string;
     competitors_to_avoid: string;
+    additional_info: string;
 }
 
 export default function GameContextPage() {
@@ -66,6 +67,7 @@ export default function GameContextPage() {
         call_to_action: "",
         content_restrictions: "",
         competitors_to_avoid: "",
+        additional_info: "",
     });
 
     const radioButtons = [
@@ -180,6 +182,7 @@ export default function GameContextPage() {
             call_to_action: "",
             content_restrictions: "",
             competitors_to_avoid: "",
+            additional_info: "",
         });
         setExtractedData(null);
         setFile(null);
@@ -637,6 +640,14 @@ export default function GameContextPage() {
                                         />
                                     </div>
                                 </div>
+                                <FormField
+                                    label="Additional Info"
+                                    placeholder="Enter in any additional info about your product"
+                                    id="additional_info"
+                                    value={formData.additional_info}
+                                    onChange={(value) => handleInputChange("additional_info", value.target.value)}
+                                    className="mt-2"
+                                />
                             </div>
                             <Separator className="bg-gray-800" />
 
