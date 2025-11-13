@@ -15,9 +15,10 @@ import Competitors from "@/app/competitors/page";
 import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import CreateGroupSettings from "./app/settings/page";
+import Settings from "./app/settings/page";
 import GameContextPage from "./app/gameContext/page";
 import LLMTestPage from "./app/llmTest/page.tsx";
+import SocialMedia from "./app/settings/socialMedia/page.tsx";
 
 // Add the GroupProvider import
 import { GroupProvider } from "./components/groupContext.tsx"; // Adjust the path as needed
@@ -58,7 +59,11 @@ function App() {
             <Route path="/dashboard/ai" element={<Ai />} />
             <Route
               path="/dashboard/settings"
-              element={<CreateGroupSettings />}
+              element={<Settings />}
+            />
+            <Route 
+              path="/dashboard/settings/socialmedia"
+              element={<SocialMedia/>}
             />
             <Route
               path="/dashboard/gamecontext"
