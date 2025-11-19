@@ -309,3 +309,20 @@ VALUES (
     $21, $22 , $23
 )
 RETURNING *;
+
+-- name: GetGameContextByGroupID :one
+SELECT * FROM game_contexts
+WHERE group_id = $1
+ORDER BY created_at DESC
+LIMIT 1;
+
+-- name: GetGameContextByUserID :one
+SELECT * FROM game_contexts
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT 1;
+
+-- name: ListGameContextsByUser :many
+SELECT * FROM game_contexts
+WHERE user_id = $1
+ORDER BY created_at DESC;

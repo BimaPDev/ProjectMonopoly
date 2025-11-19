@@ -38,7 +38,9 @@ func main() {
 	mux.HandleFunc("/followers", func(w http.ResponseWriter, r *http.Request) {
 		handlers.TriggerFollowersScript(w, r, queries)
 	})
-	mux.HandleFunc("/ai/deepseek", handlers.DeepSeekHandler)
+	mux.HandleFunc("/ai/deepseek", func(w http.ResponseWriter, r *http.Request) {
+		handlers.DeepSeekHandler(w, r, queries)
+	})
 
 	// ─── Authentication ───────────────────────────────────────────────────────────
 	mux.HandleFunc("/api/register", auth.RegisterHandler(queries))
@@ -130,6 +132,11 @@ func main() {
 
 	// Test LLM endpoint
 	mux.HandleFunc("/api/test/llm", auth.JWTMiddleware(handlers.TestLLMHandler))
+
+	// Protected AI chatbot endpoint (with game context)
+	mux.HandleFunc("/api/ai/chat", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		handlers.DeepSeekHandler(w, r, queries)
+	}))
 
 // chatURL := "http://ollama:11434/api/chat"
 // 	model := "qwen2.5:3b-instruct"

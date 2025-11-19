@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
+	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
 )
 
@@ -20,7 +22,7 @@ var (
 )
 
 // DeepSeekHandler handles AI requests to DeepSeek and saves uploaded files.
-func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
+func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	// Set CORS headers
 	setCORSHeaders(w)
 
@@ -28,6 +30,29 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
+	}
+
+	// Extract user_id from context (set by JWT middleware)
+	// If not present, use 0 (anonymous/unauthenticated)
+	var userID int32
+	if uid, ok := r.Context().Value("userID").(int32); ok {
+		userID = uid
+	} else {
+		// If no authentication, we'll try to proceed without game context
+		fmt.Println("Warning: No user authentication found, proceeding without game context")
+	}
+
+	// Extract optional group_id from query params or form data
+	var groupID *int32
+	groupIDStr := r.URL.Query().Get("group_id")
+	if groupIDStr == "" {
+		groupIDStr = r.FormValue("group_id")
+	}
+	if groupIDStr != "" {
+		if gid, err := strconv.ParseInt(groupIDStr, 10, 32); err == nil && gid > 0 {
+			gidInt32 := int32(gid)
+			groupID = &gidInt32
+		}
 	}
 
 	// Initialize uploads directory
@@ -90,7 +115,7 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		response, aiErr = utils.MainDeep(prompt, uploadedFile)
+		response, aiErr = utils.MainDeep(prompt, userID, groupID, uploadedFile, queries)
 	}()
 
 	// Wait for both operations to complete
