@@ -29,9 +29,9 @@ import { motion, AnimatePresence } from "framer-motion";
 
 
 const models = [
-  { id: "DeepSeek", name: "DeepSeek", icon: "✨"},
+  { id: "DeepSeek", name: "DeepSeek", icon: "✨" },
   { id: "GPT-4", name: "GPT-4", icon: "🧠" },
-  { id: "Claude", name: "Claude", icon: "🌟"},
+  { id: "Claude", name: "Claude", icon: "🌟" },
 ];
 
 const thinkingMessages = [
@@ -68,7 +68,7 @@ export function AIPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [token, setToken] = useState(localStorage.getItem("token"))
   const { activeGroup } = useGroup()
-  
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -88,7 +88,7 @@ export function AIPage() {
       setFiles((prevFiles) => [...prevFiles, ...newFiles]);
     }
   };
-  
+
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension || '')) {
@@ -101,24 +101,22 @@ export function AIPage() {
   const formatTimestamp = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!input.trim() && files.length === 0) return;
 
-    const formData = new FormData();
-    formData.append("question", input);
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
+    // Store the current input and files before clearing
+    const currentInput = input;
+    const currentFiles = [...files];
 
     setMessages((prev) => [
       ...prev,
-      { 
-        role: "user", 
-        content: input, 
-        attachments: files.map((file) => file.name),
+      {
+        role: "user",
+        content: currentInput,
+        attachments: currentFiles.map((file) => file.name),
         timestamp: new Date()
       },
     ]);
@@ -131,35 +129,37 @@ export function AIPage() {
     );
 
 
-//         --header 'content-type: application/json' \
-//   --data '{
-//   "group_id": 1,
-//   "question": "Is Bubble Sort acceptable for small arrays in our pipeline? Recommend and justify.",
-//   "limit": 6,
-//   "model": "gemma3:latest",
-//   "mode": "opinion",
-//   "allow_outside": true,
-//   "output": "short memo",
-//   "tone": "neutral"
-// }'
-    
-  try {
-      const requestBody = {
-        group_id: parseInt(activeGroup?.ID?.toString() || '1'),
-        question: input,
-        limit: 6,
-        model: 'gemma3:latest',
-        mode: 'opinion',
-        allow_outside: true,
-        output: 'short memo',
-        tone: 'neutral'
-      };
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/ask`, {
+    //         --header 'content-type: application/json' \
+    //   --data '{
+    //   "group_id": 1,
+    //   "question": "Is Bubble Sort acceptable for small arrays in our pipeline? Recommend and justify.",
+    //   "limit": 6,
+    //   "model": "gemma3:latest",
+    //   "mode": "opinion",
+    //   "allow_outside": true,
+    //   "output": "short memo",
+    //   "tone": "neutral"
+    // }'
+
+    try {
+
+      const formData = new FormData();
+      formData.append("prompt", currentInput);
+
+      if (activeGroup?.ID) {
+        formData.append("group_id", activeGroup.ID.toString());
+      }
+
+      currentFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/ai/chat`, {
         method: "POST",
         headers: {
-                  'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify(requestBody),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -172,9 +172,9 @@ export function AIPage() {
 
       setMessages((prev) => [
         ...prev,
-        { 
-          role: "assistant", 
-          content: data.answer,
+        {
+          role: "assistant",
+          content: data.response, 
           timestamp: new Date()
         },
       ]);
@@ -202,7 +202,7 @@ export function AIPage() {
     setMessages([]);
     setMessageSent(false);
   };
-  
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-black">
       <div className="flex flex-col w-full h-full max-w-6xl p-4 mx-auto md:p-6">
@@ -211,18 +211,18 @@ export function AIPage() {
             <Sparkles className="w-6 h-6 mr-2 text-primary animate-pulse" />
             DogWood AI Studio
           </h2>
-          
+
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-3">
               <UploadContext
                 token={token || ""}
                 groupID={activeGroup?.ID || 0}
-                
+
               />
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={clearChat}
               className="text-sm"
               disabled={messages.length === 0}
@@ -240,7 +240,7 @@ export function AIPage() {
                       <span className="mr-2">{m.icon}</span>
                       <div>
                         <div>{m.name}</div>
-                        
+
                       </div>
                     </div>
                   </SelectItem>
@@ -270,11 +270,11 @@ export function AIPage() {
               </div>
             </div>
           </CardHeader>
-          
+
           {!messageSent && messages.length === 0 && (
             <div className="flex items-center justify-center flex-1 bg-dot-pattern bg-opacity-5">
               <div className="max-w-lg p-6 mx-auto text-center border rounded-lg shadow-lg md:p-8 bg-card/80 backdrop-blur-sm">
-                <motion.div 
+                <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5 }}
@@ -319,19 +319,16 @@ export function AIPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className={`flex ${
-                      message.role === "assistant" ? "justify-start" : "justify-end"
-                    }`}
+                    className={`flex ${message.role === "assistant" ? "justify-start" : "justify-end"
+                      }`}
                   >
-                    <div className={`flex items-start gap-3 max-w-[85%] ${
-                      message.role === "assistant" ? "flex-row" : "flex-row-reverse"
-                    }`}>
+                    <div className={`flex items-start gap-3 max-w-[85%] ${message.role === "assistant" ? "flex-row" : "flex-row-reverse"
+                      }`}>
                       <div
-                        className={`rounded-full p-2 ${
-                          message.role === "assistant"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary"
-                        }`}
+                        className={`rounded-full p-2 ${message.role === "assistant"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary"
+                          }`}
                       >
                         {message.role === "assistant" ? (
                           <Bot className="w-4 h-4" />
@@ -341,9 +338,8 @@ export function AIPage() {
                       </div>
                       <div>
                         <div className="flex items-center mb-1">
-                          <span className={`text-xs font-medium ${
-                            message.role === "assistant" ? "text-primary" : "text-secondary"
-                          }`}>
+                          <span className={`text-xs font-medium ${message.role === "assistant" ? "text-primary" : "text-secondary"
+                            }`}>
                             {message.role === "assistant" ? models.find(m => m.id === model)?.name : "You"}
                           </span>
                           <span className="mx-2 text-xs text-muted-foreground">
@@ -351,15 +347,13 @@ export function AIPage() {
                           </span>
                         </div>
                         <div
-                          className={`rounded-lg px-4 py-3 ${
-                            message.role === "assistant"
-                              ? "bg-muted/80"
-                              : "bg-primary text-primary-foreground"
-                          }`}
+                          className={`rounded-lg px-4 py-3 ${message.role === "assistant"
+                            ? "bg-muted/80"
+                            : "bg-primary text-primary-foreground"
+                            }`}
                         >
-                          <div className={`prose prose-sm max-w-none ${
-                            message.role === "user" ? "dark:prose-invert" : ""
-                          }`}>
+                          <div className={`prose prose-sm max-w-none ${message.role === "user" ? "dark:prose-invert" : ""
+                            }`}>
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                               {message.content}
                             </ReactMarkdown>
@@ -384,7 +378,7 @@ export function AIPage() {
                 ))}
               </AnimatePresence>
               {isLoading && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex justify-start"
@@ -419,7 +413,7 @@ export function AIPage() {
               <div ref={messagesEndRef} />
             </div>
           </CardContent>
-          
+
           <CardFooter className="p-3 border-t md:p-4">
             <form onSubmit={handleSubmit} className="flex flex-col w-full gap-3">
               <div className={cn(
@@ -447,9 +441,9 @@ export function AIPage() {
                   <Upload className="w-4 h-4" />
                   <span className="sr-only">Upload files</span>
                 </Button>
-                <Button 
-                  type="submit" 
-                  disabled={isLoading || (!input.trim() && files.length === 0)} 
+                <Button
+                  type="submit"
+                  disabled={isLoading || (!input.trim() && files.length === 0)}
                   className="px-4 h-9 shrink-0"
                 >
                   <Send className="w-4 h-4 mr-2" />
@@ -465,7 +459,7 @@ export function AIPage() {
               />
               <AnimatePresence>
                 {files.length > 0 && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}

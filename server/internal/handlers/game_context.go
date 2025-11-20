@@ -197,7 +197,7 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	setCORSHeaders(w)
 
 	
-	apiKey := ""
+	apiKey := "sk-"
 	if apiKey == "" {
 		http.Error(w, "DEEPSEEK_API_KEY not configured", http.StatusInternalServerError)
 		return
