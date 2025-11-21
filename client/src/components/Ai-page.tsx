@@ -146,6 +146,13 @@ export function AIPage() {
       const formData = new FormData();
       formData.append("prompt", currentInput);
 
+      // Add conversation history for context
+      if (messages.length > 0) {
+        // Send last 5 messages (10 total with user/assistant pairs)
+        const recentMessages = messages.slice(-10);
+        formData.append("conversation_history", JSON.stringify(recentMessages));
+      }
+
       if (activeGroup?.ID) {
         formData.append("group_id", activeGroup.ID.toString());
       }
