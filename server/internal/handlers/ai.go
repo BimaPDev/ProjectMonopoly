@@ -78,6 +78,15 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries
 		prompt = " "
 	}
 
+	// Extract conversation history if provided
+	var conversationHistory []map[string]interface{}
+	historyStr := r.FormValue("conversation_history")
+	if historyStr != "" {
+		if err := json.Unmarshal([]byte(historyStr), &conversationHistory); err != nil {
+			fmt.Printf("Warning: Failed to parse conversation history: %v\n", err)
+		}
+	}
+
 	// Process files and AI request concurrently
 	var wg sync.WaitGroup
 	var savedFiles []string
@@ -115,7 +124,7 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		response, aiErr = utils.MainDeep(prompt, userID, groupID, uploadedFile, queries)
+		response, aiErr = utils.MainDeep(prompt, userID, groupID, uploadedFile, conversationHistory, queries)
 	}()
 
 	// Wait for both operations to complete

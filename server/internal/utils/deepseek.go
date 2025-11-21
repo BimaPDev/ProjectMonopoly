@@ -218,7 +218,7 @@ var (
 
 // MainDeep retrieves game context from database and constructs an OpenAI-compatible
 // chat payload, sending it to your local Ollama chat/completions endpoint.
-func MainDeep(prompt string, userID int32, groupID *int32, uploadedFile *multipart.FileHeader, queries *db.Queries) (string, error) {
+func MainDeep(prompt string, userID int32, groupID *int32, uploadedFile *multipart.FileHeader, conversationHistory []map[string]interface{}, queries *db.Queries) (string, error) {
 	// 1) Determine Ollama endpoint & model from env (with sensible defaults)
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
@@ -273,18 +273,48 @@ func MainDeep(prompt string, userID int32, groupID *int32, uploadedFile *multipa
 		systemContext += "\nWhen using information from documents, cite the page number like [p.X]."
 	}
 
-	// 6) Build chat messages in OpenAI format
+	// 6) Build chat messages in OpenAI format with conversation history
 	messages := []map[string]interface{}{
 		{
 			"role":    "system",
 			"content": systemContext,
 		},
-		{
-			"role":    "user",
-			"content": userContent,
-		},
 	}
-	fmt.Printf(">>> Messages payload:\n%+v\n", messages)
+
+	// Add conversation history (limit to last 10 messages to manage token usage)
+	if len(conversationHistory) > 0 {
+		historyLimit := 10
+		startIdx := 0
+		if len(conversationHistory) > historyLimit {
+			startIdx = len(conversationHistory) - historyLimit
+		}
+
+		for _, msg := range conversationHistory[startIdx:] {
+			// Convert frontend message format to OpenAI format
+			role := "user"
+			if r, ok := msg["role"].(string); ok && r == "assistant" {
+				role = "assistant"
+			}
+
+			content := ""
+			if c, ok := msg["content"].(string); ok {
+				content = c
+			}
+
+			messages = append(messages, map[string]interface{}{
+				"role":    role,
+				"content": content,
+			})
+		}
+	}
+
+	// Add current user message
+	messages = append(messages, map[string]interface{}{
+		"role":    "user",
+		"content": userContent,
+	})
+
+	fmt.Printf(">>> Messages with history (total: %d messages)\n", len(messages))
 
 	// 7) Build the request body
 	requestBody := map[string]interface{}{
