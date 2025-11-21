@@ -143,30 +143,24 @@ export function AIPage() {
 
     try {
 
-      const formData = new FormData();
-      formData.append("prompt", currentInput);
+      const requestBody = {
+        group_id: activeGroup?.ID || 0,
+        question: currentInput,
+        limit: 6,
+        model: "gemma:latest",
+        mode: "opinion",
+        allow_outside: true,
+        output: "concise answer",
+        tone: "neutral"
+      };
 
-      // Add conversation history for context
-      if (messages.length > 0) {
-        // Send last 5 messages (10 total with user/assistant pairs)
-        const recentMessages = messages.slice(-10);
-        formData.append("conversation_history", JSON.stringify(recentMessages));
-      }
-
-      if (activeGroup?.ID) {
-        formData.append("group_id", activeGroup.ID.toString());
-      }
-
-      currentFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/ai/chat`, {
+      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/ask`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
         },
-        body: formData,
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -181,7 +175,7 @@ export function AIPage() {
         ...prev,
         {
           role: "assistant",
-          content: data.response, 
+          content: data.answer,
           timestamp: new Date()
         },
       ]);
