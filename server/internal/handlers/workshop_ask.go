@@ -110,7 +110,7 @@ func envOr(k, d string) string {
 
 func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := ctxUserID(r)
+		userID :=  r.Context().Value("userID").(int32)
 
 		var ar askReq
 		if err := json.NewDecoder(r.Body).Decode(&ar); err != nil || ar.GroupID == 0 || strings.TrimSpace(ar.Question) == "" {
