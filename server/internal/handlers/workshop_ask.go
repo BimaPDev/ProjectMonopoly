@@ -125,16 +125,21 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 		history := getHistory(int32(userID), ar.GroupID) // last ≤3 turns in past 2h
 
 		// Exact search with full question
-		rows, _ := q.SearchChunks(ctx, db.SearchChunksParams{
+		rows, err := q.SearchChunks(ctx, db.SearchChunksParams{
 			Q:       ar.Question,
 			UserID:  int32(userID),
 			GroupID: ar.GroupID,
 			N:       limit,
 		})
+		if err != nil {
+			fmt.Printf("SearchChunks error: %v\n", err)
+		}
+		fmt.Printf("SearchChunks results for '%s': %d rows (userID=%d, groupID=%d)\n", ar.Question, len(rows), userID, ar.GroupID)
 
 		// Retry with concise query if empty
 		if len(rows) == 0 {
 			cq := conciseQuery(ar.Question)
+			fmt.Printf("Retrying with concise query: '%s'\n", cq)
 			if cq != "" && cq != strings.ToLower(ar.Question) {
 				r2, _ := q.SearchChunks(ctx, db.SearchChunksParams{
 					Q:       cq,
@@ -142,18 +147,21 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 					GroupID: ar.GroupID,
 					N:       limit,
 				})
+				fmt.Printf("Concise query returned %d rows\n", len(r2))
 				rows = append(rows, r2...)
 			}
 		}
 
 		// Fuzzy fallback
 		if len(rows) == 0 {
+			fmt.Printf("Trying fuzzy search...\n")
 			fz, _ := q.FuzzyChunks(ctx, db.FuzzyChunksParams{
 				Q:       ar.Question,
 				UserID:  int32(userID),
 				GroupID: ar.GroupID,
 				N:       limit,
 			})
+			fmt.Printf("Fuzzy search returned %d rows\n", len(fz))
 			for _, r2 := range fz {
 				rows = append(rows, db.SearchChunksRow{
 					DocumentID: r2.DocumentID,
@@ -164,19 +172,10 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			}
 		}
 
-		// Topic filter (non-destructive)
-		if len(rows) > 0 {
-			terms := topicTerms(ar.Question)
-			filtered := make([]db.SearchChunksRow, 0, len(rows))
-			for _, rr := range rows {
-				if containsAnyFold(rr.Content, terms...) {
-					filtered = append(filtered, rr)
-				}
-			}
-			if len(filtered) > 0 {
-				rows = filtered
-			}
-		}
+		fmt.Printf("Final row count after all searches: %d\n", len(rows))
+
+		// Topic filter removed - not needed for indie games/marketing RAG
+		// The vector search already returns relevant results
 
 		// Build context + hits list
 		hits := make([]askHit, 0, len(rows))
@@ -275,11 +274,21 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			}
 		} else {
 			if mode == "opinion" {
-				sys = "Write an opinionated analysis primarily from Context. Claims from Context MUST cite [p.X]. If you add outside knowledge, put it ONLY under 'Assumptions'."
-				user = buildOpinionUserPrompt(b.String(), ar)
+				if hasClientHistory {
+					sys = "You are a helpful AI assistant. When Context is available, cite it with [p.X]. Use conversation history to understand follow-up questions. Provide practical recommendations."
+					user = buildContextOnly(b.String())
+				} else {
+					sys = "Write an opinionated analysis primarily from Context. Claims from Context MUST cite [p.X]. If you add outside knowledge, put it ONLY under 'Assumptions'."
+					user = buildOpinionUserPrompt(b.String(), ar)
+				}
 			} else {
-				sys = "Answer only from Context. Cite pages like [p.X]. If missing, say you don't know."
-				user = buildStrictUserPrompt(b.String(), ar.Question)
+				if hasClientHistory {
+					sys = "Answer using Context when available and cite [p.X]. Use conversation history to understand context. If information is missing, say you don't know."
+					user = buildContextOnly(b.String())
+				} else {
+					sys = "Answer only from Context. Cite pages like [p.X]. If missing, say you don't know."
+					user = buildStrictUserPrompt(b.String(), ar.Question)
+				}
 			}
 		}
 
@@ -327,8 +336,19 @@ func buildStrictUserPrompt(contextBlock, question string) string {
 	} else {
 		b.WriteString("Context:\n<none>\n")
 	}
-	b.WriteString("Instructions: Use ONLY the Context above. If the answer is not present, say you don’t know. Cite pages like [p.X].\n")
+	b.WriteString("Instructions: Use ONLY the Context above. If the answer is not present, say you don't know. Cite pages like [p.X].\n")
 	b.WriteString("Question: " + question)
+	return b.String()
+}
+
+func buildContextOnly(contextBlock string) string {
+	var b strings.Builder
+	if strings.TrimSpace(contextBlock) != "" {
+		b.WriteString(contextBlock)
+	} else {
+		b.WriteString("Context:\n<none>\n")
+	}
+	b.WriteString("Instructions: Use the Context above to answer questions. Cite pages like [p.X] when referencing the context.\n")
 	return b.String()
 }
 
@@ -371,18 +391,33 @@ func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, o
 	}
 
 	// Add conversation history if provided
-	for _, msg := range history {
+	if len(history) > 0 {
+		// When we have history, we need to integrate context smartly
+		// The history already contains the user's question, so we prepend context if available
+		hasContext := user != "" && strings.Contains(user, "Context:")
+
+		if hasContext {
+			// Add context as initial user message
+			messages = append(messages, map[string]string{
+				"role":    "user",
+				"content": user,
+			})
+		}
+
+		// Add all conversation history
+		for _, msg := range history {
+			messages = append(messages, map[string]string{
+				"role":    msg.Role,
+				"content": msg.Content,
+			})
+		}
+	} else {
+		// No history, use traditional approach
 		messages = append(messages, map[string]string{
-			"role":    msg.Role,
-			"content": msg.Content,
+			"role":    "user",
+			"content": user,
 		})
 	}
-
-	// Add current user message
-	messages = append(messages, map[string]string{
-		"role":    "user",
-		"content": user,
-	})
 
 	// Try /api/chat with retries/backoff
 	body := map[string]any{
@@ -494,52 +529,11 @@ func containsAnyFold(s string, subs ...string) bool {
 	return false
 }
 
-func topicTerms(q string) []string {
-	q = strings.ToLower(q)
 
-	core := []string{
-		"bridge", "cross", "minute", "minutes", "torch",
-		"bubble", "sort", "swap", "heap",
-		"locker", "doors", "divisors", "square",
-		"dp", "dynamic programming", "recurrence",
-	}
-	found := make([]string, 0, 6)
-	for _, t := range core {
-		if strings.Contains(q, t) {
-			found = append(found, t)
-		}
-	}
-	if len(found) > 0 {
-		return found
-	}
-
-	norm := strings.NewReplacer("-", " ", "_", " ").Replace(q)
-	fields := strings.FieldsFunc(norm, func(r rune) bool {
-		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9')
-	})
-	sort.Slice(fields, func(i, j int) bool { return len(fields[i]) > len(fields[j]) })
-	out := []string{}
-	for _, w := range fields {
-		if len(out) >= 3 {
-			break
-		}
-		if len(w) >= 5 {
-			out = append(out, w)
-		}
-	}
-	return out
-}
 
 func conciseQuery(s string) string {
 	s = strings.ToLower(s)
-	phrases := []string{
-		"bubble sort", "dynamic programming", "max heap", "locker doors",
-	}
-	for _, p := range phrases {
-		if strings.Contains(s, p) {
-			return p
-		}
-	}
+	// Extract key terms (longest words ≥4 chars) for better search matching
 	toks := strings.FieldsFunc(s, func(r rune) bool {
 		return !(unicode.IsLetter(r) || unicode.IsDigit(r))
 	})

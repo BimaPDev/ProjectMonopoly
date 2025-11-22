@@ -105,8 +105,8 @@ func WorkshopUploadHandler(w http.ResponseWriter, r *http.Request, q *db.Queries
 		StorageUrl: sql.NullString{String: finalPath, Valid: true}, // absolute path, no env
 	})
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "workshop_doc_user_sha_uniq") {
-			http.Error(w, "duplicate file", http.StatusConflict)
+		if strings.Contains(strings.ToLower(err.Error()), "workshop_doc_user_group_sha_uniq") {
+			http.Error(w, "duplicate file in this group", http.StatusConflict)
 			return
 		}
 		http.Error(w, "db insert failed", http.StatusInternalServerError)
