@@ -155,7 +155,7 @@ CREATE TABLE workshop_documents (
   storage_url TEXT,                              -- ok to be NULL pre-upload
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now(),
-  CONSTRAINT workshop_doc_user_sha_uniq UNIQUE (user_id, sha256),
+  CONSTRAINT workshop_doc_user_group_sha_uniq UNIQUE (user_id, group_id, sha256),
   -- FIX: make sha length sane hex
   CONSTRAINT workshop_doc_sha256_ck CHECK (sha256 ~ '^[0-9a-f]{64}$')
 );
