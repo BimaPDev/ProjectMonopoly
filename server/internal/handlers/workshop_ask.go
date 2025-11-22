@@ -4,6 +4,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -184,19 +185,19 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 		// Add game context if available (FIRST, before anything else)
 		gameCtx, gameCtxErr := q.GetGameContext(ctx, db.GetGameContextParams{
 			UserID:  int32(userID),
-			GroupID: ar.GroupID,
+			GroupID: sql.NullInt32{Int32: ar.GroupID, Valid: true},
 		})
 		if gameCtxErr == nil {
 			b.WriteString("=== Game Information ===\n")
 
 			// Basic info
-			if gameCtx.GameTitle {
-				fmt.Fprintf(&b, "Title: %s\n", gameCtx.GameTitle.String)
+			if gameCtx.GameTitle != "" {
+				fmt.Fprintf(&b, "Title: %s\n", gameCtx.GameTitle)
 			}
-			if gameCtx.StudioName {
+			if gameCtx.StudioName.Valid {
 				fmt.Fprintf(&b, "Studio: %s\n", gameCtx.StudioName.String)
 			}
-			if gameCtx.GameSummary {
+			if gameCtx.GameSummary.Valid {
 				fmt.Fprintf(&b, "Summary: %s\n", gameCtx.GameSummary.String)
 			}
 
@@ -209,59 +210,59 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			}
 
 			// Genre and style
-			if gameCtx.PrimaryGenre {
+			if gameCtx.PrimaryGenre.Valid {
 				fmt.Fprintf(&b, "Genre: %s", gameCtx.PrimaryGenre.String)
-				if gameCtx.Subgenre {
+				if gameCtx.Subgenre.Valid {
 					fmt.Fprintf(&b, " (%s)", gameCtx.Subgenre.String)
 				}
 				b.WriteString("\n")
 			}
-			if gameCtx.KeyMechanics {
+			if gameCtx.KeyMechanics.Valid {
 				fmt.Fprintf(&b, "Key Mechanics: %s\n", gameCtx.KeyMechanics.String)
 			}
-			if gameCtx.PlaytimeLength {
+			if gameCtx.PlaytimeLength.Valid {
 				fmt.Fprintf(&b, "Playtime: %s\n", gameCtx.PlaytimeLength.String)
 			}
-			if gameCtx.ArtStyle {
+			if gameCtx.ArtStyle.Valid {
 				fmt.Fprintf(&b, "Art Style: %s\n", gameCtx.ArtStyle.String)
 			}
-			if gameCtx.Tone {
+			if gameCtx.Tone.Valid {
 				fmt.Fprintf(&b, "Tone: %s\n", gameCtx.Tone.String)
 			}
 
 			// Audience
-			if gameCtx.IntendedAudience{
+			if gameCtx.IntendedAudience.Valid {
 				fmt.Fprintf(&b, "Target Audience: %s\n", gameCtx.IntendedAudience.String)
 			}
-			if gameCtx.AgeRange {
+			if gameCtx.AgeRange.Valid {
 				fmt.Fprintf(&b, "Age Range: %s\n", gameCtx.AgeRange.String)
 			}
-			if gameCtx.PlayerMotivation {
+			if gameCtx.PlayerMotivation.Valid {
 				fmt.Fprintf(&b, "Player Motivation: %s\n", gameCtx.PlayerMotivation.String)
 			}
-			if gameCtx.ComparableGames {
+			if gameCtx.ComparableGames.Valid {
 				fmt.Fprintf(&b, "Similar Games: %s\n", gameCtx.ComparableGames.String)
 			}
 
 			// Marketing
-			if gameCtx.MarketingObjective {
+			if gameCtx.MarketingObjective.Valid {
 				fmt.Fprintf(&b, "Marketing Goal: %s\n", gameCtx.MarketingObjective.String)
 			}
-			if gameCtx.KeyEventsDates {
+			if gameCtx.KeyEventsDates.Valid {
 				fmt.Fprintf(&b, "Key Events/Dates: %s\n", gameCtx.KeyEventsDates.String)
 			}
-			if gameCtx.CallToAction {
+			if gameCtx.CallToAction.Valid {
 				fmt.Fprintf(&b, "Call to Action: %s\n", gameCtx.CallToAction.String)
 			}
 
 			// Restrictions
-			if gameCtx.ContentRestrictions {
+			if gameCtx.ContentRestrictions.Valid {
 				fmt.Fprintf(&b, "Content Restrictions: %s\n", gameCtx.ContentRestrictions.String)
 			}
-			if gameCtx.CompetitorsToAvoid {
+			if gameCtx.CompetitorsToAvoid.Valid {
 				fmt.Fprintf(&b, "Competitors to Avoid: %s\n", gameCtx.CompetitorsToAvoid.String)
 			}
-			if gameCtx.AdditionalInfo {
+			if gameCtx.AdditionalInfo.Valid {
 				fmt.Fprintf(&b, "Additional Info: %s\n", gameCtx.AdditionalInfo.String)
 			}
 
