@@ -143,6 +143,14 @@ export function AIPage() {
 
     try {
 
+      // Build conversation history from messages (last 3 exchanges)
+      const conversationHistory = messages
+        .slice(-6) // Last 6 messages (3 user + 3 assistant)
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
       const requestBody = {
         group_id: activeGroup?.ID || 0,
         question: currentInput,
@@ -151,7 +159,8 @@ export function AIPage() {
         mode: "opinion",
         allow_outside: true,
         output: "concise answer",
-        tone: "neutral"
+        tone: "neutral",
+        history: conversationHistory
       };
 
       const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/ask`, {

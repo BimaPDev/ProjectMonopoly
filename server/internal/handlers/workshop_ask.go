@@ -71,15 +71,21 @@ func getHistory(userID, groupID int32) []pastTurn {
 
 // ---------------------------------------------------------------------------
 
+type historyMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 type askReq struct {
-	GroupID      int32  `json:"group_id"`
-	Question     string `json:"question"`
-	Limit        int32  `json:"limit"`
-	Model        string `json:"model"`
-	Mode         string `json:"mode"`          // "strict" | "opinion"
-	AllowOutside bool   `json:"allow_outside"` // default false
-	Output       string `json:"output"`        // e.g. "bullet pros/cons", "one-page memo"
-	Tone         string `json:"tone"`          // e.g. "neutral", "confident"
+	GroupID      int32             `json:"group_id"`
+	Question     string            `json:"question"`
+	Limit        int32             `json:"limit"`
+	Model        string            `json:"model"`
+	Mode         string            `json:"mode"`          // "strict" | "opinion"
+	AllowOutside bool              `json:"allow_outside"` // default false
+	Output       string            `json:"output"`        // e.g. "bullet pros/cons", "one-page memo"
+	Tone         string            `json:"tone"`          // e.g. "neutral", "confident"
+	History      []historyMessage  `json:"history"`       // conversation history from client
 }
 
 type askHit struct {
@@ -239,7 +245,10 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 
 		// No-context handling
 		var sys, user string
-		if len(rows) == 0 && len(history) == 0 {
+		hasClientHistory := len(ar.History) > 0
+
+		// If client provides history, treat as conversational even without RAG context
+		if len(rows) == 0 && len(history) == 0 && !hasClientHistory {
 			if !ar.AllowOutside {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(askResp{
@@ -255,12 +264,21 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			} else {
 				user = "Question: " + ar.Question
 			}
+		} else if hasClientHistory && len(rows) == 0 && len(history) == 0 {
+			// Client history exists but no RAG context - conversational mode
+			if mode == "opinion" {
+				sys = "You are a helpful AI assistant. Provide thoughtful recommendations and advice based on the conversation history and your general knowledge. Be practical and actionable."
+				user = buildOpinionNoContext(ar)
+			} else {
+				sys = "You are a helpful AI assistant. Answer based on the conversation history and your general knowledge."
+				user = "Question: " + ar.Question
+			}
 		} else {
 			if mode == "opinion" {
 				sys = "Write an opinionated analysis primarily from Context. Claims from Context MUST cite [p.X]. If you add outside knowledge, put it ONLY under 'Assumptions'."
 				user = buildOpinionUserPrompt(b.String(), ar)
 			} else {
-				sys = "Answer only from Context. Cite pages like [p.X]. If missing, say you don’t know."
+				sys = "Answer only from Context. Cite pages like [p.X]. If missing, say you don't know."
 				user = buildStrictUserPrompt(b.String(), ar.Question)
 			}
 		}
@@ -272,7 +290,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			"top_p":          0.9,
 			"min_p":          0.05,
 			"seed":           13,
-		})
+		}, ar.History)
 		if err != nil {
 			if len(rows) == 0 {
 				ans = "No relevant context on this topic in your PDFs. Enable allow_outside or upload a relevant document."
@@ -341,21 +359,37 @@ func buildOpinionNoContext(ar askReq) string {
 	return b.String()
 }
 
-func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, opts map[string]any) (string, error) {
+func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, opts map[string]any, history []historyMessage) (string, error) {
 	// Wake Ollama/model (handles idle unloads)
 	_ = pingOllama(host, 10*time.Second)
 
 	client := &http.Client{Timeout: ollamaTimeout()}
 
+	// Build messages array with history
+	messages := []map[string]string{
+		{"role": "system", "content": sys},
+	}
+
+	// Add conversation history if provided
+	for _, msg := range history {
+		messages = append(messages, map[string]string{
+			"role":    msg.Role,
+			"content": msg.Content,
+		})
+	}
+
+	// Add current user message
+	messages = append(messages, map[string]string{
+		"role":    "user",
+		"content": user,
+	})
+
 	// Try /api/chat with retries/backoff
 	body := map[string]any{
-		"model":   model,
-		"stream":  false,
-		"options": opts,
-		"messages": []map[string]string{
-			{"role": "system", "content": sys},
-			{"role": "user", "content": user},
-		},
+		"model":    model,
+		"stream":   false,
+		"options":  opts,
+		"messages": messages,
 	}
 	b, _ := json.Marshal(body)
 
