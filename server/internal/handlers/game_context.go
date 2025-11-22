@@ -21,36 +21,25 @@ import (
 // ---------------- Models ----------------
 
 type GameContextRequest struct {
-	// Identifiers
 	GroupID *int32 `json:"group_id,omitempty"`
-
-	// Section 1: Basic Game Information
 	GameTitle   string   `json:"game_title"`
 	StudioName  string   `json:"studio_name"`
 	GameSummary string   `json:"game_summary"`
 	Platforms   []string `json:"platforms"`
 	EngineTech  string   `json:"engine_tech"`
-
-	// Section 2: Core Identity
 	PrimaryGenre   string `json:"primary_genre"`
 	Subgenre       string `json:"subgenre"`
 	KeyMechanics   string `json:"key_mechanics"`
 	PlaytimeLength string `json:"playtime_length"`
 	ArtStyle       string `json:"art_style"`
 	Tone           string `json:"tone"`
-
-	// Section 3: Target Audience
 	IntendedAudience string `json:"intended_audience"`
 	AgeRange         string `json:"age_range"`
 	PlayerMotivation string `json:"player_motivation"`
 	ComparableGames  string `json:"comparable_games"`
-
-	// Section 4: Marketing Goals
 	MarketingObjective string `json:"marketing_objective"`
 	KeyEventsDates     string `json:"key_events_dates"`
 	CallToAction       string `json:"call_to_action"`
-
-	// Section 5: Restrictions / Boundaries
 	ContentRestrictions string `json:"content_restrictions"`
 	CompetitorsToAvoid  string `json:"competitors_to_avoid"`
 	AdditionalInfo		string `json:"additional_info"`
@@ -127,28 +116,21 @@ func WarmupDeepSeek(apiKey, model string) error {
 	return nil
 }
 
-// ---------------- Handlers ----------------
-
 func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-
-	// Extract user_id from context (set by JWT middleware)
 	userID, ok := r.Context().Value("userID").(int32)
 	if !ok {
 		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
 		return
 	}
-
 	var req GameContextRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	
 	var groupID sql.NullInt32
 	if req.GroupID != nil && *req.GroupID > 0 {
 		groupID = sql.NullInt32{Int32: *req.GroupID, Valid: true}
@@ -238,8 +220,6 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		http.Error(w, fmt.Sprintf("Error reading file: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	// Use semantic chunking approach for better extraction
 	gameContext, err := extractInChunks(fc, apiKey, model)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to extract game context: %v", err), http.StatusInternalServerError)
@@ -250,8 +230,6 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 	_ = json.NewEncoder(w).Encode(gameContext)
 }
 
-// ---------------- Chunking Types ----------------
-
 type ChunkResult struct {
 	Section string
 	Data    map[string]interface{}
@@ -261,10 +239,8 @@ type ChunkResult struct {
 type chunkConfig struct {
 	fields []string
 	prompt string
+	context string
 }
-
-// ---------------- Helpers (chunking) ----------------
-
 // callDeepSeek makes a single call to DeepSeek API with the given prompt
 func callDeepSeek(apiKey, model, prompt string) (map[string]interface{}, error) {
 	messages := []map[string]string{
@@ -398,23 +374,52 @@ func mergeChunkData(target *GameContextRequest, source map[string]interface{}) {
 
 // extractInChunks processes the document in semantic chunks using parallel LLM calls
 func extractInChunks(fc string, apiKey string, model string) (*GameContextRequest, error) {
-
+	format := `
+			1. Basic Game Information
+		Game Title: Official name
+		Studio / Developer Name: Your studio or indie name
+		One-Sentence Summary: Core appeal in one sentence (e.g., "A cozy farming sim about restoring a village")
+		Platform(s): PC ☐ Console ☐ Mobile ☐ VR ☐ Other ☐
+		Engine / Tech Used: (Optional) Unity, Unreal, Godot, etc.
+		2. Core Identity
+		Primary Genre: Racing, RPG, puzzle, strategy, etc.
+		Subgenre: Roguelike deckbuilder, narrative puzzle, sandbox builder, etc.
+		Key Mechanics (3 to 5): What players actually do (customizable cars, procedural levels, multiplayer, etc.)
+		Playtime: Short sessions / mid-length campaign / endless
+		Art Style / Tone: Pixel art, stylized 3D, comedic, noir, cozy, etc.
+		3. Target Audience
+		Intended Audience: Casual gamers, speedrunners, story enthusiasts, strategy fans, etc.
+		Age Range: Kids / Teens / Young Adults / Adults / All Ages
+		Player Motivation: Fun, relaxation, mastery, creativity, competition, story, achievement
+		Comparable Games: "Like Stardew Valley meets Dark Souls"
+		4. Marketing Goals
+		Main Objective: Awareness ☐ Wishlist growth ☐ Demo downloads ☐ Retention ☐ Event promotion ☐
+		Key Events/Dates: Demo release, launch date, festival submissions, etc.
+		Call-to-Action: Add to Wishlist / Play demo / Join Discord / etc.
+		5. Restrictions / Boundaries
+		Content Restrictions: No mention of real-money gambling, avoid dark humor, etc.
+		Topics to Avoid: Real-world casinos, violence, specific competitors, etc.
+	`
 	chunks := map[string]chunkConfig{
 		"basic": {
 			fields: []string{"game_title", "studio_name", "game_summary", "platforms", "engine_tech"},
 			prompt: `Extract basic game info as JSON (use "" if missing): {"game_title":"","studio_name":"","game_summary":"","platforms":[],"engine_tech":""}`,
+			context: format, 
 		},
 		"identity": {
 			fields: []string{"primary_genre", "subgenre", "key_mechanics", "playtime_length", "art_style", "tone"},
 			prompt: `Extract game identity as JSON (use "" if missing): {"primary_genre":"","subgenre":"","key_mechanics":"","playtime_length":"","art_style":"","tone":""}`,
+			context: format,
 		},
 		"audience": {
 			fields: []string{"intended_audience", "age_range", "player_motivation", "comparable_games"},
 			prompt: `Extract target audience as JSON (use "" if missing): {"intended_audience":"","age_range":"","player_motivation":"","comparable_games":""}`,
+			context: format,
 		},
 		"marketing": {
 			fields: []string{"marketing_objective", "key_events_dates", "call_to_action", "content_restrictions", "competitors_to_avoid"},
 			prompt: `Extract marketing info as JSON (use "" if missing): {"marketing_objective":"","key_events_dates":"","call_to_action":"","content_restrictions":"","competitors_to_avoid":""}`,
+			context: format,
 		},
 	}
 
@@ -436,8 +441,6 @@ func extractInChunks(fc string, apiKey string, model string) (*GameContextReques
 			results <- ChunkResult{Section: sec, Data: data, Error: err}
 		}(section, config)
 	}
-
-	// Aggregate results
 	gameContext := &GameContextRequest{}
 	var errors []string
 
@@ -456,8 +459,6 @@ func extractInChunks(fc string, apiKey string, model string) (*GameContextReques
 
 	return gameContext, nil
 }
-
-// ---------------- Helpers (file readers) ----------------
 
 func readFileContent(uploadedFile *multipart.FileHeader) (string, error) {
 	f, err := uploadedFile.Open()
