@@ -15,7 +15,9 @@ services:
       OLLAMA_URL: http://ollama:11434/v1/chat/completions
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_MODEL: qwen2.5:3b-instruct
-    volumes: [docs_data:/data/docs]
+    volumes: 
+      - docs_data:/data/docs
+      - docs_data:/app/uploads/docs
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,7 +28,9 @@ services:
     build: ./server/python
     environment:
       DOCS_DIR: /data/docs
-    volumes: [docs_data:/data/docs]
+    volumes: 
+      - docs_data:/data/docs
+      - docs_data:/app/uploads/docs
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,10 +64,20 @@ services:
       - "OLLAMA_ORIGINS=*"
       - "OLLAMA_KEEP_ALIVE=10m"
       - "OLLAMA_NUM_THREADS=9"
-      - "OLLAMA_NUM_CTX=32768"    # Correct variable for context length
+      - "OLLAMA_NUM_CTX=8024"    
     cpus: "8"
     mem_limit: "32g"
     entrypoint: ["ollama", "serve"]
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 volumes:
   postgres_data:
   ollama_data:
