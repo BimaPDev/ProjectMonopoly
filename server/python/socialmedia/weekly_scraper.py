@@ -59,7 +59,7 @@ class WeeklyInstagramScraper:
                         LEFT JOIN competitor_posts cp ON c.id = cp.competitor_id 
                             AND cp.platform = 'instagram'
                             AND cp.scraped_at >= NOW() - INTERVAL '%s days'
-                        WHERE c.platform = 'instagram'
+                        WHERE LOWER(c.platform) = 'instagram'
                         GROUP BY c.id, c.username, c.profile_url, c.last_checked
                         HAVING 
                             c.last_checked IS NULL 
