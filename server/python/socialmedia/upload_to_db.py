@@ -68,19 +68,9 @@ def parse_posted_at(post_date_str):
         return None
 
 def get_database_connection():
-    # Get database connection
-    # Database connection parameters
-    # Update these to match your database configuration
-    conn_params = {
-        'host': 'localhost',
-        'port': 5432,
-        'database': 'project_monopoly',
-        'user': 'root',
-        'password': 'secret'
-    }
-    
+    database_url = os.getenv("DATABASE_URL", "postgresql://root:secret@postgres:5432/project_monopoly")
     try:
-        conn = psycopg2.connect(**conn_params)
+        conn = psycopg2.connect(database_url)
         return conn
     except psycopg2.Error as e:
         print(f"Error connecting to database: {e}")
