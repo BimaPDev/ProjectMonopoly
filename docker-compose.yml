@@ -26,8 +26,12 @@ services:
     restart: always
   python:
     build: ./server/python
+    shm_size: '2gb'
     environment:
       DOCS_DIR: /data/docs
+      INSTAGRAM_USERNAME: "${INSTAGRAM_USERNAME}"
+      INSTAGRAM_PASSWORD: "${INSTAGRAM_PASSWORD}"
+      DATABASE_URL: postgresql://root:secret@postgres:5432/project_monopoly
     volumes: 
       - docs_data:/data/docs
       - docs_data:/app/uploads/docs

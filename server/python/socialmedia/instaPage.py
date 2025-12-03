@@ -52,19 +52,30 @@ class InstagramScraper:
         
     def setup_driver(self):
         chrome_options = Options()
-        chrome_options.headless = False  # Keep this False for debugging
+        
+        # REQUIRED for Docker/headless environments
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        
+        # Additional stability options
         chrome_options.add_argument("--disable-notifications")
         chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--single-process")
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
+        
         try:
             from webdriver_manager.chrome import ChromeDriverManager
-            self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-        except Exception:
+            self.driver = webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()), 
+                options=chrome_options
+            )
+        except Exception as e:
+            print(f"WebDriver Manager failed: {e}")
             self.driver = webdriver.Chrome(options=chrome_options)
-        self.driver.maximize_window()
         
     def save_cookies(self):
         pickle.dump(self.driver.get_cookies(), open(self.cookies_path, "wb"))
