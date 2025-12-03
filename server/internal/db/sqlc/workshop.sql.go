@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createWorkshopDocument = `-- name: CreateWorkshopDocument :one
@@ -123,6 +124,55 @@ func (q *Queries) FuzzyChunks(ctx context.Context, arg FuzzyChunksParams) ([]Fuz
 		return nil, err
 	}
 	return items, nil
+}
+
+const getGameContext = `-- name: GetGameContext :one
+SELECT id, user_id, group_id, game_title, studio_name, game_summary, platforms, engine_tech, primary_genre, subgenre, key_mechanics, playtime_length, art_style, tone, intended_audience, age_range, player_motivation, comparable_games, marketing_objective, key_events_dates, call_to_action, content_restrictions, competitors_to_avoid, additional_info, extraction_method, original_file_name, created_at, updated_at
+FROM game_contexts
+WHERE user_id = $1 AND group_id = $2
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetGameContextParams struct {
+	UserID  int32         `json:"user_id"`
+	GroupID sql.NullInt32 `json:"group_id"`
+}
+
+func (q *Queries) GetGameContext(ctx context.Context, arg GetGameContextParams) (GameContext, error) {
+	row := q.db.QueryRowContext(ctx, getGameContext, arg.UserID, arg.GroupID)
+	var i GameContext
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.GameTitle,
+		&i.StudioName,
+		&i.GameSummary,
+		pq.Array(&i.Platforms),
+		&i.EngineTech,
+		&i.PrimaryGenre,
+		&i.Subgenre,
+		&i.KeyMechanics,
+		&i.PlaytimeLength,
+		&i.ArtStyle,
+		&i.Tone,
+		&i.IntendedAudience,
+		&i.AgeRange,
+		&i.PlayerMotivation,
+		&i.ComparableGames,
+		&i.MarketingObjective,
+		&i.KeyEventsDates,
+		&i.CallToAction,
+		&i.ContentRestrictions,
+		&i.CompetitorsToAvoid,
+		&i.AdditionalInfo,
+		&i.ExtractionMethod,
+		&i.OriginalFileName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const searchChunks = `-- name: SearchChunks :many

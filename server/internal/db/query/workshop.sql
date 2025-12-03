@@ -57,3 +57,10 @@ WHERE d.user_id  = p.user_id
   )
 ORDER BY rank DESC
 LIMIT (SELECT n FROM p);
+
+-- name: GetGameContext :one
+SELECT *
+FROM game_contexts
+WHERE user_id = $1 AND group_id = $2
+ORDER BY created_at DESC
+LIMIT 1;
