@@ -273,21 +273,7 @@ npm run dev
 
 ---
 
-## 🤝 Contributing
 
-We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and development process.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-**Built with ❤️ by the Dogwood Gaming Team**
 
 *Transforming social media marketing, one post at a time*
 
