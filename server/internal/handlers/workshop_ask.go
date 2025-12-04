@@ -21,7 +21,7 @@ import (
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 )
 
-var citeRe = regexp.MustCompile(`\[p\.(\d+)\]`)
+var citeRe = regexp.MustCompile(`\[(p\.|CP)(\d+)\]`)
 
 // ---------------- Conversation Memory (2h TTL, last 3 turns) ----------------
 
@@ -175,6 +175,19 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 
 		fmt.Printf("Final row count after all searches: %d\n", len(rows))
 
+		// Search Competitor Posts
+		compPosts, err := q.SearchCompetitorPosts(ctx, db.SearchCompetitorPostsParams{
+			UserID:             int32(userID),
+			GroupID:            sql.NullInt32{Int32: ar.GroupID, Valid: true},
+			WebsearchToTsquery: ar.Question,
+			Limit:              5,
+		})
+		if err != nil {
+			fmt.Printf("SearchCompetitorPosts error: %v\n", err)
+		} else {
+			fmt.Printf("SearchCompetitorPosts found %d posts\n", len(compPosts))
+		}
+
 		// Topic filter removed - not needed for indie games/marketing RAG
 		// The vector search already returns relevant results
 
@@ -305,7 +318,37 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 					Snippet:    snip,
 				})
 			}
-		} else if len(history) > 0 {
+		}
+
+		if len(compPosts) > 0 {
+			b.WriteString("=== Competitor Posts ===\n")
+			for i, cp := range compPosts {
+				content := "No content"
+				if cp.Content.Valid {
+					content = cp.Content.String
+				}
+				if len(content) > 500 {
+					content = content[:500] + "..."
+				}
+				postedAt := "Unknown date"
+				if cp.PostedAt.Valid {
+					postedAt = cp.PostedAt.Time.Format("2006-01-02")
+				}
+
+				// Cite as [CP1], [CP2] etc.
+				fmt.Fprintf(&b, "[CP%d] %s (%s) @%s: %s\n\n",
+					i+1, cp.Platform, postedAt, cp.CompetitorUsername, content)
+
+				hits = append(hits, askHit{
+					DocumentID: fmt.Sprintf("post:%s:%s", cp.Platform, cp.PostID),
+					Page:       0,
+					Index:      0,
+					Snippet:    content,
+				})
+			}
+		}
+
+		if len(rows) == 0 && len(compPosts) == 0 && len(history) > 0 {
 			// No fresh rows. Reuse prior Context block to keep thread alive.
 			b.WriteString("Context:\n")
 			lastCtx := history[len(history)-1].Context
@@ -335,7 +378,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 		hasClientHistory := len(ar.History) > 0
 
 		// If client provides history, treat as conversational even without RAG context
-		if len(rows) == 0 && len(history) == 0 && !hasClientHistory {
+		if len(rows) == 0 && len(compPosts) == 0 && len(history) == 0 && !hasClientHistory {
 			if !ar.AllowOutside {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(askResp{
@@ -351,7 +394,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			} else {
 				user = "Question: " + ar.Question
 			}
-		} else if hasClientHistory && len(rows) == 0 && len(history) == 0 {
+		} else if hasClientHistory && len(rows) == 0 && len(compPosts) == 0 && len(history) == 0 {
 			// Client history exists but no RAG context - conversational mode
 			if mode == "opinion" {
 				sys = "You are a helpful AI assistant. Provide thoughtful recommendations and advice based on the conversation history and your general knowledge. Be practical and actionable."
@@ -389,7 +432,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			"seed":           13,
 		}, ar.History)
 		if err != nil {
-			if len(rows) == 0 {
+			if len(rows) == 0 && len(compPosts) == 0 {
 				ans = "No relevant context on this topic in your PDFs. Enable allow_outside or upload a relevant document."
 			} else {
 				ans = "Unable to generate a grounded answer."
@@ -397,7 +440,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 		}
 
 		// Require numeric page citations when any Context existed (fresh or reused) and not opinion
-		if (len(rows) > 0 || len(history) > 0) && citeRe.FindStringIndex(ans) == nil && mode != "opinion" {
+		if (len(rows) > 0 || len(compPosts) > 0 || len(history) > 0) && citeRe.FindStringIndex(ans) == nil && mode != "opinion" {
 			ans = "Unable to generate a grounded answer with page citations from your PDFs."
 		}
 
@@ -424,7 +467,7 @@ func buildStrictUserPrompt(contextBlock, question string) string {
 	} else {
 		b.WriteString("Context:\n<none>\n")
 	}
-	b.WriteString("Instructions: Use ONLY the Context above. If the answer is not present, say you don't know. Cite pages like [p.X].\n")
+	b.WriteString("Instructions: Use ONLY the Context above. If the answer is not present, say you don't know. Cite pages like [p.X] or posts like [CPX].\n")
 	b.WriteString("Question: " + question)
 	return b.String()
 }
@@ -436,7 +479,7 @@ func buildContextOnly(contextBlock string) string {
 	} else {
 		b.WriteString("Context:\n<none>\n")
 	}
-	b.WriteString("Instructions: Use the Context above to answer questions. Cite pages like [p.X] when referencing the context.\n")
+	b.WriteString("Instructions: Use the Context above to answer questions. Cite pages like [p.X] or posts like [CPX] when referencing the context.\n")
 	return b.String()
 }
 
@@ -451,7 +494,7 @@ func buildOpinionUserPrompt(contextBlock string, ar askReq) string {
 	tone := orDefault(ar.Tone, "neutral")
 	b.WriteString("Task: Provide a recommendation with rationale.\n")
 	fmt.Fprintf(&b, "Tone: %s\nOutput: %s\n", tone, output)
-	fmt.Fprintf(&b, "Rules:\n- Prefer evidence from Context and cite [p.X].\n- allow_outside=%v. If you add outside knowledge, add a separate 'Assumptions' section.\n- If Context is insufficient and allow_outside=false, say you don’t know.\n", ar.AllowOutside)
+	fmt.Fprintf(&b, "Rules:\n- Prefer evidence from Context and cite [p.X] or [CPX].\n- allow_outside=%v. If you add outside knowledge, add a separate 'Assumptions' section.\n- If Context is insufficient and allow_outside=false, say you don’t know.\n", ar.AllowOutside)
 	b.WriteString("Question: " + ar.Question)
 	return b.String()
 }

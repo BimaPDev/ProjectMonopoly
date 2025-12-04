@@ -40,3 +40,25 @@ ON CONFLICT (platform, username) DO UPDATE SET
   profile_url = EXCLUDED.profile_url,
   last_checked = EXCLUDED.last_checked
 RETURNING *;
+
+-- name: SearchCompetitorPosts :many
+SELECT
+  cp.id,
+  cp.competitor_id,
+  cp.platform,
+  cp.post_id,
+  cp.content,
+  cp.posted_at,
+  cp.engagement,
+  c.username as competitor_username
+FROM competitor_posts cp
+JOIN competitors c ON c.id = cp.competitor_id
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL)
+  AND (
+    to_tsvector('english', COALESCE(cp.content, '')) @@ websearch_to_tsquery('english', $3)
+    OR cp.content ILIKE '%' || $3 || '%'
+  )
+ORDER BY cp.posted_at DESC
+LIMIT $4;
