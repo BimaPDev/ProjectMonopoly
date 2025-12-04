@@ -113,6 +113,7 @@ CREATE TABLE competitor_posts (
   engagement JSONB DEFAULT '{}'::jsonb,
   hashtags TEXT[] DEFAULT '{}',
   scraped_at TIMESTAMP DEFAULT NOW(),
+  caption_hash TEXT,
   UNIQUE (platform, post_id)
 );
 
