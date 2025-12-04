@@ -225,9 +225,9 @@ def upload_posts_to_db(json_file_path):
                     ))
                     
                     if existed_before:
-                        print(f"🔄 Updated post: {post_id} (caption match)")
+                        print(f"Updated post: {post_id} (caption match)")
                     else:
-                        print(f"✅ New post: {post_id}")
+                        print(f"New post: {post_id}")
                     
                     uploaded_count += 1
                     
@@ -237,7 +237,7 @@ def upload_posts_to_db(json_file_path):
 
         # Finalize database changes
         conn.commit()
-        print(f"Successfully uploaded {uploaded_count} posts to database")
+        print(f"Successfully uploaded {uploaded_count+1} posts to database")
         return True
         
     except Exception as e:

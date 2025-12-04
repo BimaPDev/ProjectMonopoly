@@ -343,10 +343,8 @@ class InstagramScraper:
                 print(f"Error processing {post_url}: {e}")
                 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Save to scrape_result folder in the same directory as this script
-        scrape_result_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
-        os.makedirs(scrape_result_dir, exist_ok=True)
-        json_filename = os.path.join(scrape_result_dir, f"{profile_name}_posts_{timestamp}.json")
+        json_filename = f"socialmedia/scrape_result/{profile_name}_posts_{timestamp}.json"
+        os.makedirs(os.path.dirname(json_filename) or '.', exist_ok=True)
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all posts to {json_filename}\n")

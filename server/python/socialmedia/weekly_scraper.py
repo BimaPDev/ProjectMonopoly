@@ -35,14 +35,14 @@ class WeeklyInstagramScraper:
         self.database_url = DATABASE_URL
         self.scraper = None
         self.max_posts_per_profile = int(os.getenv("WEEKLY_MAX_POSTS", "10"))
-        self.scrape_interval_days = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", "7"))
+        self.scrape_interval_days = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", "1"))
         
     def get_competitors_to_scrape(self) -> List[Dict[str, Any]]:
         """
         Query the database for Instagram competitors that need scraping.
         Returns competitors that haven't been scraped in the last N days.
         """
-        log.info("🔍 Querying database for competitors to scrape...")
+        log.info("Querying database for competitors to scrape...")
         
         try:
             with psycopg.connect(self.database_url) as conn:
@@ -57,9 +57,9 @@ class WeeklyInstagramScraper:
                             COUNT(cp.id) as post_count
                         FROM competitors c
                         LEFT JOIN competitor_posts cp ON c.id = cp.competitor_id 
-                            AND cp.platform = 'instagram'
+                            AND cp.platform = 'Instagram'
                             AND cp.scraped_at >= NOW() - INTERVAL '%s days'
-                        WHERE c.platform = 'instagram'
+                        WHERE c.platform = 'Instagram'
                         GROUP BY c.id, c.username, c.profile_url, c.last_checked
                         HAVING 
                             c.last_checked IS NULL 
@@ -90,11 +90,11 @@ class WeeklyInstagramScraper:
         """
         try:
             # Get credentials from environment variables
-            username = os.getenv("INSTAGRAM_USERNAME")
-            password = os.getenv("INSTAGRAM_PASSWORD")
+            username = "dogw.ood6"
+            password = "qwert1233@"
             
             if not username or not password:
-                log.error("❌ Instagram credentials not found in environment variables")
+                log.error("Instagram credentials not found in environment variables")
                 log.error("   Please set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD")
                 return False
             
@@ -102,14 +102,14 @@ class WeeklyInstagramScraper:
             
             # Attempt to login
             if not self.scraper.login():
-                log.error("❌ Failed to login to Instagram")
+                log.error("Failed to login to Instagram")
                 return False
             
-            log.info("✅ Instagram scraper initialized successfully")
+            log.info("Instagram scraper initialized successfully")
             return True
             
         except Exception as e:
-            log.error(f"❌ Error initializing scraper: {e}")
+            log.error(f"Error initializing scraper: {e}")
             return False
     
     def scrape_competitor(self, competitor: Dict[str, Any]) -> bool:
@@ -129,17 +129,17 @@ class WeeklyInstagramScraper:
             )
             
             if not posts_data:
-                log.warning(f"⚠️ No posts found for @{username}")
+                log.warning(f"No posts found for @{username}")
                 return False
             
             # Update the competitor's last_checked timestamp
             self.update_competitor_last_checked(competitor['id'])
             
-            log.info(f"✅ Successfully scraped {len(posts_data)} posts for @{username}")
+            log.info(f"Successfully scraped {len(posts_data)} posts for @{username}")
             return True
             
         except Exception as e:
-            log.error(f"❌ Error scraping @{username}: {e}")
+            log.error(f"Error scraping @{username}: {e}")
             return False
     
     def update_competitor_last_checked(self, competitor_id: str):
@@ -157,24 +157,24 @@ class WeeklyInstagramScraper:
                     conn.commit()
                     
         except Exception as e:
-            log.error(f"❌ Error updating last_checked for competitor {competitor_id}: {e}")
+            log.error(f"Error updating last_checked for competitor {competitor_id}: {e}")
     
     def run_weekly_scrape(self):
         """
         Main method to run the weekly scraping process.
         """
-        log.info("🚀 Starting weekly Instagram scraping process")
+        log.info("Starting weekly Instagram scraping process")
         
         # Get competitors that need scraping
         competitors = self.get_competitors_to_scrape()
         
         if not competitors:
-            log.info("ℹ️ No competitors need scraping at this time")
+            log.info("No competitors need scraping at this time")
             return
         
         # Initialize the scraper
         if not self.initialize_scraper():
-            log.error("❌ Failed to initialize scraper, aborting weekly scrape")
+            log.error("Failed to initialize scraper, aborting weekly scrape")
             return
         
         try:
@@ -194,16 +194,16 @@ class WeeklyInstagramScraper:
                     time.sleep(5)
                     
                 except Exception as e:
-                    log.error(f"❌ Unexpected error scraping {competitor['username']}: {e}")
+                    log.error(f"Unexpected error scraping {competitor['username']}: {e}")
                     failed_scrapes += 1
             
-            log.info(f"📊 Weekly scraping completed: {successful_scrapes} successful, {failed_scrapes} failed")
+            log.info(f"Weekly scraping completed: {successful_scrapes} successful, {failed_scrapes} failed")
             
         finally:
             # Clean up the scraper
             if self.scraper:
                 self.scraper.close()
-                log.info("🧹 Scraper cleaned up")
+                log.info("Scraper cleaned up")
 
 def main():
     """
