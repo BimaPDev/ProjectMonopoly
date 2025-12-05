@@ -49,23 +49,43 @@ class InstagramScraper:
         self.cookies_path = cookies_path
         self.driver = None
         self.setup_driver()
-        
+
     def setup_driver(self):
         chrome_options = Options()
-        
+    
         # REQUIRED for Docker/headless environments
-        chrome_options.add_argument("--headless=new")
+        #chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        
+    
+        # Stability improvements (REMOVED --single-process)
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-software-rasterizer")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-dev-tools")
+        chrome_options.add_argument("--no-zygote")  # Better than single-process
+        chrome_options.add_argument("--disable-setuid-sandbox")
+    
+        # Memory and performance
+        chrome_options.add_argument("--disable-background-networking")
+        chrome_options.add_argument("--disable-default-apps")
+        chrome_options.add_argument("--disable-sync")
+        chrome_options.add_argument("--disable-translate")
+        chrome_options.add_argument("--hide-scrollbars")
+        chrome_options.add_argument("--metrics-recording-only")
+        chrome_options.add_argument("--mute-audio")
+        chrome_options.add_argument("--no-first-run")
+    
         # Additional stability options
         chrome_options.add_argument("--disable-notifications")
-        chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
         chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_argument("--single-process")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
+    
+        # Critical: Prevent crashes
+        chrome_options.add_argument("--disable-crash-reporter")
+        chrome_options.add_argument("--disable-in-process-stack-traces")
         
         try:
             from webdriver_manager.chrome import ChromeDriverManager
@@ -73,11 +93,19 @@ class InstagramScraper:
                 service=Service(ChromeDriverManager().install()), 
                 options=chrome_options
             )
+            # Set page load timeout
+            self.driver.execute_cdp_cmd('Network.setUserAgentOverride', {
+        "userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    })
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            self.driver.set_page_load_timeout(60)
         except Exception as e:
             print(f"WebDriver Manager failed: {e}")
             self.driver = webdriver.Chrome(options=chrome_options)
-        
+            self.driver.set_page_load_timeout(60)    
+    
     def save_cookies(self):
+        os.makedirs(os.path.dirname(self.cookies_path) or '.', exist_ok=True)
         pickle.dump(self.driver.get_cookies(), open(self.cookies_path, "wb"))
         print("Cookies saved successfully!")
         
@@ -104,7 +132,9 @@ class InstagramScraper:
         return False
         
     def login(self):
-        # First try to log in via saved cookies
+        """Login to Instagram using cookies or credentials"""
+        
+        # First try cookies (fastest and most reliable)
         if self.load_cookies():
             print("Login successful using cookies!")
             return True
@@ -115,11 +145,47 @@ class InstagramScraper:
             return False
             
         print("Logging in with username and password...")
+        print("Loading Instagram login page...")
         self.driver.get("https://www.instagram.com/accounts/login/")
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "username"))
-        )
-        # Accept cookies dialog if it appears (try several common texts)
+        
+        try:
+            # Step 1: Wait for page to finish loading completely
+            print("Waiting for page to load completely...")
+            WebDriverWait(self.driver, 30).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+            print("Page loaded")
+            
+            # Step 2: Give JavaScript time to render (CRITICAL for Instagram)
+            print("Waiting for content to render...")
+            time.sleep(5)  # Instagram needs time to render with JavaScript
+            
+            # Step 3: Wait for username field to be VISIBLE (not just present in DOM)
+            print("Waiting for login form to appear...")
+            username_field = WebDriverWait(self.driver, 20).until(
+                EC.visibility_of_element_located((By.NAME, "username"))
+            )
+            print("Login form ready!")
+            
+        except TimeoutException:
+            print("Login page did not load properly")
+            print(f"Current URL: {self.driver.current_url}")
+            print(f"Page title: {self.driver.title}")
+            
+            # Save debug info
+            try:
+                self.driver.save_screenshot("/tmp/login_failed.png")
+                print("Screenshot saved to: /tmp/login_failed.png")
+                with open("/tmp/login_failed.html", "w", encoding="utf-8") as f:
+                    f.write(self.driver.page_source)
+                print("Page source saved to: /tmp/login_failed.html")
+            except Exception as e:
+                print(f"Could not save debug files: {e}")
+            
+            return False
+        
+        # Accept cookies dialog if it appears
+        print("Checking for cookie consent dialog...")
         cookie_xpaths = [
             "//button[contains(text(), 'Accept')]",
             "//button[contains(text(), 'Allow')]",
@@ -134,33 +200,68 @@ class InstagramScraper:
                 try:
                     btn.click()
                 except Exception:
-                    # fallback: execute click via JS
                     self.driver.execute_script("arguments[0].click();", btn)
                 time.sleep(0.5)
+                print("Accepted cookies")
                 break
             except TimeoutException:
                 continue
 
-        # Fill credentials and submit with Enter (more reliable than clicking)
-        user_input = self.driver.find_element(By.NAME, "username")
-        pass_input = self.driver.find_element(By.NAME, "password")
-        user_input.clear()
-        user_input.send_keys(self.username)
-        pass_input.clear()
-        pass_input.send_keys(self.password)
-        pass_input.send_keys(Keys.RETURN)
-        
+        # Fill credentials
+        print("Filling login credentials...")
         try:
-            # Wait for a post-login element (nav/explore link) to appear
-            WebDriverWait(self.driver, 15).until(
-                EC.presence_of_element_located((By.XPATH, "//nav//a[contains(@href, '/explore')]") )
-            )
+            # Get elements again (might have changed after cookie consent)
+            user_input = self.driver.find_element(By.NAME, "username")
+            pass_input = self.driver.find_element(By.NAME, "password")
+            
+            user_input.clear()
+            user_input.send_keys(self.username)
+            pass_input.clear()
+            pass_input.send_keys(self.password)
+            time.sleep(1)  # Small delay before submitting
+            pass_input.send_keys(Keys.RETURN)
+            print("Credentials submitted")
+            
+        except Exception as e:
+            print(f"Error filling login form: {e}")
+            return False
+        
+        # Wait for successful login
+        print("Waiting for login to complete...")
+        try:
+            # # Wait for a post-login element (nav/explore link) to appear
+            # WebDriverWait(self.driver, 30).until(
+            #     EC.presence_of_element_located((By.XPATH, "//nav//a[contains(@href, '/explore')]"))
+            # )
+            time.sleep(30)
             print("Login successful!")
+            
+            # Dismiss "Save Login Info" and "Turn on Notifications" popups
+            print("Dismissing popups...")
+            time.sleep(2)
+            not_now_buttons = [
+                "//button[contains(text(), 'Not Now')]",
+                "//button[contains(text(), 'Not now')]",
+                "//button[contains(text(), 'Ok')]"
+            ]
+            for xp in not_now_buttons:
+                try:
+                    btn = WebDriverWait(self.driver, 3).until(
+                        EC.element_to_be_clickable((By.XPATH, xp))
+                    )
+                    btn.click()
+                    time.sleep(1)
+                except TimeoutException:
+                    pass
+            
+            # Save cookies for next time
             try:
                 self.save_cookies()
             except Exception as e:
                 print(f"Warning: failed to save cookies: {e}")
+            
             return True
+            
         except TimeoutException:
             # Detect common failure states
             cur = self.driver.current_url.lower()
@@ -170,6 +271,7 @@ class InstagramScraper:
                 print("Login requires two-factor authentication. Manual intervention required.")
             else:
                 print("Login failed or timed out. Check credentials or page layout.")
+                print(f"Current URL: {self.driver.current_url}")
             return False
     
     def scrape_profile(self, profile_url, max_posts=None):
@@ -189,13 +291,14 @@ class InstagramScraper:
         posts_data = []
         post_links = set()
         
-        print("Finding posts...")
+        target_count = max_posts if max_posts else "all"
+        print(f"Finding posts (target: {target_count} posts)...")
         last_height = self.driver.execute_script("return document.body.scrollHeight")
         
         while True:
             try:
                 post_elements = WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_all_elements_located((By.XPATH, "//a[contains(@href, '/p/')]"))
+                    EC.presence_of_all_elements_located((By.XPATH, "//a[contains(@href, '/p/') or contains(@href, '/reel/')]"))
                 )
                 for el in post_elements:
                     href = el.get_attribute("href")
@@ -240,7 +343,10 @@ class InstagramScraper:
                 print(f"Error processing {post_url}: {e}")
                 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"socialmedia/scrape_result/{profile_name}_posts_{timestamp}.json"
+        # Save to scrape_result folder in the same directory as this script
+        scrape_result_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
+        os.makedirs(scrape_result_dir, exist_ok=True)
+        json_filename = os.path.join(scrape_result_dir, f"{profile_name}_posts_{timestamp}.json")
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all posts to {json_filename}\n")
@@ -273,22 +379,14 @@ class InstagramScraper:
         return posts_data
     
     def scrape_post(self, post_url):
-        """
-        Scrape one Instagram post. Extract:
-          - url
-          - timestamp (when we scraped)
-          - post_date (timestamp from the <time> tag)
-          - caption (each word prefixed with "#")
-          - hashtags (list of #words found in raw caption)
-          - likes (full integer)
-          - comments_count (full integer)
-          - media_urls (only real images/videos)
-        """
         # First try the JSON endpoint for the post (more reliable)
-        shortcode_m = re.search(r"/p/([^/]+)/", post_url)
+        # Handle both regular posts (/p/) and reels (/reel/)
+        shortcode_m = re.search(r"/(?:p|reel)/([^/]+)/", post_url)
         if shortcode_m:
             shortcode = shortcode_m.group(1)
-            api_url = f"https://www.instagram.com/p/{shortcode}/?__a=1&__d=dis"
+            # Determine if it's a reel or post based on URL
+            is_reel = '/reel/' in post_url
+            api_url = f"https://www.instagram.com/{'reel' if is_reel else 'p'}/{shortcode}/?__a=1&__d=dis"
             try:
                 self.driver.get(api_url)
                 time.sleep(1.0)
@@ -586,8 +684,8 @@ if __name__ == "__main__":
         exit(1)
     
     # Example usage:
-    profile = "umbclife"         
-    max_posts = 5               
+    profile = "cozy_campfire_club"         
+    max_posts = 30  
     
     scraper.scrape_profile(profile, max_posts)
     scraper.close()
