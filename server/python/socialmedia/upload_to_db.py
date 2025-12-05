@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 def extract_post_id(url):
     # Extract post ID from instagram URL
-    match = re.search(r'/p/([^/]+)/', url)
+    match = re.search(r'/(?:p|reel)/([^/]+)/', url)
     return match.group(1) if match else None
 
 def normalize_caption(caption):
