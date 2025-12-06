@@ -99,7 +99,7 @@ export default function GameContextPage() {
             const formDataPayload = new FormData();
             formDataPayload.append("file", file);
 
-            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/games/extract`, {
+            const res = await fetch(`/api/games/extract`, {
                 method: "POST",
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -212,7 +212,7 @@ export default function GameContextPage() {
                 group_id: activeGroup?.ID
             };
 
-            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/games/input`, {
+            const res = await fetch(`/api/games/input`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
                 body: JSON.stringify(payload),

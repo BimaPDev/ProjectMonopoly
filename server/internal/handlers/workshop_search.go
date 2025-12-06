@@ -2,13 +2,13 @@
 package handlers
 
 import (
-	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"strings"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
 type searchReq struct {
@@ -30,16 +30,11 @@ type searchResp struct {
 	Hits  []searchHit `json:"hits"`
 }
 
-func WorkshopSearchHandler(q *db.Queries) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// read body once for debugging
-		raw, _ := io.ReadAll(r.Body)
-		_ = r.Body.Close()
-
+func WorkshopSearchHandler(q *db.Queries) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		var req searchReq
-		if err := json.Unmarshal(raw, &req); err != nil {
-			http.Error(w, "invalid json", http.StatusBadRequest)
-			log.Printf("[search] bad json: %v body=%s", err, string(raw))
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
 			return
 		}
 		query := strings.TrimSpace(req.Q)
@@ -47,9 +42,7 @@ func WorkshopSearchHandler(q *db.Queries) http.HandlerFunc {
 			query = strings.TrimSpace(req.Query)
 		}
 		if query == "" || req.GroupID == 0 {
-			http.Error(w, "missing q or group_id", http.StatusBadRequest)
-			log.Printf("[search] missing fields: group_id=%d q='%s' alias='%s' body=%s",
-				req.GroupID, req.Q, req.Query, string(raw))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing q or group_id"})
 			return
 		}
 		limit := req.Limit
@@ -57,17 +50,21 @@ func WorkshopSearchHandler(q *db.Queries) http.HandlerFunc {
 			limit = 6
 		}
 
-		userID := ctxUserID(r)
+		userID, err := utils.GetUserID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
 
 		// 1) BM25/TS query
-		rows, err := q.SearchChunks(r.Context(), db.SearchChunksParams{
+		rows, err := q.SearchChunks(c.Request.Context(), db.SearchChunksParams{
 			Q:       query,
 			UserID:  int32(userID),
 			GroupID: req.GroupID,
 			N:       limit,
 		})
 		if err != nil {
-			http.Error(w, "db error", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
 			log.Printf("[search] db error SearchChunks: %v", err)
 			return
 		}
@@ -93,14 +90,14 @@ func WorkshopSearchHandler(q *db.Queries) http.HandlerFunc {
 			}
 		} else {
 			// 2) Trigram fuzzy fallback
-			fz, err := q.FuzzyChunks(r.Context(), db.FuzzyChunksParams{
+			fz, err := q.FuzzyChunks(c.Request.Context(), db.FuzzyChunksParams{
 				Q:       query,
 				UserID:  int32(userID),
 				GroupID: req.GroupID,
 				N:       limit,
 			})
 			if err != nil {
-				http.Error(w, "db error", http.StatusInternalServerError)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
 				log.Printf("[search] db error FuzzyChunks: %v", err)
 				return
 			}
@@ -122,7 +119,6 @@ func WorkshopSearchHandler(q *db.Queries) http.HandlerFunc {
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(searchResp{Query: query, Hits: hits})
+		c.JSON(http.StatusOK, searchResp{Query: query, Hits: hits})
 	}
 }

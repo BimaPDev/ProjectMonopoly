@@ -6,20 +6,24 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"os"
 
 	_ "github.com/lib/pq"
 
 	"github.com/BimaPDev/ProjectMonopoly/internal/auth"
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/handlers"
-	"github.com/BimaPDev/ProjectMonopoly/internal/middleware"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	// 1) Connect to Postgres
-	connStr := "user=root password=secret dbname=project_monopoly sslmode=disable"
-	//connStr := "postgres://root:secret@postgres:5432/project_monopoly?sslmode=disable"
+	fmt.Println("Starting Server v2 (Gin)...")
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "user=root password=secret dbname=project_monopoly sslmode=disable"
+	}
 	dbConn, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -29,130 +33,86 @@ func main() {
 	// 2) Initialize SQLC queries
 	queries := db.New(dbConn)
 
-	// ─── Build a fresh mux ────────────────────────────────────────────────────────
-	mux := http.NewServeMux()
+	// 3) Initialize Gin
+	// gin.SetMode(gin.ReleaseMode) // Uncomment for production
+	r := gin.Default()
 
-	// ─── Public Routes ────────────────────────────────────────────────────────────
-	mux.HandleFunc("/trigger", handlers.TriggerPythonScript)
-	mux.HandleFunc("/health", handlers.HealthCheck)
-	mux.HandleFunc("/followers", func(w http.ResponseWriter, r *http.Request) {
-		handlers.TriggerFollowersScript(w, r, queries)
-	})
-	mux.HandleFunc("/ai/deepseek", func(w http.ResponseWriter, r *http.Request) {
-		handlers.DeepSeekHandler(w, r, queries)
-	})
+	// 4) CORS Configuration
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "X-User-ID"}
+	r.Use(cors.New(config))
 
-	// ─── Authentication ───────────────────────────────────────────────────────────
-	mux.HandleFunc("/api/register", auth.RegisterHandler(queries))
-	mux.HandleFunc("/api/login", auth.LoginHandler(queries))
-
-	// ─── Protected Dashboard ────────────────────────────────────────────────────
-	mux.HandleFunc("/api/protected/dashboard",
-		auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("🔒 Welcome to the protected dashboard!"))
-		}),
-	)
-
-	// ─── getuserID ─────────────────────────────────────────────
-	mux.HandleFunc("/api/UserID", auth.JWTMiddleware(handlers.GetUserIDHandler(queries)))
-
-	// ─── Upload Endpoint (Protected) ─────────────────────────────────────────────
-	mux.HandleFunc("/api/upload", func(w http.ResponseWriter, r *http.Request) {
-		handlers.UploadVideoHandler(w, r, queries)
-	})
-
-	mux.HandleFunc("/api/UploadItemsByGroupID",func(w http.ResponseWriter, r *http.Request){
-	    handlers.GetUploadItemsByGroupID(w,r,queries)
-	})
-
-	// ─── Groups API: both "/api/groups" and "/api/groups/" ───────────────────────
-	//    so that requests with or without trailing slash work.
-	groupsHandler := func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.GetGroups(w, r, queries)
-		case http.MethodPost:
-			handlers.CreateGroup(w, r, queries)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	// Helper to wrap handlers that need queries
+	wrap := func(h func(*gin.Context, *db.Queries)) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			h(c, queries)
 		}
 	}
 
-	// ─── addGroupItem ─────────────────────────────────────────────
-	mux.HandleFunc("/api/AddGroupItem", func(w http.ResponseWriter, r *http.Request) {
-		handlers.AddOrUpdateGroupItem(w, r, queries)
-	})
-	mux.HandleFunc("/api/GroupItem", func(w http.ResponseWriter, r *http.Request) {
-		handlers.GetGroupItems(w,r,queries)
-	})
+	// ─── Public Routes ────────────────────────────────────────────────────────────
+	r.POST("/trigger", handlers.TriggerPythonScript)
+	r.GET("/health", handlers.HealthCheck)
+	r.POST("/followers", wrap(handlers.TriggerFollowersScript))
+	r.POST("/ai/deepseek", wrap(handlers.DeepSeekHandler))
 
-	mux.HandleFunc("/api/groups", groupsHandler)
-	//mux.HandleFunc("/api/groups/", groupsHandler)
+	// ─── Authentication ───────────────────────────────────────────────────────────
+	api := r.Group("/api")
+	{
+		api.POST("/register", auth.RegisterHandler(queries))
+		api.POST("/login", auth.LoginHandler(queries))
 
-	// ─── Competitors API: both "/api/groups" and "/api/groups/" ───────────────────────
-	//    so that requests with or without trailing slash work.
-	mux.HandleFunc("/api/groups/", func(w http.ResponseWriter, r *http.Request) {
-        if strings.HasSuffix(r.URL.Path, "/competitors") && r.Method == http.MethodPost {
-            auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-                handlers.CreateCompetitor(w, r, queries)
-            })(w, r)
-            return
-        }
-        if strings.HasSuffix(r.URL.Path, "/competitors") && r.Method == http.MethodGet{
-            auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request){
-                handlers.ListUserCompetitors(w,r,queries)
-            })(w,r)
-            return
-        }
-	// fallback: default group route
-	groupsHandler(w, r)
-	})
+		// ─── Protected Routes ─────────────────────────────────────────────────────
+		protected := api.Group("/")
+		protected.Use(auth.AuthMiddleware())
+		{
+			protected.GET("/protected/dashboard", func(c *gin.Context) {
+				c.String(http.StatusOK, "🔒 Welcome to the protected dashboard!")
+			})
 
+			// User
+			protected.GET("/UserID", handlers.GetUserIDHandler(queries))
 
-	// Competitors Post
-	mux.HandleFunc("/api/competitors/posts", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-	handlers.ListVisibleCompetitorPosts(w, r, queries)
-	}))
+			// Uploads
+			protected.POST("/upload", wrap(handlers.UploadVideoHandler))
+			protected.GET("/UploadItemsByGroupID", wrap(handlers.GetUploadItemsByGroupID))
 
-	// worshop stuff
-	mux.HandleFunc("/api/workshop/upload", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		handlers.WorkshopUploadHandler(w, r, queries)
-	}))
+			// Group Items
+			protected.POST("/AddGroupItem", wrap(handlers.AddOrUpdateGroupItem))
+			protected.GET("/GroupItem", wrap(handlers.GetGroupItems))
 
-	mux.HandleFunc("/api/workshop/search", auth.JWTMiddleware(handlers.WorkshopSearchHandler(queries)))
+			// Groups
+			protected.POST("/groups", wrap(handlers.CreateGroup))
+			protected.GET("/groups", wrap(handlers.GetGroups))
 
-	mux.HandleFunc("/api/workshop/ask", auth.JWTMiddleware(handlers.WorkshopAskHandler(queries)))
+			// Competitors
+			// Note: CreateCompetitor expects :groupID param
+			protected.POST("/groups/:groupID/competitors", wrap(handlers.CreateCompetitor))
+			protected.GET("/groups/:groupID/competitors", wrap(handlers.ListUserCompetitors))
+			protected.GET("/competitors/posts", wrap(handlers.ListVisibleCompetitorPosts))
 
-	mux.HandleFunc("/api/games/extract", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request){
-		handlers.ExtractGameContext(w,r,queries)
-	}))
-	mux.HandleFunc("/api/games/input", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request){
-		handlers.SaveGameContext(w,r, queries)
-	}))
+			// Workshop
+			protected.POST("/workshop/upload", wrap(handlers.WorkshopUploadHandler))
+			protected.POST("/workshop/search", handlers.WorkshopSearchHandler(queries))
+			protected.POST("/workshop/ask", handlers.WorkshopAskHandler(queries))
 
-	// Test LLM endpoint
-	mux.HandleFunc("/api/test/llm", auth.JWTMiddleware(handlers.TestLLMHandler))
+			// Games Context
+			protected.POST("/games/extract", wrap(handlers.ExtractGameContext))
+			protected.POST("/games/input", wrap(handlers.SaveGameContext))
 
-	// Protected AI chatbot endpoint (with game context)
-	mux.HandleFunc("/api/ai/chat", auth.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		handlers.DeepSeekHandler(w, r, queries)
-	}))
+			// AI Chat (Protected)
+			protected.POST("/ai/chat", wrap(handlers.DeepSeekHandler))
 
-// chatURL := "http://ollama:11434/api/chat"
-// 	model := "qwen2.5:3b-instruct"
-// 	fmt.Println("Warming up Ollama...")
+			// Test LLM
+			protected.POST("/test/llm", handlers.TestLLMHandler)
+		}
+	}
 
-// 	startTime := time.Now()
-// 	handlers.WarmupOllama(chatURL, model)
-// 	elapsed := time.Since(startTime)
-
-// 	fmt.Printf("Ollama ready! (took %v)\n", elapsed)
-
-	// ─── Apply CORS & Start Server ───────────────────────────────────────────────
-	handlerWithCORS := middleware.CORSMiddleware(mux)
+	// ─── Start Server ───────────────────────────────────────────────
 	port := ":8080"
 	fmt.Printf("✅ API server is running on http://localhost%s\n", port)
-	log.Fatal(http.ListenAndServe(port, handlerWithCORS))
-
-	
+	if err := r.Run(port); err != nil {
+		log.Fatal(err)
+	}
 }

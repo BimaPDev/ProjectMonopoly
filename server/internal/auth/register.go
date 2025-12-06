@@ -1,51 +1,45 @@
 package auth
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func RegisterHandler(queries *db.Queries) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
+func RegisterHandler(queries *db.Queries) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		var creds struct {
 			Username string `json:"username"`
 			Email    string `json:"email"`
 			Password string `json:"password"`
 		}
 
-		err := json.NewDecoder(r.Body).Decode(&creds)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request format"})
+		if err := c.ShouldBindJSON(&creds); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 			return
 		}
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
 		if err != nil {
 			log.Printf("❌ Password hash error: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to hash password"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 			return
 		}
 
-		_, err = queries.CreateUserWithPassword(r.Context(), db.CreateUserWithPasswordParams{
+		_, err = queries.CreateUserWithPassword(c.Request.Context(), db.CreateUserWithPasswordParams{
 			Username:     creds.Username,
 			Email:        creds.Email,
 			PasswordHash: string(hashedPassword),
 		})
 		if err != nil {
 			log.Printf("❌ Register error: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
+		c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
 	}
 }

@@ -1,29 +1,28 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
-func CreateUserHandler(queries *db.Queries) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func CreateUserHandler(queries *db.Queries) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		var input service.CreateUserInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
 
 		user, err := service.CreateUser(queries, input)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(user)
+		c.JSON(http.StatusOK, user)
 	}
 }
 
@@ -37,33 +36,28 @@ type getUserIDResponse struct {
 }
 
 // handler
-func GetUserIDHandler(q *db.Queries) http.HandlerFunc {
+func GetUserIDHandler(q *db.Queries) gin.HandlerFunc {
 	type req struct{ Username, Email string }
 	type resp struct {
 		UserID int32 `json:"userID"`
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
+	return func(c *gin.Context) {
 		var body req
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "invalid JSON", http.StatusBadRequest)
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
 			return
 		}
 		if body.Username == "" || body.Email == "" {
-			http.Error(w, "username & email required", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "username & email required"})
 			return
 		}
-		id, err := q.GetUserIDByUsernameEmail(r.Context(), db.GetUserIDByUsernameEmailParams{
+		id, err := q.GetUserIDByUsernameEmail(c.Request.Context(), db.GetUserIDByUsernameEmailParams{
 			Username: body.Username, Email: body.Email,
 		})
 		if err != nil {
-			http.Error(w, "user not found", http.StatusNotFound)
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp{UserID: id})
+		c.JSON(http.StatusOK, resp{UserID: id})
 	}
 }

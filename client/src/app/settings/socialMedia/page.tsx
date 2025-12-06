@@ -108,7 +108,7 @@ export default function SocialMedia() {
         const description = window.prompt("Description (optional):")?.trim() || "";
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups`, {
+            const res = await fetch(`/api/groups`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userID, name, description }),
@@ -157,7 +157,7 @@ export default function SocialMedia() {
             setMessage({ text: 'No group selected', type: 'error' });
             return;
         }
-        const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/GroupItem?groupID=${selectedGroup.ID}`, {
+        const res = await fetch(`/api/GroupItem?groupID=${selectedGroup.ID}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
         });
@@ -192,7 +192,7 @@ export default function SocialMedia() {
                 platform: item.Platform
             };
 
-            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/AddGroupItem`, {
+            const res = await fetch(`/api/AddGroupItem`, {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
@@ -227,7 +227,7 @@ export default function SocialMedia() {
 
         setIsFetchingGroups(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${numericID}`, {
+            const res = await fetch(`/api/groups?userID=${numericID}`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" }
             });
@@ -275,7 +275,7 @@ export default function SocialMedia() {
 
         try {
             setIsLoading(true);
-            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/AddGroupItem`, {
+            const res = await fetch(`/api/AddGroupItem`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(requestData)

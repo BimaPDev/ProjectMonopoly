@@ -1,31 +1,30 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
-func ListUserCompetitors(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
+func ListUserCompetitors(c *gin.Context, queries *db.Queries) {
 	// TODO: Replace with real user session logic
-	userID, err := utils.GetUserIDFromRequest(r)
-    	if err != nil {
-    		http.Error(w, "unauthorized", http.StatusUnauthorized)
-    		return
-    	}
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	// Query DB
-	competitors, err := queries.ListUserCompetitors(r.Context(), userID)
+	competitors, err := queries.ListUserCompetitors(c.Request.Context(), userID)
 	if err != nil {
 		log.Printf("❌ Failed to list user competitors: %v", err)
-		http.Error(w, "Failed to fetch competitors", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch competitors"})
 		return
 	}
 
 	// Success
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(competitors)
+	c.JSON(http.StatusOK, competitors)
 }

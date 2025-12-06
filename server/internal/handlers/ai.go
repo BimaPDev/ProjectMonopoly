@@ -13,6 +13,7 @@ import (
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
 var (
@@ -22,21 +23,16 @@ var (
 )
 
 // DeepSeekHandler handles AI requests to DeepSeek and saves uploaded files.
-func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	// Set CORS headers
-	setCORSHeaders(w)
-
-	// Handle preflight requests
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+func DeepSeekHandler(c *gin.Context, queries *db.Queries) {
+	// CORS handled by middleware
 
 	// Extract user_id from context (set by JWT middleware)
 	// If not present, use 0 (anonymous/unauthenticated)
 	var userID int32
-	if uid, ok := r.Context().Value("userID").(int32); ok {
-		userID = uid
+	if uid, exists := c.Get("userID"); exists {
+		if val, ok := uid.(int32); ok {
+			userID = val
+		}
 	} else {
 		// If no authentication, we'll try to proceed without game context
 		fmt.Println("Warning: No user authentication found, proceeding without game context")
@@ -44,9 +40,9 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries
 
 	// Extract optional group_id from query params or form data
 	var groupID *int32
-	groupIDStr := r.URL.Query().Get("group_id")
+	groupIDStr := c.Query("group_id")
 	if groupIDStr == "" {
-		groupIDStr = r.FormValue("group_id")
+		groupIDStr = c.PostForm("group_id")
 	}
 	if groupIDStr != "" {
 		if gid, err := strconv.ParseInt(groupIDStr, 10, 32); err == nil && gid > 0 {
@@ -61,26 +57,26 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries
 		uploadsDirErr = os.MkdirAll(uploadsDir, 0755)
 	})
 	if uploadsDirErr != nil {
-		http.Error(w, fmt.Sprintf("Failed to create uploads directory: %v", uploadsDirErr), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create uploads directory: %v", uploadsDirErr)})
 		return
 	}
 
 	// Parse multipart form with limited memory usage
-	if err := r.ParseMultipartForm(10 << 20); // 10MB max memory
-	err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse multipart form: %v", err), http.StatusBadRequest)
+	// Gin does this lazily/automatically when accessing file, but we can do it explicitly or just access MultipartForm provided by Gin
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to parse multipart form: %v", err)})
 		return
 	}
 
 	// Extract prompt from form data
-	prompt := r.FormValue("prompt")
+	prompt := c.PostForm("prompt")
 	if prompt == "" {
 		prompt = " "
 	}
 
 	// Extract conversation history if provided
 	var conversationHistory []map[string]interface{}
-	historyStr := r.FormValue("conversation_history")
+	historyStr := c.PostForm("conversation_history")
 	if historyStr != "" {
 		if err := json.Unmarshal([]byte(historyStr), &conversationHistory); err != nil {
 			fmt.Printf("Warning: Failed to parse conversation history: %v\n", err)
@@ -98,26 +94,30 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for _, fileHeaders := range r.MultipartForm.File {
-			for _, fileHeader := range fileHeaders {
-				filePath, err := saveUploadedFile(fileHeader, uploadsDir)
-				if err != nil {
-					// Log error but continue with other files
-					fmt.Printf("Error saving file %s: %v\n", fileHeader.Filename, err)
-					continue
-				}
+		if c.Request.MultipartForm != nil {
+			for _, fileHeaders := range c.Request.MultipartForm.File {
+				for _, fileHeader := range fileHeaders {
+					filePath, err := saveUploadedFile(fileHeader, uploadsDir)
+					if err != nil {
+						// Log error but continue with other files
+						fmt.Printf("Error saving file %s: %v\n", fileHeader.Filename, err)
+						continue
+					}
 
-				savedFilesMutex.Lock()
-				savedFiles = append(savedFiles, filePath)
-				savedFilesMutex.Unlock()
+					savedFilesMutex.Lock()
+					savedFiles = append(savedFiles, filePath)
+					savedFilesMutex.Unlock()
+				}
 			}
 		}
 	}()
 
 	// Get the first uploaded file for processing (if any)
 	var uploadedFile *multipart.FileHeader
-	if files := r.MultipartForm.File["files"]; len(files) > 0 {
-		uploadedFile = files[0]
+	if c.Request.MultipartForm != nil {
+		if files := c.Request.MultipartForm.File["files"]; len(files) > 0 {
+			uploadedFile = files[0]
+		}
 	}
 
 	// Process AI request in a goroutine
@@ -132,28 +132,15 @@ func DeepSeekHandler(w http.ResponseWriter, r *http.Request, queries *db.Queries
 
 	// Check for AI processing error
 	if aiErr != nil {
-		http.Error(w, fmt.Sprintf("Error processing request: %v", aiErr), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error processing request: %v", aiErr)})
 		return
 	}
 
 	// Return the AI-generated response along with information about saved files
-	w.Header().Set("Content-Type", "application/json")
-
-	// Use compact encoder for better performance
-	encoder := json.NewEncoder(w)
-	encoder.SetEscapeHTML(false) // Improves performance slightly
-
-	encoder.Encode(map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"response":   response,
 		"savedFiles": savedFiles,
 	})
-}
-
-// setCORSHeaders sets the necessary CORS headers
-func setCORSHeaders(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*") // Or your specific origin
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
 // saveUploadedFile saves a single uploaded file to the server

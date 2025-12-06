@@ -32,6 +32,8 @@ services:
       INSTAGRAM_USERNAME: "${INSTAGRAM_USERNAME}"
       INSTAGRAM_PASSWORD: "${INSTAGRAM_PASSWORD}"
       DATABASE_URL: postgresql://root:secret@postgres:5432/project_monopoly
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
     volumes: 
       - docs_data:/data/docs
       - docs_data:/app/uploads/docs
@@ -51,7 +53,7 @@ services:
       POSTGRES_DB: project_monopoly
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports: ["5432:5432"]
+    ports: ["5434:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d project_monopoly"]
       interval: 5s
@@ -72,16 +74,18 @@ services:
     cpus: "8"
     mem_limit: "32g"
     entrypoint: ["ollama", "serve"]
-  redis:
-    image: redis:7-alpine
-    container_name: redis
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
     restart: always
-    ports: ["6379:6379"]
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   postgres_data:
   ollama_data:

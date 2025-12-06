@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
+
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
 // RequestBody defines the expected input for the API
@@ -25,28 +26,24 @@ type ResponseBody struct {
 }
 
 // TriggerPythonScript handles requests to trigger the Python script
-func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
+func TriggerPythonScript(c *gin.Context) {
 	// Parse request body
 	var reqBody RequestBody
-	err := json.NewDecoder(r.Body).Decode(&reqBody)
-	if err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
 		return
 	}
 
 	// Validate input
 	if err := utils.ValidateRequest(reqBody.SessionID, reqBody.VideoPath, reqBody.Caption); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Run the Python script
 	output, err := utils.TikTokUpload(reqBody.SessionID, reqBody.VideoPath, reqBody.Caption, reqBody.Headless)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ResponseBody{
+		c.JSON(http.StatusInternalServerError, ResponseBody{
 			Success: false,
 			Message: "Failed to execute Python script",
 			Error:   err.Error(),
@@ -55,7 +52,7 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Success response
-	json.NewEncoder(w).Encode(ResponseBody{
+	c.JSON(http.StatusOK, ResponseBody{
 		Success: true,
 		Message: "Python script executed successfully",
 		Output:  output,
@@ -63,32 +60,17 @@ func TriggerPythonScript(w http.ResponseWriter, r *http.Request) {
 }
 
 // TriggerFollowersScript handles requests to trigger the followers Python script
-func TriggerFollowersScript(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	w.Header().Set("Content-Type", "application/json")
-	// print("SCRIPT TRIGGERED")
-	// // Debug: Log the incoming request (if needed for troubleshooting)
-	// body, err := io.ReadAll(r.Body)
-	// if err != nil {
-	// 	http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-	// 	return
-	// }
-	// fmt.Printf("Raw request body: %s\n", string(body))
-
-	// Call the GetFollowers function from utils	
-	utils.GetFollowers(w,r, queries)
-	
-	
+func TriggerFollowersScript(c *gin.Context, queries *db.Queries) {
+	// Call the GetFollowers function from utils
+	utils.GetFollowers(c, queries)
 }
 
 // HealthCheck provides a simple health check endpoint
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+func HealthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func TriggerAiScript(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
+func TriggerAiScript(c *gin.Context) {
 	// Define the request body structure
 	var reqBody struct {
 		Model string `json:"model"`
@@ -96,22 +78,21 @@ func TriggerAiScript(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode the JSON request body
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
 		return
 	}
 
 	// Validate the input
 	if reqBody.Model == "" || reqBody.Input == "" {
-		http.Error(w, "Model and input fields are required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Model and input fields are required"})
 		return
 	}
 
 	// Call the TriggerModel function
 	output, err := utils.TriggerModel(reqBody.Model, reqBody.Input)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ResponseBody{
+		c.JSON(http.StatusInternalServerError, ResponseBody{
 			Success: false,
 			Message: fmt.Sprintf("Failed to execute %s model", reqBody.Model),
 			Error:   err.Error(),
@@ -120,7 +101,7 @@ func TriggerAiScript(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the successful response
-	json.NewEncoder(w).Encode(ResponseBody{
+	c.JSON(http.StatusOK, ResponseBody{
 		Success: true,
 		Message: fmt.Sprintf("%s model executed successfully", reqBody.Model),
 		Output:  output,

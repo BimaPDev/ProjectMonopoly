@@ -63,11 +63,11 @@ export function TeamSwitcher() {
     setError(null);
     try {
       const res = await fetch(
-          `${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          }
+        `/api/groups?userID=${userID}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
       );
 
       if (!res.ok) {
@@ -102,24 +102,24 @@ export function TeamSwitcher() {
       setError("User ID not found. Please log in again.");
       return;
     }
-    
+
     const name = window.prompt("New group name:")?.trim();
     if (!name) return;
-    
+
     const description = window.prompt("Description (optional):")?.trim() || "";
-    
+
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups`, {
+      const res = await fetch(`/api/groups`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userID, name, description }),
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(errorText || `Create failed with status: ${res.status}`);
       }
-      
+
       await fetchGroups();
     } catch (e: any) {
       console.error("Error creating group:", e);
@@ -144,10 +144,10 @@ export function TeamSwitcher() {
                   {loading
                     ? "Loading..."
                     : error
-                    ? "Error"
-                    : activeGroup
-                    ? activeGroup.name
-                    : "No Groups"}
+                      ? "Error"
+                      : activeGroup
+                        ? activeGroup.name
+                        : "No Groups"}
                 </span>
                 {activeGroup?.description && (
                   <span className="block text-xs text-zinc-500 dark:text-zinc-400">

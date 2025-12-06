@@ -163,7 +163,7 @@ export function AIPage() {
         history: conversationHistory
       };
 
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/ask`, {
+      const response = await fetch(`/api/workshop/ask`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

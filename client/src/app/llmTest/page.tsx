@@ -34,7 +34,7 @@ export default function LLMTestPage() {
         setResponse(null);
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/test/llm`, {
+            const res = await fetch(`/api/test/llm`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

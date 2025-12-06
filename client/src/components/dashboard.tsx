@@ -84,7 +84,7 @@ export function Dashboard() {
     if (!localStorage.getItem("userID")) {
       try {
         console.log("Fetching userid...");
-        const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/UserID`, {
+        const response = await fetch(`/api/UserID`, {
           method: "POST",
           headers: { 'Content-Type': "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
@@ -111,7 +111,7 @@ export function Dashboard() {
   async function fetchFollowers() {
     setLoading(true)
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/followers`);
+      const response = await fetch(`/followers`);
       const data = await response.json();
       setFollowers(data);
     } catch (error) {
@@ -137,7 +137,7 @@ export function Dashboard() {
   async function fetchPosts() {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_CALL}/api/UploadItemsByGroupID?groupID=${activeGroup.ID}`
+        `/api/UploadItemsByGroupID?groupID=${activeGroup.ID}`
       );
 
       if (!res.ok) {

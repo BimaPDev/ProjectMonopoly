@@ -15,34 +15,36 @@ import (
 	"time"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 	"github.com/ledongthuc/pdf"
 )
 
 // ---------------- Models ----------------
 
 type GameContextRequest struct {
-	GroupID *int32 `json:"group_id,omitempty"`
-	GameTitle   string   `json:"game_title"`
-	StudioName  string   `json:"studio_name"`
-	GameSummary string   `json:"game_summary"`
-	Platforms   []string `json:"platforms"`
-	EngineTech  string   `json:"engine_tech"`
-	PrimaryGenre   string `json:"primary_genre"`
-	Subgenre       string `json:"subgenre"`
-	KeyMechanics   string `json:"key_mechanics"`
-	PlaytimeLength string `json:"playtime_length"`
-	ArtStyle       string `json:"art_style"`
-	Tone           string `json:"tone"`
-	IntendedAudience string `json:"intended_audience"`
-	AgeRange         string `json:"age_range"`
-	PlayerMotivation string `json:"player_motivation"`
-	ComparableGames  string `json:"comparable_games"`
-	MarketingObjective string `json:"marketing_objective"`
-	KeyEventsDates     string `json:"key_events_dates"`
-	CallToAction       string `json:"call_to_action"`
-	ContentRestrictions string `json:"content_restrictions"`
-	CompetitorsToAvoid  string `json:"competitors_to_avoid"`
-	AdditionalInfo		string `json:"additional_info"`
+	GroupID             *int32   `json:"group_id,omitempty"`
+	GameTitle           string   `json:"game_title"`
+	StudioName          string   `json:"studio_name"`
+	GameSummary         string   `json:"game_summary"`
+	Platforms           []string `json:"platforms"`
+	EngineTech          string   `json:"engine_tech"`
+	PrimaryGenre        string   `json:"primary_genre"`
+	Subgenre            string   `json:"subgenre"`
+	KeyMechanics        string   `json:"key_mechanics"`
+	PlaytimeLength      string   `json:"playtime_length"`
+	ArtStyle            string   `json:"art_style"`
+	Tone                string   `json:"tone"`
+	IntendedAudience    string   `json:"intended_audience"`
+	AgeRange            string   `json:"age_range"`
+	PlayerMotivation    string   `json:"player_motivation"`
+	ComparableGames     string   `json:"comparable_games"`
+	MarketingObjective  string   `json:"marketing_objective"`
+	KeyEventsDates      string   `json:"key_events_dates"`
+	CallToAction        string   `json:"call_to_action"`
+	ContentRestrictions string   `json:"content_restrictions"`
+	CompetitorsToAvoid  string   `json:"competitors_to_avoid"`
+	AdditionalInfo      string   `json:"additional_info"`
 }
 
 func toNullString(s string) sql.NullString {
@@ -55,11 +57,11 @@ func toNullString(s string) sql.NullString {
 // ---------------- DeepSeek API types ----------------
 
 type deepseekChatRequest struct {
-	Model       string                   `json:"model"`
-	Messages    []map[string]string      `json:"messages"`
-	Stream      bool                     `json:"stream"`
-	Temperature float64                  `json:"temperature,omitempty"`
-	MaxTokens   int                      `json:"max_tokens,omitempty"`
+	Model       string              `json:"model"`
+	Messages    []map[string]string `json:"messages"`
+	Stream      bool                `json:"stream"`
+	Temperature float64             `json:"temperature,omitempty"`
+	MaxTokens   int                 `json:"max_tokens,omitempty"`
 }
 
 type deepseekChatResponse struct {
@@ -116,19 +118,17 @@ func WarmupDeepSeek(apiKey, model string) error {
 	return nil
 }
 
-func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-	userID, ok := r.Context().Value("userID").(int32)
-	if !ok {
-		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+func SaveGameContext(c *gin.Context, queries *db.Queries) {
+	// Method check handled by Gin router
+
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in context"})
 		return
 	}
 	var req GameContextRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	var groupID sql.NullInt32
@@ -136,8 +136,8 @@ func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries
 		groupID = sql.NullInt32{Int32: *req.GroupID, Valid: true}
 	}
 
-	response, err := queries.CreateGameContext(r.Context(), db.CreateGameContextParams{
-		UserID:              userID,
+	response, err := queries.CreateGameContext(c.Request.Context(), db.CreateGameContextParams{
+		UserID:              int32(userID),
 		GroupID:             groupID,
 		GameTitle:           req.GameTitle,
 		StudioName:          toNullString(req.StudioName),
@@ -159,29 +159,23 @@ func SaveGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries
 		CallToAction:        toNullString(req.CallToAction),
 		ContentRestrictions: toNullString(req.ContentRestrictions),
 		CompetitorsToAvoid:  toNullString(req.CompetitorsToAvoid),
-		AdditionalInfo:	     toNullString(req.AdditionalInfo),
+		AdditionalInfo:      toNullString(req.AdditionalInfo),
 	})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Could not save to database: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Could not save to database: %v", err)})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusCreated, response)
 }
 
-func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Wrong method", http.StatusBadRequest)
-		return
-	}
-	setCORSHeaders(w)
+func ExtractGameContext(c *gin.Context, queries *db.Queries) {
+	// Method check handled by Gin
+	// setCORSHeaders removed (handled by middleware)
 
-	
 	apiKey := "sk-"
 	if apiKey == "" {
-		http.Error(w, "DEEPSEEK_API_KEY not configured", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "DEEPSEEK_API_KEY not configured"})
 		return
 	}
 
@@ -190,44 +184,36 @@ func ExtractGameContext(w http.ResponseWriter, r *http.Request, queries *db.Quer
 		model = "deepseek-chat"
 	}
 
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse form: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	var file *multipart.FileHeader
-	if files := r.MultipartForm.File["file"]; len(files) > 0 {
-		file = files[0]
-	} else {
-		http.Error(w, "Failed to get file", http.StatusBadRequest)
+	// Use c.FormFile which handles multipart parsing
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get file"})
 		return
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext != ".txt" && ext != ".pdf" {
-		http.Error(w, "Only .txt and .pdf files are supported", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .txt and .pdf files are supported"})
 		return
 	}
 
 	var fc string
-	var err error
 	if ext == ".pdf" {
 		fc, err = readPDFContent(file)
 	} else {
 		fc, err = readFileContent(file)
 	}
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error reading file: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error reading file: %v", err)})
 		return
 	}
 	gameContext, err := extractInChunks(fc, apiKey, model)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to extract game context: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to extract game context: %v", err)})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(gameContext)
+	c.JSON(http.StatusOK, gameContext)
 }
 
 type ChunkResult struct {
@@ -237,10 +223,11 @@ type ChunkResult struct {
 }
 
 type chunkConfig struct {
-	fields []string
-	prompt string
+	fields  []string
+	prompt  string
 	context string
 }
+
 // callDeepSeek makes a single call to DeepSeek API with the given prompt
 func callDeepSeek(apiKey, model, prompt string) (map[string]interface{}, error) {
 	messages := []map[string]string{
@@ -402,27 +389,26 @@ func extractInChunks(fc string, apiKey string, model string) (*GameContextReques
 	`
 	chunks := map[string]chunkConfig{
 		"basic": {
-			fields: []string{"game_title", "studio_name", "game_summary", "platforms", "engine_tech"},
-			prompt: `Extract basic game info as JSON (use "" if missing): {"game_title":"","studio_name":"","game_summary":"","platforms":[],"engine_tech":""}`,
-			context: format, 
+			fields:  []string{"game_title", "studio_name", "game_summary", "platforms", "engine_tech"},
+			prompt:  `Extract basic game info as JSON (use "" if missing): {"game_title":"","studio_name":"","game_summary":"","platforms":[],"engine_tech":""}`,
+			context: format,
 		},
 		"identity": {
-			fields: []string{"primary_genre", "subgenre", "key_mechanics", "playtime_length", "art_style", "tone"},
-			prompt: `Extract game identity as JSON (use "" if missing): {"primary_genre":"","subgenre":"","key_mechanics":"","playtime_length":"","art_style":"","tone":""}`,
+			fields:  []string{"primary_genre", "subgenre", "key_mechanics", "playtime_length", "art_style", "tone"},
+			prompt:  `Extract game identity as JSON (use "" if missing): {"primary_genre":"","subgenre":"","key_mechanics":"","playtime_length":"","art_style":"","tone":""}`,
 			context: format,
 		},
 		"audience": {
-			fields: []string{"intended_audience", "age_range", "player_motivation", "comparable_games"},
-			prompt: `Extract target audience as JSON (use "" if missing): {"intended_audience":"","age_range":"","player_motivation":"","comparable_games":""}`,
+			fields:  []string{"intended_audience", "age_range", "player_motivation", "comparable_games"},
+			prompt:  `Extract target audience as JSON (use "" if missing): {"intended_audience":"","age_range":"","player_motivation":"","comparable_games":""}`,
 			context: format,
 		},
 		"marketing": {
-			fields: []string{"marketing_objective", "key_events_dates", "call_to_action", "content_restrictions", "competitors_to_avoid"},
-			prompt: `Extract marketing info as JSON (use "" if missing): {"marketing_objective":"","key_events_dates":"","call_to_action":"","content_restrictions":"","competitors_to_avoid":""}`,
+			fields:  []string{"marketing_objective", "key_events_dates", "call_to_action", "content_restrictions", "competitors_to_avoid"},
+			prompt:  `Extract marketing info as JSON (use "" if missing): {"marketing_objective":"","key_events_dates":"","call_to_action":"","content_restrictions":"","competitors_to_avoid":""}`,
 			context: format,
 		},
 	}
-
 
 	results := make(chan ChunkResult, len(chunks))
 
@@ -485,7 +471,6 @@ func readPDFContent(uploadedFile *multipart.FileHeader) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read PDF file: %v", err)
 	}
-
 
 	reader := bytes.NewReader(data)
 	pdfReader, err := pdf.NewReader(reader, int64(len(data)))

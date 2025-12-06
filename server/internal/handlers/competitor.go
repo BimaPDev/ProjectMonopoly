@@ -2,15 +2,14 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
 type CreateCompetitorRequest struct {
@@ -18,40 +17,39 @@ type CreateCompetitorRequest struct {
 	Platform string `json:"Platform"`
 }
 
-func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	// Extract optional group ID from URL
-	parts := strings.Split(r.URL.Path, "/")
+func CreateCompetitor(c *gin.Context, queries *db.Queries) {
+	// Extract optional group ID from URL param
 	var groupID *int32
-	if len(parts) >= 4 {
-		if gid, err := strconv.Atoi(parts[3]); err == nil {
+	if gidStr := c.Param("groupID"); gidStr != "" {
+		if gid, err := strconv.Atoi(gidStr); err == nil {
 			tmp := int32(gid)
 			groupID = &tmp
 		}
 	}
 
-	currentUserID, err := utils.GetUserIDFromRequest(r)
+	currentUserID, err := utils.GetUserID(c)
 	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	// Parse request body
 	var req CreateCompetitorRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON body"})
 		return
 	}
 
 	// Parse social input (@username or URL)
 	parsed, err := utils.ParseSocialInput(req.Username, req.Platform)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse input: %v", err), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to parse input: %v", err)})
 		return
 	}
 
 	// Check if competitor already exists
 	var competitor db.Competitor
-	existing, err := queries.GetCompetitorByPlatformUsername(r.Context(), db.GetCompetitorByPlatformUsernameParams{
+	existing, err := queries.GetCompetitorByPlatformUsername(c.Request.Context(), db.GetCompetitorByPlatformUsernameParams{
 		Platform: parsed.Platform,
 		Username: parsed.Username,
 	})
@@ -59,14 +57,14 @@ func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Querie
 		competitor = existing
 	} else {
 		// Create new competitor if not found
-		newComp, err := queries.CreateCompetitor(r.Context(), db.CreateCompetitorParams{
+		newComp, err := queries.CreateCompetitor(c.Request.Context(), db.CreateCompetitorParams{
 			Platform:   parsed.Platform,
 			Username:   parsed.Username,
 			ProfileUrl: parsed.ProfileURL,
 		})
 		if err != nil {
 			log.Printf("❌ Failed to create competitor: %v", err)
-			http.Error(w, "Failed to create competitor", http.StatusInternalServerError)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create competitor"})
 			return
 		}
 		competitor = newComp
@@ -87,7 +85,7 @@ func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Querie
 	}
 
 	// Link user to competitor
-	err = queries.LinkUserToCompetitor(r.Context(), db.LinkUserToCompetitorParams{
+	err = queries.LinkUserToCompetitor(c.Request.Context(), db.LinkUserToCompetitorParams{
 		UserID:       currentUserID,
 		GroupID:      groupVal,
 		CompetitorID: competitor.ID,
@@ -95,7 +93,7 @@ func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Querie
 	})
 	if err != nil {
 		log.Printf("❌ Failed to link user to competitor: %v", err)
-		http.Error(w, "Failed to link competitor", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link competitor"})
 		return
 	}
 
@@ -110,6 +108,5 @@ func CreateCompetitor(w http.ResponseWriter, r *http.Request, queries *db.Querie
 			"last_checked": competitor.LastChecked,
 		},
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	c.JSON(http.StatusOK, resp)
 }

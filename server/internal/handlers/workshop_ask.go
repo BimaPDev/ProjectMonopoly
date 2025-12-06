@@ -19,6 +19,8 @@ import (
 	"unicode"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
 var citeRe = regexp.MustCompile(`\[(p\.|CP)(\d+)\]`)
@@ -78,15 +80,15 @@ type historyMessage struct {
 }
 
 type askReq struct {
-	GroupID      int32             `json:"group_id"`
-	Question     string            `json:"question"`
-	Limit        int32             `json:"limit"`
-	Model        string            `json:"model"`
-	Mode         string            `json:"mode"`          // "strict" | "opinion"
-	AllowOutside bool              `json:"allow_outside"` // default false
-	Output       string            `json:"output"`        // e.g. "bullet pros/cons", "one-page memo"
-	Tone         string            `json:"tone"`          // e.g. "neutral", "confident"
-	History      []historyMessage  `json:"history"`       // conversation history from client
+	GroupID      int32            `json:"group_id"`
+	Question     string           `json:"question"`
+	Limit        int32            `json:"limit"`
+	Model        string           `json:"model"`
+	Mode         string           `json:"mode"`          // "strict" | "opinion"
+	AllowOutside bool             `json:"allow_outside"` // default false
+	Output       string           `json:"output"`        // e.g. "bullet pros/cons", "one-page memo"
+	Tone         string           `json:"tone"`          // e.g. "neutral", "confident"
+	History      []historyMessage `json:"history"`       // conversation history from client
 }
 
 type askHit struct {
@@ -108,13 +110,17 @@ func envOr(k, d string) string {
 	return d
 }
 
-func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID :=  r.Context().Value("userID").(int32)
+func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := utils.GetUserID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
 
 		var ar askReq
-		if err := json.NewDecoder(r.Body).Decode(&ar); err != nil || ar.GroupID == 0 || strings.TrimSpace(ar.Question) == "" {
-			http.Error(w, "bad request", http.StatusBadRequest)
+		if err := c.ShouldBindJSON(&ar); err != nil || ar.GroupID == 0 || strings.TrimSpace(ar.Question) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
 			return
 		}
 		limit := ar.Limit
@@ -122,7 +128,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			limit = 6
 		}
 
-		ctx := r.Context()
+		ctx := c.Request.Context()
 		history := getHistory(int32(userID), ar.GroupID) // last ≤3 turns in past 2h
 
 		// Exact search with full question
@@ -380,8 +386,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 		// If client provides history, treat as conversational even without RAG context
 		if len(rows) == 0 && len(compPosts) == 0 && len(history) == 0 && !hasClientHistory {
 			if !ar.AllowOutside {
-				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(askResp{
+				c.JSON(http.StatusOK, askResp{
 					Answer: "No relevant context on this topic in your PDFs. Enable allow_outside or upload a relevant document.",
 					Hits:   nil,
 				})
@@ -432,12 +437,14 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			"seed":           13,
 		}, ar.History)
 		if err != nil {
+			fmt.Printf("callOllamaWithOptions error: %v\n", err)
 			if len(rows) == 0 && len(compPosts) == 0 {
-				ans = "No relevant context on this topic in your PDFs. Enable allow_outside or upload a relevant document."
+				ans = fmt.Sprintf("No relevant context on this topic in your PDFs. Enable allow_outside or upload a relevant document. (Error: %v)", err)
 			} else {
-				ans = "Unable to generate a grounded answer."
+				ans = fmt.Sprintf("Unable to generate a grounded answer. Error: %v", err)
 			}
 		}
+		fmt.Printf("DEBUG: ans='%s', err=%v\n", ans, err)
 
 		// Require numeric page citations when any Context existed (fresh or reused) and not opinion
 		if (len(rows) > 0 || len(compPosts) > 0 || len(history) > 0) && citeRe.FindStringIndex(ans) == nil && mode != "opinion" {
@@ -453,8 +460,7 @@ func WorkshopAskHandler(q *db.Queries) http.HandlerFunc {
 			At:       time.Now(),
 		})
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(askResp{Answer: strings.TrimSpace(ans), Hits: hits})
+		c.JSON(http.StatusOK, askResp{Answer: strings.TrimSpace(ans), Hits: hits})
 	}
 }
 
@@ -566,12 +572,18 @@ func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, o
 		resp, err := client.Do(req)
 		if err == nil && resp != nil && resp.StatusCode == 200 {
 			defer resp.Body.Close()
+
+			// Read body to debug
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			fmt.Printf("DEBUG OLLAMA RAW: %s\n", string(bodyBytes))
+
+			// Restore body for decoder (or just decode from bytes)
 			var out struct {
 				Message struct {
 					Content string `json:"content"`
 				} `json:"message"`
 			}
-			if json.NewDecoder(resp.Body).Decode(&out) == nil {
+			if json.Unmarshal(bodyBytes, &out) == nil {
 				return strings.TrimSpace(out.Message.Content), nil
 			}
 		} else {
@@ -659,8 +671,6 @@ func containsAnyFold(s string, subs ...string) bool {
 	}
 	return false
 }
-
-
 
 func conciseQuery(s string) string {
 	s = strings.ToLower(s)

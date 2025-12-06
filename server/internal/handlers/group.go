@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/gin-gonic/gin"
 	"github.com/sqlc-dev/pqtype"
 )
 
@@ -18,39 +19,33 @@ type CreateGroupRequest struct {
 	UserID      int32  `json:"userID"`
 }
 
-func CreateGroup(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
+func CreateGroup(c *gin.Context, queries *db.Queries) {
 	var req CreateGroupRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
 
 	if req.UserID == 0 || req.Name == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
 		return
 	}
 	if queries == nil {
-		http.Error(w, "Internal server error: queries is nil", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error: queries is nil"})
 		return
 	}
 
-	group, err := queries.CreateGroup(r.Context(), db.CreateGroupParams{
+	group, err := queries.CreateGroup(c.Request.Context(), db.CreateGroupParams{
 		UserID:      req.UserID,
 		Name:        req.Name,
 		Description: sql.NullString{String: req.Description, Valid: req.Description != ""},
 	})
 	if err != nil {
-		http.Error(w, "Failed to create group", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create group"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(group)
+	c.JSON(http.StatusOK, group)
 }
 
 type groupResponse struct {
@@ -59,32 +54,26 @@ type groupResponse struct {
 	Description string `json:"description"`
 }
 
-func GetGroups(w http.ResponseWriter, r *http.Request, q *db.Queries) {
-
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func GetGroups(c *gin.Context, q *db.Queries) {
 	// 1. Grab as string and validate
-	uidStr := r.URL.Query().Get("userID")
+	uidStr := c.Query("userID")
 	if uidStr == "" {
-		http.Error(w, "userID is required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userID is required"})
 		return
 	}
 
 	// 2. Parse to int
 	uidInt, err := strconv.Atoi(uidStr)
 	if err != nil {
-		http.Error(w, "invalid userID", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid userID"})
 		return
 	}
 	userID := int32(uidInt) // 3. Convert to int32
 
 	// 4. Call your generated query
-	groups, err := q.ListGroupsByUser(r.Context(), userID)
+	groups, err := q.ListGroupsByUser(c.Request.Context(), userID)
 	if err != nil {
-		http.Error(w, "could not list groups", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not list groups"})
 		return
 	}
 
@@ -102,8 +91,7 @@ func GetGroups(w http.ResponseWriter, r *http.Request, q *db.Queries) {
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(out)
+	c.JSON(http.StatusOK, out)
 }
 
 type AddGroupitem struct {
@@ -113,15 +101,10 @@ type AddGroupitem struct {
 	Platform string `json:"platform"`
 }
 
-func AddOrUpdateGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func AddOrUpdateGroupItem(c *gin.Context, q *db.Queries) {
 	var req AddGroupitem
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
 
@@ -132,12 +115,12 @@ func AddOrUpdateGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries)
 	}
 	dataBytes, err := json.Marshal(dataJSON)
 	if err != nil {
-		http.Error(w, "Error processing data", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing data"})
 		return
 	}
 
 	// Try Insert (will do nothing if exists)
-	_, err = q.InsertGroupItemIfNotExists(r.Context(), db.InsertGroupItemIfNotExistsParams{
+	_, err = q.InsertGroupItemIfNotExists(c.Request.Context(), db.InsertGroupItemIfNotExistsParams{
 		GroupID:  int32(req.GroupID),
 		Platform: req.Platform,
 		Data: pqtype.NullRawMessage{
@@ -146,44 +129,37 @@ func AddOrUpdateGroupItem(w http.ResponseWriter, r *http.Request, q *db.Queries)
 		},
 	})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Insert error: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Insert error: %v", err)})
 		return
 	}
 
 	// Then force update anyway (safe, no-op if same)
-	err = q.UpdateGroupItemData(r.Context(), db.UpdateGroupItemDataParams{
+	err = q.UpdateGroupItemData(c.Request.Context(), db.UpdateGroupItemDataParams{
 		GroupID:  int32(req.GroupID),
 		Platform: req.Platform,
-		Data:  json.RawMessage(dataBytes),
+		Data:     json.RawMessage(dataBytes),
 	})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Update error: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Update error: %v", err)})
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, "Group item updated or inserted")
+	c.String(http.StatusOK, "Group item updated or inserted")
 }
 
 // GetGroupItems retrieves all items in a group
-func GetGroupItems(w http.ResponseWriter, r *http.Request, q *db.Queries) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allwed", http.StatusBadRequest)
-	}
-	groupIDstr := r.URL.Query().Get("groupID")
+func GetGroupItems(c *gin.Context, q *db.Queries) {
+	groupIDstr := c.Query("groupID")
 	groupIDInt, err := strconv.Atoi(groupIDstr)
 	if err != nil {
-		http.Error(w, "Invalid groupID, could not convert", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid groupID, could not convert"})
 		return
 	}
 	groupID := int32(groupIDInt)
-	items, err := q.GetGroupItemByGroupID(r.Context(), groupID)
+	items, err := q.GetGroupItemByGroupID(c.Request.Context(), groupID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve group items", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve group items"})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(items)
-
+	c.JSON(http.StatusOK, items)
 }

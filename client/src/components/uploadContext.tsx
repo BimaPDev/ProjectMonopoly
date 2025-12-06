@@ -46,7 +46,7 @@ export function UploadContext({ token, groupID }: uploadContextProps) {
       // Add group_id
       formData.append('group_id', groupID.toString());
 
-      const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/workshop/upload`, {
+      const res = await fetch(`/api/workshop/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

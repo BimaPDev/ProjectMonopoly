@@ -4,7 +4,7 @@ export async function fetchProtectedData() {
         throw new Error("No token found, please log in");
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/protected/dashboard`, {
+    const response = await fetch(`/api/protected/dashboard`, {
         method: "GET",
         headers: {
             "Authorization": `Bearer ${token}`

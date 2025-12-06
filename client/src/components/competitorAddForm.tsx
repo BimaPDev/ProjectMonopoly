@@ -22,7 +22,7 @@ const CompetitorAddForm: React.FC = () => {
         }
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_CALL}/api/groups/competitors`,
+                `/api/groups/competitors`,
                 {
                     method: "POST",
                     headers: {
@@ -53,9 +53,9 @@ const CompetitorAddForm: React.FC = () => {
             flex items-center gap-3 px-6 py-3 rounded-full font-semibold 
             transition-all duration-500 ease-in-out transform
             ${isExpanded
-                        ? "bg-gray-800 text-white scale-105 shadow-2xl"
-                        : "text-black bg-white shadow-lg hover:shadow-xl hover:scale-105"
-                    }
+                            ? "bg-gray-800 text-white scale-105 shadow-2xl"
+                            : "text-black bg-white shadow-lg hover:shadow-xl hover:scale-105"
+                        }
           `}
                 >
                     {isExpanded ? (
@@ -77,9 +77,9 @@ const CompetitorAddForm: React.FC = () => {
             absolute top-full mt-4 right-2 bg-black rounded-2xl shadow-2xl border border-gray-700
             transition-all duration-500 ease-in-out transform origin-bottom-left
             ${isExpanded
-                        ? "opacity-100 scale-100 translate-x-0"
-                        : "opacity-0 scale-95 -translate-x-10 pointer-events-none"
-                    }
+                            ? "opacity-100 scale-100 translate-x-0"
+                            : "opacity-0 scale-95 -translate-x-10 pointer-events-none"
+                        }
           `}
                 >
                     <div className="p-6 w-80">
@@ -119,14 +119,13 @@ const CompetitorAddForm: React.FC = () => {
                                             <selectedPlatform.icon size={16} className="text-white" />
                                         </div>
                                         <span className="text-white font-semibold">
-                      {selectedPlatform.id}
-                    </span>
+                                            {selectedPlatform.id}
+                                        </span>
                                     </div>
                                     <ChevronDown
                                         size={16}
-                                        className={`text-gray-500 transition-transform duration-200 ${
-                                            isDropdownOpen ? "rotate-180" : ""
-                                        }`}
+                                        className={`text-gray-500 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""
+                                            }`}
                                     />
                                 </button>
 
@@ -154,8 +153,8 @@ const CompetitorAddForm: React.FC = () => {
                                                 <platform.icon size={16} className="text-white" />
                                             </div>
                                             <span className="text-white font-semibold">
-                        {platform.id}
-                      </span>
+                                                {platform.id}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>

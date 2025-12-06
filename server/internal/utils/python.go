@@ -3,7 +3,6 @@ package utils
 import (
 	"bytes"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/gin-gonic/gin"
 )
 
 // RunPythonScript executes the Python script with the provided arguments
@@ -61,27 +61,22 @@ func TikTokUpload(sessionID, videoPath, caption string, headless bool) (string, 
 	return out.String(), nil
 }
 
-func GetFollowers(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
+func GetFollowers(c *gin.Context, queries *db.Queries) {
 
-	ctx := r.Context()
+	ctx := c.Request.Context()
 
 	// Call the sqlc‐generated method: no parameters (just the context)
 	latest, err := queries.GetFollowerByDate(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "no follower history yet", http.StatusNotFound)
+			c.JSON(http.StatusNotFound, gin.H{"error": "no follower history yet"})
 			return
 		}
-		http.Error(w, "failed to fetch followers", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch followers"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(latest); err != nil {
-		http.Error(w, "failed to encode JSON", http.StatusInternalServerError)
-		return
-	}
-
+	c.JSON(http.StatusOK, latest)
 }
 
 // DetectPythonCommand determines whether to use 'python' or 'python3'

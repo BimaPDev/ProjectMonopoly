@@ -39,3 +39,6 @@ flower:
 
 runpy: redis
 	$(MAKE) -j2 celery-worker dispatcher
+
+docker-migrateup:
+	docker exec postgres psql -U root -d project_monopoly -f /migration/000001_init_schema.up.sql

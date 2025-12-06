@@ -9,9 +9,9 @@ DB_CONFIG = {
     'sslmode': 'disable'
 }
 
-# Redis config for Celery
-REDIS_BROKER_URL = "redis://redis:6379/0"
-REDIS_BACKEND_URL = "redis://redis:6379/1"
+# RabbitMQ config for Celery
+RABBITMQ_BROKER_URL = "amqp://guest:guest@rabbitmq:5672//"
+
 
 # THIS: goes up TWO levels from /worker/config.py → /python → /server
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))

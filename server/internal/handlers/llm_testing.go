@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type LLMTestRequest struct {
@@ -22,13 +24,9 @@ type LLMTestResponse struct {
 }
 
 // TestLLMHandler allows testing the LLM with a simple text prompt
-func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	setCORSHeaders(w)
+func TestLLMHandler(c *gin.Context) {
+	// Method check handled by Gin
+	// setCORSHeaders handled by middleware
 
 	// Get Ollama configuration
 	ollamaHost := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
@@ -48,10 +46,8 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request
 	var req LLMTestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(LLMTestResponse{
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, LLMTestResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Failed to parse request: %v", err),
 		})
@@ -59,9 +55,7 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.TrimSpace(req.Prompt) == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(LLMTestResponse{
+		c.JSON(http.StatusBadRequest, LLMTestResponse{
 			Success: false,
 			Error:   "Prompt cannot be empty",
 		})
@@ -92,9 +86,7 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 	jsonData, _ := json.Marshal(reqBody)
 	resp, err := http.Post(chatURL, "application/json", strings.NewReader(string(jsonData)))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(LLMTestResponse{
+		c.JSON(http.StatusInternalServerError, LLMTestResponse{
 			Success: false,
 			Error:   fmt.Sprintf("LLM call failed: %v", err),
 		})
@@ -103,9 +95,7 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(LLMTestResponse{
+		c.JSON(http.StatusInternalServerError, LLMTestResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Ollama returned status code: %d", resp.StatusCode),
 		})
@@ -123,9 +113,7 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(LLMTestResponse{
+		c.JSON(http.StatusInternalServerError, LLMTestResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Failed to parse Ollama response: %v", err),
 		})
@@ -136,9 +124,7 @@ func TestLLMHandler(w http.ResponseWriter, r *http.Request) {
 	elapsed := time.Since(startTime)
 
 	// Return success with the LLM response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(LLMTestResponse{
+	c.JSON(http.StatusOK, LLMTestResponse{
 		Success:  true,
 		Message:  ollamaResp.Message.Content,
 		Duration: elapsed.String(),

@@ -61,13 +61,13 @@ export default function UploadPage() {
   const [groups, setGroups] = React.useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = React.useState(false);
   const [groupEmptyErr, setGroupEmptyErr] = useState(false);
-  
+
   interface Group {
-    ID: number;    
-    name: string;  
-    description: string; 
+    ID: number;
+    name: string;
+    description: string;
   }
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -86,28 +86,28 @@ export default function UploadPage() {
       if (!storedUserID) {
         return;
       }
-      
+
       const userID = Number(storedUserID);
       setGroupsLoading(true);
-      
+
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_CALL}/api/groups?userID=${userID}`, {
+        const res = await fetch(`/api/groups?userID=${userID}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" }
         });
-        
+
         if (!res.ok) {
           const errorText = await res.text();
           throw new Error(errorText || `Failed to fetch groups: ${res.status}`);
         }
-        
+
         const data = await res.json();
-        
+
         if (!Array.isArray(data)) {
           console.error("Expected array response, got:", typeof data);
           throw new Error("Invalid response format from server");
         }
-        
+
         setGroups(data);
         if (data.length == 0) {
           setGroupEmptyErr(true);
@@ -123,7 +123,7 @@ export default function UploadPage() {
         setGroupsLoading(false);
       }
     }
-    
+
     fetchGroups();
   }, []);
 
@@ -141,7 +141,7 @@ export default function UploadPage() {
         setLoading(false);
         return;
       }
-      
+
       // Create FormData to match the expected format in your Go handler
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -154,17 +154,17 @@ export default function UploadPage() {
           : new Date().toLocaleString()
       );
       formData.append("group_id", values.groupId.toString());
-      
+
       if (values.title) {
         formData.append("title", values.title);
       }
-      
+
       if (values.hashtags) {
         formData.append("hashtags", values.hashtags);
       }
-      
+
       // Send request to backend
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/upload`, {
+      const response = await fetch(`/api/upload`, {
         method: "POST",
         body: formData,
       });
@@ -175,22 +175,22 @@ export default function UploadPage() {
       }
 
       const data = await response.json();
-      
+
       // Set upload success state first
       setUploadSuccess(true);
-      
+
       // Show success toast
       toast({
         title: "Success",
         description: "Your content has been uploaded successfully.",
       });
-      
+
       // Wait longer for the toast to be visible before resetting
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      
+
       // Reset everything after successful upload
       resetForm();
-      
+
     } catch (error) {
       console.error("Upload error:", error);
       toast({
@@ -225,7 +225,7 @@ export default function UploadPage() {
     if (file) {
       // Save the file
       setSelectedFile(file);
-      
+
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -510,7 +510,7 @@ export default function UploadPage() {
                                     No groups found. Please create a group before uploading.
                                   </p>
                                 )}
-                                
+
                                 {groupsLoading && (
                                   <p className="mt-1 text-sm text-gray-400">Loading your groups…</p>
                                 )}
@@ -550,7 +550,7 @@ export default function UploadPage() {
                                         onChange={(e) => {
                                           const currentValues = field.value || [];
                                           let newValues;
-                                          
+
                                           if (e.target.checked) {
                                             // Add the platform if checked
                                             newValues = [...currentValues, platform.id];
@@ -558,13 +558,13 @@ export default function UploadPage() {
                                             // Remove the platform if unchecked
                                             newValues = currentValues.filter(id => id !== platform.id);
                                           }
-                                          
+
                                           field.onChange(newValues);
                                           setProgress(66); // Update progress when platform changes
                                         }}
                                       />
-                                      <label 
-                                        htmlFor={`platform-${platform.id}`} 
+                                      <label
+                                        htmlFor={`platform-${platform.id}`}
                                         className="flex items-center space-x-3 cursor-pointer flex-1"
                                       >
                                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${platform.color}`}>
@@ -658,9 +658,9 @@ export default function UploadPage() {
                             Start Over
                           </Button>
                         )}
-                        <Button 
-                          type="submit" 
-                          disabled={loading || !selectedFile} 
+                        <Button
+                          type="submit"
+                          disabled={loading || !selectedFile}
                           size="lg"
                           className="bg-blue-600 hover:bg-blue-700 text-white border-none"
                         >

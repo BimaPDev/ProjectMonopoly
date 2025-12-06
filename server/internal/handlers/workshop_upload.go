@@ -13,57 +13,66 @@ import (
 	"time"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
+	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
 const maxUpload = 100 << 20 // 100 MB
 
 // WorkshopUploadHandler handles POST /api/workshop/upload (multipart/form-data: file, group_id)
-func WorkshopUploadHandler(w http.ResponseWriter, r *http.Request, q *db.Queries) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+func WorkshopUploadHandler(c *gin.Context, q *db.Queries) {
+	// Gin handles method checking via routing
+
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := ctxUserID(r)
 
 	// hardcode a project-relative uploads root and make it ABSOLUTE
 	absRoot := mustAbs(filepath.Join(".", "uploads", "docs"))
 	if err := os.MkdirAll(absRoot, 0o755); err != nil {
-		http.Error(w, "storage init failed", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "storage init failed"})
 		return
 	}
 
-	// limit and parse form
-	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
-	if err := r.ParseMultipartForm(maxUpload); err != nil {
-		http.Error(w, "invalid form or file too large", http.StatusBadRequest)
-		return
-	}
+	// limit and parse form (Gin does this with MaxMultipartMemory but we can also limit request body?)
+	// defaults to 32MB. 100MB required.
+	// c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUpload)
+	// if err := c.Request.ParseMultipartForm(maxUpload); err != nil { ... }
+	// Better: just use c.FormFile which parses internally
 
-	groupID := parseInt64(r.FormValue("group_id"))
+	groupID := parseInt64(c.PostForm("group_id"))
 
-	file, hdr, err := r.FormFile("file")
+	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		http.Error(w, "missing file", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to open file"})
 		return
 	}
 	defer file.Close()
 
-	if !strings.HasSuffix(strings.ToLower(hdr.Filename), ".pdf") {
-		http.Error(w, "only .pdf accepted", http.StatusBadRequest)
+	if !strings.HasSuffix(strings.ToLower(fileHeader.Filename), ".pdf") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only .pdf accepted"})
 		return
 	}
 
 	// write to tmp while hashing
 	tmpDir := filepath.Join(absRoot, "tmp")
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
-		http.Error(w, "storage init failed", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "storage init failed"})
 		return
 	}
-	tmpPath := filepath.Join(tmpDir, fmt.Sprintf("%d_%d_%s", userID, time.Now().UnixNano(), sanitize(hdr.Filename)))
+	tmpPath := filepath.Join(tmpDir, fmt.Sprintf("%d_%d_%s", userID, time.Now().UnixNano(), sanitize(fileHeader.Filename)))
 
 	out, err := os.Create(tmpPath)
 	if err != nil {
-		http.Error(w, "tmp create failed", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "tmp create failed"})
 		return
 	}
 	hasher := sha256.New()
@@ -71,7 +80,7 @@ func WorkshopUploadHandler(w http.ResponseWriter, r *http.Request, q *db.Queries
 	_ = out.Close()
 	if err != nil {
 		_ = os.Remove(tmpPath)
-		http.Error(w, "write failed", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "write failed"})
 		return
 	}
 	sha := hex.EncodeToString(hasher.Sum(nil))
@@ -80,25 +89,25 @@ func WorkshopUploadHandler(w http.ResponseWriter, r *http.Request, q *db.Queries
 	userDir := filepath.Join(absRoot, fmt.Sprint(userID))
 	if err := os.MkdirAll(userDir, 0o755); err != nil {
 		_ = os.Remove(tmpPath)
-		http.Error(w, "storage init failed", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "storage init failed"})
 		return
 	}
-	finalName := fmt.Sprintf("%d_%s", time.Now().Unix(), sanitize(hdr.Filename))
+	finalName := fmt.Sprintf("%d_%s", time.Now().Unix(), sanitize(fileHeader.Filename))
 	finalPath := filepath.Join(userDir, finalName) // absolute on disk
 	if !filepath.IsAbs(finalPath) {
 		finalPath = mustAbs(finalPath)
 	}
 	if err := os.Rename(tmpPath, finalPath); err != nil {
 		_ = os.Remove(tmpPath)
-		http.Error(w, "finalize failed", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "finalize failed"})
 		return
 	}
 
 	// insert document and enqueue job
-	docID, err := q.CreateWorkshopDocument(r.Context(), db.CreateWorkshopDocumentParams{
+	docID, err := q.CreateWorkshopDocument(c.Request.Context(), db.CreateWorkshopDocumentParams{
 		UserID:     int32(userID),
 		GroupID:    int32(groupID),
-		Filename:   hdr.Filename,
+		Filename:   fileHeader.Filename,
 		Mime:       "application/pdf",
 		SizeBytes:  size,
 		Sha256:     sha,
@@ -106,20 +115,18 @@ func WorkshopUploadHandler(w http.ResponseWriter, r *http.Request, q *db.Queries
 	})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "workshop_doc_user_group_sha_uniq") {
-			http.Error(w, "duplicate file in this group", http.StatusConflict)
+			c.JSON(http.StatusConflict, gin.H{"error": "duplicate file in this group"})
 			return
 		}
-		http.Error(w, "db insert failed", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "db insert failed"})
 		return
 	}
-	if err := q.EnqueueIngestJob(r.Context(), docID); err != nil {
-		http.Error(w, "enqueue failed", http.StatusInternalServerError)
+	if err := q.EnqueueIngestJob(c.Request.Context(), docID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "enqueue failed"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_, _ = w.Write([]byte(fmt.Sprintf(`{"document_id":"%s","status":"queued"}`, docID.String())))
+	c.JSON(http.StatusCreated, gin.H{"document_id": docID, "status": "queued"})
 }
 
 func sanitize(name string) string {
@@ -143,27 +150,3 @@ func mustAbs(p string) string {
 }
 
 func parseInt64(s string) int64 { var x int64; fmt.Sscanf(s, "%d", &x); return x }
-
-// ctxUserID tries common keys set by middleware; default 1 for dev.
-func ctxUserID(r *http.Request) int64 {
-	for _, k := range []any{"user_id", "userID", "uid"} {
-		if v := r.Context().Value(k); v != nil {
-			switch t := v.(type) {
-			case int64:
-				return t
-			case int:
-				return int64(t)
-			case float64:
-				return int64(t)
-			}
-		}
-	}
-	if h := r.Header.Get("X-User-ID"); h != "" {
-		var x int64
-		fmt.Sscanf(h, "%d", &x)
-		if x > 0 {
-			return x
-		}
-	}
-	return 1
-}

@@ -20,7 +20,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     setError("");
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_CALL}/api/login`, {
+      const response = await fetch(`/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -66,7 +66,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
     try {
       // Attempt to log in with the Google token
-      const loginResponse = await fetch(`${import.meta.env.VITE_API_CALL}/api/login`, {
+      const loginResponse = await fetch(`/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ googleToken }),
@@ -74,7 +74,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
       if (!loginResponse.ok) {
         // If login fails (user not found), attempt to register the user
-        const registerResponse = await fetch(`${import.meta.env.VITE_API_CALL}/api/register`, {
+        const registerResponse = await fetch(`/api/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ googleToken }),

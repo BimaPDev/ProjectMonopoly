@@ -2,27 +2,27 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
-func ListVisibleCompetitorPosts(w http.ResponseWriter, r *http.Request, queries *db.Queries) {
-	ctx := r.Context()
+func ListVisibleCompetitorPosts(c *gin.Context, queries *db.Queries) {
+	ctx := c.Request.Context()
 
 	// Step 1: Get user ID from context
-	userID, err := utils.GetUserIDFromRequest(r)
+	userID, err := utils.GetUserID(c)
 	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	// Step 2: Try to get groupID from query param ?group_id=1
-	groupIDStr := r.URL.Query().Get("group_id")
+	groupIDStr := c.Query("group_id")
 
 	var groupID sql.NullInt32
 	if groupIDStr != "" {
@@ -40,11 +40,10 @@ func ListVisibleCompetitorPosts(w http.ResponseWriter, r *http.Request, queries 
 	})
 	if err != nil {
 		log.Printf("❌ DB error: %v", err)
-		http.Error(w, "failed to fetch posts", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch posts"})
 		return
 	}
 
 	// Step 4: Return result
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(posts)
+	c.JSON(http.StatusOK, posts)
 }

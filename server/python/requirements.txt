@@ -15,7 +15,7 @@ flask-cors
 
 # Task Queue & Workers
 celery==5.4.0
-redis==5.2.1
+
 
 # Data Processing
 pandas==2.2.3

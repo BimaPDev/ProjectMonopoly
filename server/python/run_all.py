@@ -7,8 +7,8 @@ import subprocess
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
-BACKEND_URL = os.getenv("CELERY_RESULT_BACKEND", BROKER_URL)
+BROKER_URL = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@rabbitmq:5672//")
+BACKEND_URL = os.getenv("CELERY_RESULT_BACKEND", "rpc://")
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://root:secret@postgres:5432/project_monopoly?sslmode=disable"
@@ -33,8 +33,8 @@ def wait_port(host, port, timeout=10):
     return False
 
 def wait_for_deps():
-    if not wait_port("redis", 6379, 30):
-        raise RuntimeError("redis not reachable")
+    if not wait_port("rabbitmq", 5672, 30):
+        raise RuntimeError("rabbitmq not reachable")
     if not wait_port("postgres", 5432, 30):
         raise RuntimeError("postgres not reachable")
 
