@@ -259,16 +259,16 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen text-white bg-black">
       <TooltipProvider>
-        <div className="container py-10 mx-auto max-w-6xl">
+        <div className="container max-w-6xl py-10 mx-auto">
           <div className="space-y-8">
             {/* Header */}
             <div className="space-y-3">
               <h1 className="text-3xl font-semibold tracking-tight text-white">Create New Post</h1>
-              <p className="text-gray-400 text-lg">
+              <p className="text-lg text-gray-400">
                 Upload and schedule your content across multiple platforms. Visit{" "}
-                <a href="/dashboard/settings" className="text-blue-400 underline hover:text-blue-300 transition-colors">
+                <a href="/dashboard/settings" className="text-blue-400 underline transition-colors hover:text-blue-300">
                   settings
                 </a>{" "}
                 to add login info before upload.
@@ -276,7 +276,7 @@ export default function UploadPage() {
             </div>
 
             {/* Progress Bar */}
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-gray-300">Upload Progress</span>
                 <span className="text-sm text-gray-400">{progress}%</span>
@@ -289,7 +289,7 @@ export default function UploadPage() {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-4"
+                className="p-4 border bg-emerald-900/20 border-emerald-500/30 rounded-xl"
               >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -382,7 +382,7 @@ export default function UploadPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="absolute z-10 right-2 top-2 bg-gray-800/80 hover:bg-gray-700 text-white"
+                              className="absolute z-10 text-white right-2 top-2 bg-gray-800/80 hover:bg-gray-700"
                               onClick={() => {
                                 setSelectedFile(null);
                                 setPreview("");
@@ -432,7 +432,7 @@ export default function UploadPage() {
                                 <FormControl>
                                   <Input
                                     placeholder="Enter a title for your post"
-                                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 focus:border-blue-500"
+                                    className="text-white bg-gray-800 border-gray-700 placeholder:text-gray-400 focus:border-blue-500"
                                     {...field}
                                   />
                                 </FormControl>
@@ -453,7 +453,7 @@ export default function UploadPage() {
                                         <Info className="w-4 h-4 text-gray-400" />
                                       </span>
                                     </TooltipTrigger>
-                                    <TooltipContent className="max-w-xs bg-gray-800 border-gray-700 text-white">
+                                    <TooltipContent className="max-w-xs text-white bg-gray-800 border-gray-700">
                                       <p>Add hashtags to increase the visibility of your post. Separate hashtags with spaces (e.g. #trending #viral)</p>
                                     </TooltipContent>
                                   </Tooltip>
@@ -486,7 +486,7 @@ export default function UploadPage() {
                                 <FormLabel className="text-white">Group</FormLabel>
                                 <div className="space-y-3">
                                   {groups.map((g) => (
-                                    <div key={g.ID} className="flex items-center space-x-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
+                                    <div key={g.ID} className="flex items-center p-3 space-x-3 transition-colors bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600">
                                       <input
                                         type="radio"
                                         id={`group-${g.ID}`}
@@ -497,7 +497,7 @@ export default function UploadPage() {
                                         disabled={groupsLoading}
                                       />
                                       <div className="flex-1">
-                                        <span className="text-white font-medium">{g.name || "No Groups"}</span>
+                                        <span className="font-medium text-white">{g.name || "No Groups"}</span>
                                         <span className="block text-xs text-gray-400">
                                           {g.description || "No description"}
                                         </span>
@@ -533,14 +533,14 @@ export default function UploadPage() {
                                         <Info className="w-4 h-4 text-gray-400" />
                                       </span>
                                     </TooltipTrigger>
-                                    <TooltipContent className="bg-gray-800 border-gray-700 text-white">
+                                    <TooltipContent className="text-white bg-gray-800 border-gray-700">
                                       <p>Choose the social media platforms where you want to publish this content</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </div>
                                 <div className="space-y-3">
                                   {socialPlatforms.map((platform) => (
-                                    <div key={platform.id} className="flex items-center space-x-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors">
+                                    <div key={platform.id} className="flex items-center p-3 space-x-3 transition-colors bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600">
                                       <input
                                         type="checkbox"
                                         id={`platform-${platform.id}`}
@@ -565,12 +565,12 @@ export default function UploadPage() {
                                       />
                                       <label
                                         htmlFor={`platform-${platform.id}`}
-                                        className="flex items-center space-x-3 cursor-pointer flex-1"
+                                        className="flex items-center flex-1 space-x-3 cursor-pointer"
                                       >
                                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${platform.color}`}>
                                           <platform.icon className="w-4 h-4 text-white" />
                                         </span>
-                                        <span className="text-white font-medium">{platform.id}</span>
+                                        <span className="font-medium text-white">{platform.id}</span>
                                       </label>
                                     </div>
                                   ))}
@@ -593,7 +593,7 @@ export default function UploadPage() {
                                         <Info className="w-4 h-4 text-gray-400" />
                                       </span>
                                     </TooltipTrigger>
-                                    <TooltipContent className="bg-gray-800 border-gray-700 text-white">
+                                    <TooltipContent className="text-white bg-gray-800 border-gray-700">
                                       <p>Choose a future date to schedule your post automatically</p>
                                     </TooltipContent>
                                   </Tooltip>
@@ -653,7 +653,7 @@ export default function UploadPage() {
                               }
                             }}
                             disabled={loading}
-                            className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white"
+                            className="text-gray-300 bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-white"
                           >
                             Start Over
                           </Button>
@@ -662,7 +662,7 @@ export default function UploadPage() {
                           type="submit"
                           disabled={loading || !selectedFile}
                           size="lg"
-                          className="bg-blue-600 hover:bg-blue-700 text-white border-none"
+                          className="text-white bg-blue-600 border-none hover:bg-blue-700"
                         >
                           {loading && (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />

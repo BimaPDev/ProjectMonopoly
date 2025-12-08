@@ -23,7 +23,7 @@ import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 
 import { CgComment } from "react-icons/cg";
-
+import { useGroup } from "./groupContext";
 import { socialPlatforms } from "@/components/socialPlatforms";
 interface Competitors {
   id: string,
@@ -72,6 +72,8 @@ export function CompetitorsPage() {
   const [competitorsPost, setCompetitorsPosts] = useState<CompetitorPost[]>([]);
   const [competitors, setCompetitors] = useState<Competitors[]>([]);
   const [expandedCompetitors, setExpandedCompetitors] = useState<Set<string>>(new Set());
+  const [postsHeight, setPostsHeight] = useState<{ [key: string]: number }>({});
+  const { activeGroup } = useGroup();
   const toggleCompetitorPosts = (competitorId: string) => {
     setExpandedCompetitors(prev => {
       const newSet = new Set(prev);
@@ -84,22 +86,42 @@ export function CompetitorsPage() {
     });
   };
 
+  const handleResize = (competitorId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = postsHeight[competitorId] || 320;
+
+    const doDrag = (e: MouseEvent) => {
+      const delta = e.clientY - startY;
+      const newHeight = Math.max(200, Math.min(800, startHeight + delta));
+      setPostsHeight(prev => ({ ...prev, [competitorId]: newHeight }));
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  };
+
   const fetchCompetitorsPosts = async () => {
     try {
-      const res = await fetch(`/api/competitors/posts`, {
+      const res = await fetch(`/api/competitors/posts?group_id=${activeGroup?.ID}`, {
         method: "GET",
         headers: { 'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
       const data = await res.json();
-      console.log("DATA", data)
+
       const normalized: CompetitorPost[] = data.map((post: any) => ({
         id: post.id,
         competitor_id: post.competitor_id,
         platform: post.platform,
         content: post.content.Valid ? post.content.String : null,
         media: post.media.Valid ? post.media.RawMessage : null,
-        posted_at: post.posted_at.Valid ? post.posted_at : null,
+        posted_at: post.posted_at.Valid ? post.posted_at.Time : null,
         engagement: post.engagement.Valid ? post.engagement.RawMessage : null,
         hashtags: post.hashtags,
 
@@ -108,13 +130,13 @@ export function CompetitorsPage() {
       setCompetitorsPosts(normalized);
 
     } catch (e: any) {
-      throw new Error(e || "Could not fetch competitors posts");
+      throw new Error(e || "error getting posts");
     }
   }
 
   const fetchCompetitors = async () => {
     try {
-      const res = await fetch(`/api/groups/competitors`, {
+      const res = await fetch(`/api/groups/${activeGroup?.ID || ""}/competitors`, {
         method: "GET",
         headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem('token')}` }
       });
@@ -126,7 +148,7 @@ export function CompetitorsPage() {
         username: competitor.username,
         profile_url: competitor.profile_url,
         followers: competitor.followers.Valid ? competitor.followers.Int64 : 0,
-        last_checked: competitor.last_checked.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
+        last_checked: competitor.last_checked.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : "",
         engagement_rate: competitor.engagement_rate?.Valid
           ? parseFloat(competitor.engagement_rate.String)
           : 0,
@@ -142,7 +164,7 @@ export function CompetitorsPage() {
       setCompetitors(normalized)
 
     } catch (e: any) {
-      throw new Error(e || "could not fetch competitors");
+      throw new Error(e || "error getting competitor");
 
     }
 
@@ -327,7 +349,10 @@ export function CompetitorsPage() {
 
                       {isExpanded && (
                         <div className="pt-6 mt-6 border-t">
-                          <div className="overflow-y-auto max-h-80 scrollbar-hide">
+                          <div
+                            className="overflow-y-auto scrollbar-hide"
+                            style={{ maxHeight: `${postsHeight[competitor.id] || 320}px` }}
+                          >
                             <div className="space-y-4">
                               {posts.length > 0 ? (
                                 posts.map((post) => (
@@ -355,26 +380,29 @@ export function CompetitorsPage() {
                                         <div className="flex items-center gap-2">
                                           <Heart className="w-6 h-6 text-red-500" />
                                           <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.likes.toLocaleString()}
+                                            {post.engagement?.likes && post.engagement?.likes.toLocaleString()}
+                                            {!post.engagement?.likes && <span className="text-slate-500">No likes, or likes could be hidden</span>}
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                           <Share className="w-6 h-6 text-blue-500" />
                                           <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.shares.toLocaleString()}
+                                            {post.engagement?.shares && post.engagement?.shares.toLocaleString()}
+                                            {!post.engagement?.shares && <span className="text-slate-500"> No shares</span>}
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                           <CgComment className="w-6 h-6 text-green-500" />
                                           <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.comments.toLocaleString()}
+                                            {post.engagement?.comments && post.engagement?.comments.toLocaleString()}
+                                            {!post.engagement?.comments && <span className="text-slate-500"> No comments </span>}
                                           </span>
                                         </div>
                                       </div>
                                     </div>
                                     <div className="w-full">
                                       <p className="text-sm leading-relaxed text-slate-600">
-                                        {post.content}
+                                        {post.content ? post.content : <span>No content</span>}
                                       </p>
                                     </div>
                                   </div>
@@ -385,6 +413,12 @@ export function CompetitorsPage() {
                                 </div>
                               )}
                             </div>
+                          </div>
+                          <div
+                            className="flex items-center justify-center h-4 mt-2 cursor-ns-resize hover:bg-gray-100 rounded"
+                            onMouseDown={(e) => handleResize(competitor.id, e)}
+                          >
+                            <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
                           </div>
                         </div>
                       )}
