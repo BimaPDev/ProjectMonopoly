@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { socialPlatforms } from "@/components/socialPlatforms";
 import { ChevronDown, Plus, X } from "lucide-react";
-
+import { useGroup } from "./groupContext";
 const CompetitorAddForm: React.FC = () => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [selectedPlatform, setSelectedPlatform] = useState(socialPlatforms[0]);
     const [socialUrl, setSocialUrl] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
+    const { activeGroup } = useGroup();
     const handleReset = () => {
         setIsExpanded(false);
         setSocialUrl("");
@@ -22,7 +22,7 @@ const CompetitorAddForm: React.FC = () => {
         }
         try {
             const res = await fetch(
-                `/api/groups/competitors`,
+                `/api/groups/${activeGroup?.ID || ""}/competitors`,
                 {
                     method: "POST",
                     headers: {

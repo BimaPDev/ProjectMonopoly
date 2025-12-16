@@ -23,7 +23,7 @@ import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 
 import { CgComment } from "react-icons/cg";
-
+import { useGroup } from "./groupContext";
 import { socialPlatforms } from "@/components/socialPlatforms";
 import { useGroup } from "./groupContext";
 import { TriangleAlert } from "lucide-react";
@@ -88,6 +88,26 @@ export function CompetitorsPage() {
     });
   };
 
+  const handleResize = (competitorId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = postsHeight[competitorId] || 320;
+
+    const doDrag = (e: MouseEvent) => {
+      const delta = e.clientY - startY;
+      const newHeight = Math.max(200, Math.min(800, startHeight + delta));
+      setPostsHeight(prev => ({ ...prev, [competitorId]: newHeight }));
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  };
+
   const fetchCompetitorsPosts = async () => {
     try {
       const res = await fetch(`/api/competitors/posts?group_id=${activeGroup?.ID}`, {
@@ -103,7 +123,7 @@ export function CompetitorsPage() {
         platform: post.platform,
         content: post.content.Valid ? post.content.String : null,
         media: post.media.Valid ? post.media.RawMessage : null,
-        posted_at: post.posted_at.Valid ? post.posted_at : null,
+        posted_at: post.posted_at.Valid ? post.posted_at.Time : null,
         engagement: post.engagement.Valid ? post.engagement.RawMessage : null,
         hashtags: post.hashtags,
 
@@ -112,7 +132,7 @@ export function CompetitorsPage() {
       setCompetitorsPosts(normalized);
 
     } catch (e: any) {
-      throw new Error(e || "Could not fetch competitors posts");
+      throw new Error(e || "error getting posts");
     }
   }
 
@@ -146,7 +166,7 @@ export function CompetitorsPage() {
       setCompetitors(normalized)
 
     } catch (e: any) {
-      throw new Error(e || "could not fetch competitors");
+      throw new Error(e || "error getting competitor");
 
     }
 
@@ -456,7 +476,7 @@ export function CompetitorsPage() {
                                     </div>
                                     <div className="w-full">
                                       <p className="text-sm leading-relaxed text-slate-600">
-                                        {post.content}
+                                        {post.content ? post.content : <span>No content</span>}
                                       </p>
                                     </div>
                                   </div>
@@ -471,6 +491,12 @@ export function CompetitorsPage() {
                           </div>
                           <div
                             className="flex items-center justify-center h-4 mt-2 rounded cursor-ns-resize hover:bg-gray-100"
+                            onMouseDown={(e) => handleResize(competitor.id, e)}
+                          >
+                            <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+                          </div>
+                          <div
+                            className="flex items-center justify-center h-4 mt-2 cursor-ns-resize hover:bg-gray-100 rounded"
                             onMouseDown={(e) => handleResize(competitor.id, e)}
                           >
                             <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
