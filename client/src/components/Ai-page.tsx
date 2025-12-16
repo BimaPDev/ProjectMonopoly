@@ -155,7 +155,7 @@ export function AIPage() {
         group_id: activeGroup?.ID || 0,
         question: currentInput,
         limit: 6,
-        model: "gemma:latest",
+        model: "qwen2.5:3b-instruct",
         mode: "opinion",
         allow_outside: true,
         output: "concise answer",

@@ -508,11 +508,11 @@ WHERE platform = $1 AND LOWER(username) = LOWER($2)
 
 type GetCompetitorByPlatformUsernameParams struct {
 	Platform string `json:"platform"`
-	Username string `json:"username"`
+	Lower    string `json:"lower"`
 }
 
 func (q *Queries) GetCompetitorByPlatformUsername(ctx context.Context, arg GetCompetitorByPlatformUsernameParams) (Competitor, error) {
-	row := q.db.QueryRowContext(ctx, getCompetitorByPlatformUsername, arg.Platform, arg.Username)
+	row := q.db.QueryRowContext(ctx, getCompetitorByPlatformUsername, arg.Platform, arg.Lower)
 	var i Competitor
 	err := row.Scan(
 		&i.ID,

@@ -51,7 +51,7 @@ func CreateCompetitor(c *gin.Context, queries *db.Queries) {
 	var competitor db.Competitor
 	existing, err := queries.GetCompetitorByPlatformUsername(c.Request.Context(), db.GetCompetitorByPlatformUsernameParams{
 		Platform: parsed.Platform,
-		Username: parsed.Username,
+		Lower:    parsed.Username,
 	})
 	if err == nil {
 		competitor = existing

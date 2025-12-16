@@ -285,6 +285,47 @@ def upload_posts_to_db(json_file_path):
                     
                     conn.commit()
                 print(f"Updated stats for @{username}: {followers} followers, {posts_count} posts, {engagement_rate:.2f}% ER")
+                
+                # --- RAG Ingestion ---
+                try:
+                    user_id = None
+                    group_id = None
+                    
+                    with conn.cursor() as cur:
+                        # Fetch first user associated with this competitor to assign the document to
+                        cur.execute("""
+                            SELECT user_id, group_id FROM user_competitors WHERE competitor_id = %s LIMIT 1
+                        """, (competitor_id,))
+                        drow = cur.fetchone()
+                        if drow:
+                            user_id, group_id = drow
+                    
+                    if user_id:
+                         # Prepare full data dict for reporting
+                         report_data = {
+                             'username': username,
+                             'followers': followers,
+                             'posts_count': posts_count,
+                             'engagement_rate': engagement_rate,
+                             'posting_frequency': posting_freq,
+                             'posts': posts_list
+                         }
+                         
+                         try:
+                             from socialmedia.rag_ingest import generate_competitor_report, ingest_competitor_report
+                         except ImportError:
+                             from rag_ingest import generate_competitor_report, ingest_competitor_report
+                         
+                         report_text = generate_competitor_report(report_data)
+                         ingest_competitor_report(username, report_text, user_id, group_id)
+                         print(f"RAG Report generated and ingested for owner user_id={user_id}")
+                    else:
+                        print("Skipping RAG ingest: No owner found for this competitor.")
+
+                except Exception as rag_err:
+                    print(f"⚠️ RAG Ingest failed (non-fatal): {rag_err}")
+
+
             except Exception as e:
                 print(f"Error updating competitor stats: {e}")
                 import traceback

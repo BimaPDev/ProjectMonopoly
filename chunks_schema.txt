@@ -1,0 +1,26 @@
+                               Table "public.workshop_chunks"
+   Column    |   Type   | Collation | Nullable |                   Default                   
+-------------+----------+-----------+----------+---------------------------------------------
+ id          | bigint   |           | not null | nextval('workshop_chunks_id_seq'::regclass)
+ document_id | uuid     |           | not null | 
+ group_id    | integer  |           | not null | 
+ page        | integer  |           |          | 
+ chunk_index | integer  |           | not null | 
+ content     | text     |           | not null | 
+ token_count | integer  |           |          | 
+ tsv         | tsvector |           |          | 
+ content_sha | text     |           |          | 
+Indexes:
+    "workshop_chunks_pkey" PRIMARY KEY, btree (id)
+    "workshop_chunk_dedupe" UNIQUE CONSTRAINT, btree (document_id, chunk_index, content_sha)
+    "workshop_chunks_doc_idx" btree (document_id, chunk_index)
+    "workshop_chunks_trgm_idx" gin (content gin_trgm_ops)
+    "workshop_chunks_tsv_idx" gin (tsv)
+Foreign-key constraints:
+    "workshop_chunks_doc_group_fk" FOREIGN KEY (document_id, group_id) REFERENCES workshop_documents(id, group_id) ON DELETE CASCADE
+    "workshop_chunks_document_id_fkey" FOREIGN KEY (document_id) REFERENCES workshop_documents(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "workshop_embeddings" CONSTRAINT "workshop_embeddings_chunk_id_fkey" FOREIGN KEY (chunk_id) REFERENCES workshop_chunks(id) ON DELETE CASCADE
+Triggers:
+    trg_chunks_tsv BEFORE INSERT OR UPDATE OF content ON workshop_chunks FOR EACH ROW EXECUTE FUNCTION chunks_tsv_update()
+
