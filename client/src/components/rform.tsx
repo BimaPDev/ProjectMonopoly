@@ -20,7 +20,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     setError("");
 
     try {
-      const response = await fetch(`${import.meta.env.API_CALL}/api/login`, {
+      const response = await fetch(`/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -84,16 +84,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
       {/* Login Form */}
       <div className={cn("relative z-10 flex flex-col gap-6", className)} {...props}>
-        <Card className="overflow-hidden border border-gray-800 bg-black text-white shadow-lg w-full max-w-3xl">
+        <Card className="w-full max-w-3xl overflow-hidden text-white bg-black border border-gray-800 shadow-lg">
           <CardContent className="grid md:grid-cols-2">
             {/* Left Side: Login Form */}
-            <form className="p-6 md:p-8 space-y-6" onSubmit={handleLogin}>
+            <form className="p-6 space-y-6 md:p-8" onSubmit={handleLogin}>
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col items-center text-center">
                   <h1 className="text-2xl font-bold tracking-wide">Welcome Back</h1>
                   <p className="text-gray-400">Login to your account</p>
                 </div>
-                {error && <p className="text-red-500 text-sm">{error}</p>}
+                {error && <p className="text-sm text-red-500">{error}</p>}
                 <div className="space-y-2">
                   <Label htmlFor="username" className="text-gray-300">Username</Label>
                   <Input
@@ -101,7 +101,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                   type="text"
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Username"
-                  className="bg-gray-900 text-white border border-gray-700 focus:ring-gray-500 focus:border-white"
+                  className="text-white bg-gray-900 border border-gray-700 focus:ring-gray-500 focus:border-white"
                   required
                   >
                   </Input>
@@ -112,7 +112,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="email@example.com"
-                    className="bg-gray-900 text-white border border-gray-700 focus:ring-gray-500 focus:border-white"
+                    className="text-white bg-gray-900 border border-gray-700 focus:ring-gray-500 focus:border-white"
                     required
                   />
                 </div>
@@ -124,16 +124,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                     value={password}
                     placeholder="Enter your password"
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-gray-900 text-white border border-gray-700 focus:ring-gray-500 focus:border-white"
+                    className="text-white bg-gray-900 border border-gray-700 focus:ring-gray-500 focus:border-white"
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full bg-white text-black font-semibold hover:bg-gray-200">
+                <Button type="submit" className="w-full font-semibold text-black bg-white hover:bg-gray-200">
                   Login
                 </Button>
 
                 {/* Google Login Button */}
-                <div className="flex justify-center items-center mt-4">
+                <div className="flex items-center justify-center mt-4">
                   <GoogleLogin
                     onSuccess={handleGoogleLoginSuccess}  // Handle Google login success
                     onError={() => setError("Google login failed.")}
@@ -145,11 +145,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
             </form>
 
             {/* Right Side: Image */}
-            <div className="hidden md:block relative py-5">
+            <div className="relative hidden py-5 md:block">
               <img 
                 src="https://i.imgur.com/VmjeljH.png" 
                 alt="Login Visual"
-                className="w-80 h-80 object-cover"
+                className="object-cover w-80 h-80"
               />
             </div>
           </CardContent>

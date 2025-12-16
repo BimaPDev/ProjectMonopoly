@@ -53,6 +53,8 @@ services:
       POSTGRES_DB: project_monopoly
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./server/internal/db/migration:/migration
+
     ports: ["5434:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d project_monopoly"]

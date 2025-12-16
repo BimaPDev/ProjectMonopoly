@@ -16,7 +16,7 @@ import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Settings from "./app/settings/page";
-import GameContextPage from "./app/gameContext/page";
+import GameContextPage from "./app/gamecontext/page.tsx";
 import LLMTestPage from "./app/llmTest/page.tsx";
 import SocialMedia from "./app/settings/socialMedia/page.tsx";
 
@@ -61,9 +61,9 @@ function App() {
               path="/dashboard/settings"
               element={<Settings />}
             />
-            <Route 
+            <Route
               path="/dashboard/settings/socialmedia"
-              element={<SocialMedia/>}
+              element={<SocialMedia />}
             />
             <Route
               path="/dashboard/gamecontext"

@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { socialPlatforms } from "@/components/socialPlatforms";
 import { ChevronDown, Plus, X } from "lucide-react";
-
+import { useGroup } from "./groupContext";
 const CompetitorAddForm: React.FC = () => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [selectedPlatform, setSelectedPlatform] = useState(socialPlatforms[0]);
     const [socialUrl, setSocialUrl] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
+    const { activeGroup } = useGroup();
     const handleReset = () => {
         setIsExpanded(false);
         setSocialUrl("");
@@ -22,7 +22,7 @@ const CompetitorAddForm: React.FC = () => {
         }
         try {
             const res = await fetch(
-                `/api/groups/competitors`,
+                `/api/groups/${activeGroup?.ID || ""}/competitors`,
                 {
                     method: "POST",
                     headers: {
@@ -83,13 +83,13 @@ const CompetitorAddForm: React.FC = () => {
           `}
                 >
                     <div className="p-6 w-80">
-                        <h3 className="text-lg font-semibold text-white mb-4">
+                        <h3 className="mb-4 text-lg font-semibold text-white">
                             Add Social Media Account
                         </h3>
 
                         {/* URL Input */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-white mb-2">
+                            <label className="block mb-2 text-sm font-medium text-white">
                                 Account URL or @username
                             </label>
                             <input
@@ -97,20 +97,20 @@ const CompetitorAddForm: React.FC = () => {
                                 value={socialUrl}
                                 onChange={(e) => setSocialUrl(e.target.value)}
                                 placeholder="https://instagram.com/username or @username"
-                                className="w-full px-4 py-2 border bg-black border-gray-300 rounded-lg focus:ring-2  focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                className="w-full px-4 py-2 transition-all bg-black border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
 
                         {/* Platform Dropdown */}
                         <div className="mb-6">
-                            <label className="block text-sm font-medium text-white mb-2">
+                            <label className="block mb-2 text-sm font-medium text-white">
                                 Social Media Platform
                             </label>
                             <div className="relative">
                                 <button
                                     type="button"
                                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                    className="w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-lg bg-black hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                    className="flex items-center justify-between w-full px-4 py-2 transition-all bg-black border border-gray-300 rounded-lg outline-none hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div
@@ -118,7 +118,7 @@ const CompetitorAddForm: React.FC = () => {
                                         >
                                             <selectedPlatform.icon size={16} className="text-white" />
                                         </div>
-                                        <span className="text-white font-semibold">
+                                        <span className="font-semibold text-white">
                                             {selectedPlatform.id}
                                         </span>
                                     </div>
@@ -145,14 +145,14 @@ const CompetitorAddForm: React.FC = () => {
                                                 setSelectedPlatform(platform);
                                                 setIsDropdownOpen(false);
                                             }}
-                                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-neutral-800 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                                            className="flex items-center w-full gap-3 px-4 py-2 transition-colors hover:bg-neutral-800 first:rounded-t-lg last:rounded-b-lg"
                                         >
                                             <div
                                                 className={`p-1.5 rounded-md ${platform.color} flex items-center justify-center`}
                                             >
                                                 <platform.icon size={16} className="text-white" />
                                             </div>
-                                            <span className="text-white font-semibold">
+                                            <span className="font-semibold text-white">
                                                 {platform.id}
                                             </span>
                                         </button>
@@ -166,14 +166,14 @@ const CompetitorAddForm: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105"
+                                className="flex-1 px-4 py-2 font-medium text-white transition-all transform rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 hover:scale-105"
                             >
                                 Add Account
                             </button>
                             <button
                                 type="button"
                                 onClick={handleReset}
-                                className="px-4 py-2 border bg-white border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors"
+                                className="px-4 py-2 text-black transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                             >
                                 Cancel
                             </button>
