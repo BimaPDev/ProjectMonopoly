@@ -25,6 +25,8 @@ import { useEffect, useState } from "react";
 import { CgComment } from "react-icons/cg";
 
 import { socialPlatforms } from "@/components/socialPlatforms";
+import { useGroup } from "./groupContext";
+import { TriangleAlert } from "lucide-react";
 interface Competitors {
   id: string,
   platform: string,
@@ -72,6 +74,8 @@ export function CompetitorsPage() {
   const [competitorsPost, setCompetitorsPosts] = useState<CompetitorPost[]>([]);
   const [competitors, setCompetitors] = useState<Competitors[]>([]);
   const [expandedCompetitors, setExpandedCompetitors] = useState<Set<string>>(new Set());
+  const { activeGroup } = useGroup();
+  const [postsHeight, setPostsHeight] = useState<{ [key: string]: number }>({});
   const toggleCompetitorPosts = (competitorId: string) => {
     setExpandedCompetitors(prev => {
       const newSet = new Set(prev);
@@ -86,13 +90,13 @@ export function CompetitorsPage() {
 
   const fetchCompetitorsPosts = async () => {
     try {
-      const res = await fetch(`/api/competitors/posts`, {
+      const res = await fetch(`/api/competitors/posts?group_id=${activeGroup?.ID}`, {
         method: "GET",
         headers: { 'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
       const data = await res.json();
-      console.log("DATA", data)
+
       const normalized: CompetitorPost[] = data.map((post: any) => ({
         id: post.id,
         competitor_id: post.competitor_id,
@@ -114,19 +118,19 @@ export function CompetitorsPage() {
 
   const fetchCompetitors = async () => {
     try {
-      const res = await fetch(`/api/groups/competitors`, {
+      const res = await fetch(`/api/groups/${activeGroup?.ID || "1"}/competitors`, {
         method: "GET",
         headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
-
+      console.log("DATA", data)
       const normalized: Competitors[] = data.map((competitor: any) => ({
         id: competitor.id,
         platform: competitor.platform,
         username: competitor.username,
         profile_url: competitor.profile_url,
         followers: competitor.followers.Valid ? Number(competitor.followers.Int64) : 0,
-        last_checked: competitor.last_checked.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
+        last_checked: competitor.last_checked.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : "",
         engagement_rate: competitor.engagement_rate?.Valid
           ? parseFloat(competitor.engagement_rate.String)
           : 0,
@@ -147,14 +151,51 @@ export function CompetitorsPage() {
     }
 
   }
+  const handleResize = (competitorId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = postsHeight[competitorId] || 320;
+
+    const doDrag = (e: MouseEvent) => {
+      const delta = e.clientY - startY;
+      const newHeight = Math.max(200, Math.min(800, startHeight + delta));
+      setPostsHeight(prev => ({ ...prev, [competitorId]: newHeight }));
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  }
   useEffect(() => {
-    fetchCompetitors();
-    fetchCompetitorsPosts();
-  }, []);
+    if (activeGroup?.ID) {
+      fetchCompetitors();
+      fetchCompetitorsPosts();
+    }
+  }, [activeGroup]);
+
+  if (!activeGroup) {
+    return (
+      <div className="flex justify-center w-full h-[45px] text-center">
+        <div className="flex gap-2 p-2 border border-red-500 border-dashed">
+          <div className=" w-[30px] h-[30px] flex justify-center items-center rounded-lg">
+
+            <TriangleAlert className="text-yellow-400"></TriangleAlert>
+          </div>
+          <h1 className="font-semibold">Please select a group to continue </h1>
+        </div>
+      </div>
+    );
+  }
+
   return (
+
     <div className="flex-1 pt-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Competitors</h2>
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Competitors</h2>
         <div className="flex items-center space-x-2">
           <div className={'mr-2'}>
             <CompetitorAddForm />
@@ -248,14 +289,14 @@ export function CompetitorsPage() {
                 {competitors.map((competitor) => {
                   const posts = competitorsPost.filter(p => p.competitor_id === competitor.id);
                   const isExpanded = expandedCompetitors.has(competitor.id);
-                  const followersCount = Number(competitor.followers);
-                  const isScraping = !competitor.last_checked || followersCount === 0;
+                  // const followersCount = Number(competitor.followers);
+                  const isScraping = !competitor.last_checked;
 
                   return (
                     <div key={competitor.id + competitor.username} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center flex-1 gap-4">
-                          <div className="flex items-center w-[150px]">
+                      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+                        <div className="flex flex-col items-start flex-1 gap-4 sm:flex-row sm:items-center">
+                          <div className="flex items-center min-w-[150px]">
                             <Avatar className="h-9 w-9">
 
                               <AvatarFallback>
@@ -279,8 +320,8 @@ export function CompetitorsPage() {
                             </div>
                           ) : (
                             <>
-                              <div className="flex ml-4 w-[100px] justify-center">
-                                <div className="flex items-center gap-4 ml-3">
+                              <div className="flex sm:ml-4 w-full sm:w-[100px] justify-center">
+                                <div className="flex items-center gap-4 sm:ml-3">
                                   <div className="flex flex-col items-center">
                                     {(() => {
                                       const platform = socialPlatforms.find(p => p.id === competitor.platform);
@@ -300,7 +341,7 @@ export function CompetitorsPage() {
                                 </div>
                               </div>
 
-                              <div className="flex w-[160px] ml-5 items-center gap-4">
+                              <div className="flex w-full sm:w-[160px] sm:ml-5 items-center gap-4">
                                 <div className="w-full">
                                   <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium">Engagement</span>
@@ -312,13 +353,13 @@ export function CompetitorsPage() {
                                 </div>
                               </div>
 
-                              <div className="flex items-center justify-between ml-2">
+                              <div className="flex items-center justify-between sm:ml-2">
                                 <span className={
                                   competitor.growth_rate > 0.0
                                     ? "text-sm font-medium text-green-600"
                                     : "text-sm font-medium text-red-600"
                                 }>
-                                  <div className="flex items-center w-[100px]">
+                                  <div className="flex items-center w-full sm:w-[100px]">
                                     {competitor.growth_rate > 0.0 ?
                                       <ChevronUp className="text-green-500" /> :
                                       <ChevronDown className="text-red-500" />
@@ -328,7 +369,7 @@ export function CompetitorsPage() {
                                 </span>
                               </div>
 
-                              <div className="flex flex-col items-center justify-center w-[100px] ml-4">
+                              <div className="flex flex-col items-center justify-center w-full sm:w-[100px] sm:ml-4">
                                 <div className="flex items-center gap-1">
                                   <span className="text-sm font-medium">{competitor.posting_frequency.toFixed(1)}</span>
                                   <span className="text-xs text-muted-foreground">/wk</span>
@@ -361,16 +402,18 @@ export function CompetitorsPage() {
 
                       {isExpanded && (
                         <div className="pt-6 mt-6 border-t">
-                          <div className="overflow-y-auto max-h-80 scrollbar-hide">
+                          <div
+                            className="overflow-y-auto scrollbar-hide"
+                            style={{ maxHeight: `${postsHeight[competitor.id] || 320}px` }}>
                             <div className="space-y-4">
                               {posts.length > 0 ? (
                                 posts.map((post) => (
                                   <div key={post.id} className="flex flex-col items-start gap-4 p-4 border rounded-lg ">
-                                    <div className="flex w-full gap-4">
+                                    <div className="flex flex-col w-full gap-4 md:flex-row">
                                       {post.media?.video ? (
                                         <video
                                           src={post.media.video}
-                                          className="object-cover w-2/3 h-64 rounded-lg"
+                                          className="object-cover w-full h-64 rounded-lg md:w-2/3"
                                           muted
                                           controls
                                         />
@@ -378,10 +421,10 @@ export function CompetitorsPage() {
                                         <img
                                           src={post.media.image}
                                           alt="Post"
-                                          className="object-cover w-2/3 h-64 rounded-lg"
+                                          className="object-cover w-full h-64 rounded-lg md:w-2/3"
                                         />
                                       ) : (
-                                        <div className="flex items-center justify-center w-2/3 h-64 bg-gray-200 rounded-lg">
+                                        <div className="flex items-center justify-center w-full h-64 bg-gray-200 rounded-lg md:w-2/3">
                                           <span className="text-lg text-gray-500">No media</span>
                                         </div>
                                       )}
@@ -389,19 +432,24 @@ export function CompetitorsPage() {
                                         <div className="flex items-center gap-2">
                                           <Heart className="w-6 h-6 text-red-500" />
                                           <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.likes.toLocaleString()}
+                                            {post.engagement?.likes && post.engagement?.likes.toLocaleString()}
+                                            {!post.engagement?.likes && <span className="text-slate-500">No likes, or likes could be hidden</span>}
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                           <Share className="w-6 h-6 text-blue-500" />
                                           <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.shares.toLocaleString()}
+                                            {post.engagement?.shares && post.engagement?.shares.toLocaleString()}
+                                            {!post.engagement?.shares && <span className="text-slate-500"> No shares</span>}
+
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                           <CgComment className="w-6 h-6 text-green-500" />
                                           <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.comments.toLocaleString()}
+                                            {post.engagement?.comments && post.engagement?.comments.toLocaleString()}
+                                            {!post.engagement?.comments && <span className="text-slate-500"> No comments </span>}
+
                                           </span>
                                         </div>
                                       </div>
@@ -419,6 +467,13 @@ export function CompetitorsPage() {
                                 </div>
                               )}
                             </div>
+
+                          </div>
+                          <div
+                            className="flex items-center justify-center h-4 mt-2 rounded cursor-ns-resize hover:bg-gray-100"
+                            onMouseDown={(e) => handleResize(competitor.id, e)}
+                          >
+                            <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
                           </div>
                         </div>
                       )}
