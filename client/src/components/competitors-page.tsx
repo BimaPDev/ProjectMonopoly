@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import CompetitorAddForm from "@/components/competitorAddForm.tsx"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,12 +25,14 @@ import { useEffect, useState } from "react";
 import { CgComment } from "react-icons/cg";
 import { useGroup } from "./groupContext";
 import { socialPlatforms } from "@/components/socialPlatforms";
+import { useGroup } from "./groupContext";
+import { TriangleAlert } from "lucide-react";
 interface Competitors {
   id: string,
   platform: string,
   username: string,
   profile_url: string,
-  last_checked: Date,
+  last_checked: string | null,
   followers: number | 0,
   engagement_rate: number | 0,
   growth_rate: number | 0,
@@ -72,8 +74,8 @@ export function CompetitorsPage() {
   const [competitorsPost, setCompetitorsPosts] = useState<CompetitorPost[]>([]);
   const [competitors, setCompetitors] = useState<Competitors[]>([]);
   const [expandedCompetitors, setExpandedCompetitors] = useState<Set<string>>(new Set());
-  const [postsHeight, setPostsHeight] = useState<{ [key: string]: number }>({});
   const { activeGroup } = useGroup();
+  const [postsHeight, setPostsHeight] = useState<{ [key: string]: number }>({});
   const toggleCompetitorPosts = (competitorId: string) => {
     setExpandedCompetitors(prev => {
       const newSet = new Set(prev);
@@ -136,18 +138,18 @@ export function CompetitorsPage() {
 
   const fetchCompetitors = async () => {
     try {
-      const res = await fetch(`/api/groups/${activeGroup?.ID || ""}/competitors`, {
+      const res = await fetch(`/api/groups/${activeGroup?.ID || "1"}/competitors`, {
         method: "GET",
         headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
-
+      console.log("DATA", data)
       const normalized: Competitors[] = data.map((competitor: any) => ({
         id: competitor.id,
         platform: competitor.platform,
         username: competitor.username,
         profile_url: competitor.profile_url,
-        followers: competitor.followers.Valid ? competitor.followers.Int64 : 0,
+        followers: competitor.followers.Valid ? Number(competitor.followers.Int64) : 0,
         last_checked: competitor.last_checked.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : "",
         engagement_rate: competitor.engagement_rate?.Valid
           ? parseFloat(competitor.engagement_rate.String)
@@ -169,14 +171,51 @@ export function CompetitorsPage() {
     }
 
   }
+  const handleResize = (competitorId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = postsHeight[competitorId] || 320;
+
+    const doDrag = (e: MouseEvent) => {
+      const delta = e.clientY - startY;
+      const newHeight = Math.max(200, Math.min(800, startHeight + delta));
+      setPostsHeight(prev => ({ ...prev, [competitorId]: newHeight }));
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  }
   useEffect(() => {
-    fetchCompetitors();
-    fetchCompetitorsPosts();
-  }, []);
+    if (activeGroup?.ID) {
+      fetchCompetitors();
+      fetchCompetitorsPosts();
+    }
+  }, [activeGroup]);
+
+  if (!activeGroup) {
+    return (
+      <div className="flex justify-center w-full h-[45px] text-center">
+        <div className="flex gap-2 p-2 border border-red-500 border-dashed">
+          <div className=" w-[30px] h-[30px] flex justify-center items-center rounded-lg">
+
+            <TriangleAlert className="text-yellow-400"></TriangleAlert>
+          </div>
+          <h1 className="font-semibold">Please select a group to continue </h1>
+        </div>
+      </div>
+    );
+  }
+
   return (
+
     <div className="flex-1 pt-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Competitors</h2>
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Competitors</h2>
         <div className="flex items-center space-x-2">
           <div className={'mr-2'}>
             <CompetitorAddForm />
@@ -213,9 +252,13 @@ export function CompetitorsPage() {
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-
+              <div className="text-2xl font-bold">
+                {(competitors.length > 0
+                  ? (competitors.reduce((acc, curr) => acc + curr.engagement_rate, 0) / competitors.length).toFixed(2)
+                  : "0.00")}%
+              </div>
               <p className="text-xs text-muted-foreground">
-                Coming soon
+                Average across all competitors
               </p>
             </CardContent>
           </Card>
@@ -227,7 +270,12 @@ export function CompetitorsPage() {
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">Coming soon</p>
+              <div className="text-2xl font-bold">
+                {(competitors.length > 0
+                  ? (competitors.reduce((acc, curr) => acc + curr.growth_rate, 0) / competitors.length).toFixed(2)
+                  : "0.00")}%
+              </div>
+              <p className="text-xs text-muted-foreground">growth over time</p>
             </CardContent>
           </Card>
           <Card>
@@ -238,8 +286,12 @@ export function CompetitorsPage() {
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-
-              <p className="text-xs text-muted-foreground">Coming soon</p>
+              <div className="text-2xl font-bold">
+                {(competitors.length > 0
+                  ? (competitors.reduce((acc, curr) => acc + curr.posting_frequency, 0) / competitors.length).toFixed(1)
+                  : "0.0")}
+              </div>
+              <p className="text-xs text-muted-foreground">posts / week</p>
             </CardContent>
           </Card>
         </div>
@@ -257,14 +309,16 @@ export function CompetitorsPage() {
                 {competitors.map((competitor) => {
                   const posts = competitorsPost.filter(p => p.competitor_id === competitor.id);
                   const isExpanded = expandedCompetitors.has(competitor.id);
+                  // const followersCount = Number(competitor.followers);
+                  const isScraping = !competitor.last_checked;
 
                   return (
                     <div key={competitor.id + competitor.username} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center flex-1 gap-4">
-                          <div className="flex items-center w-[150px]">
+                      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+                        <div className="flex flex-col items-start flex-1 gap-4 sm:flex-row sm:items-center">
+                          <div className="flex items-center min-w-[150px]">
                             <Avatar className="h-9 w-9">
-                              <AvatarImage src={competitor.profile_url} />
+
                               <AvatarFallback>
                                 {competitor.username.slice(0, 2)}
                               </AvatarFallback>
@@ -272,59 +326,78 @@ export function CompetitorsPage() {
                             <div className="flex flex-col ml-4">
                               <p className="font-semibold text-medium">{competitor.username}</p>
                               <span className="text-xs text-slate-600">
-                                {new Date(competitor.last_checked).toLocaleDateString()}
+                                {isScraping ? "Processing..." : competitor.last_checked}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex ml-4 w-[100px] justify-center">
-                            <div className="flex items-center gap-4 ml-3">
-                              <div className="flex flex-col items-center">
-                                {(() => {
-                                  const platform = socialPlatforms.find(p => p.id === competitor.platform);
-                                  const Icon = platform?.icon;
-                                  return Icon ? (
-                                    <div>
-                                      <div className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground">
-                                        <Icon className="w-4 h-4" />
-                                      </div>
-                                    </div>
-                                  ) : <span className="text-sm"> {competitor.platform}</span>;
-                                })()}
-                                <span className="text-sm font-medium">
-                                  {formatNumber(competitor.followers)}
+                          {/* If last_checked is null OR followers is 0, show Scraping status */}
+                          {isScraping ? (
+                            <div className="flex items-center justify-center flex-1">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
+                                Scraping...
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex sm:ml-4 w-full sm:w-[100px] justify-center">
+                                <div className="flex items-center gap-4 sm:ml-3">
+                                  <div className="flex flex-col items-center">
+                                    {(() => {
+                                      const platform = socialPlatforms.find(p => p.id === competitor.platform);
+                                      const Icon = platform?.icon;
+                                      return Icon ? (
+                                        <div>
+                                          <div className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground">
+                                            <Icon className="w-4 h-4" />
+                                          </div>
+                                        </div>
+                                      ) : <span className="text-sm"> {competitor.platform}</span>;
+                                    })()}
+                                    <span className="text-sm font-medium">
+                                      {formatNumber(competitor.followers)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex w-full sm:w-[160px] sm:ml-5 items-center gap-4">
+                                <div className="w-full">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Engagement</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {competitor.engagement_rate}%
+                                    </span>
+                                  </div>
+                                  <Progress value={competitor.engagement_rate * 10} className="h-2" />
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between sm:ml-2">
+                                <span className={
+                                  competitor.growth_rate > 0.0
+                                    ? "text-sm font-medium text-green-600"
+                                    : "text-sm font-medium text-red-600"
+                                }>
+                                  <div className="flex items-center w-full sm:w-[100px]">
+                                    {competitor.growth_rate > 0.0 ?
+                                      <ChevronUp className="text-green-500" /> :
+                                      <ChevronDown className="text-red-500" />
+                                    }
+                                    {competitor.growth_rate}%
+                                  </div>
                                 </span>
                               </div>
-                            </div>
-                          </div>
 
-                          <div className="flex w-[160px] ml-5 items-center gap-4">
-                            <div className="w-full">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Engagement</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {competitor.engagement_rate}%
-                                </span>
+                              <div className="flex flex-col items-center justify-center w-full sm:w-[100px] sm:ml-4">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-sm font-medium">{competitor.posting_frequency.toFixed(1)}</span>
+                                  <span className="text-xs text-muted-foreground">/wk</span>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Freq</span>
                               </div>
-                              <Progress value={competitor.engagement_rate * 10} className="h-2" />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between ml-2">
-                            <span className={
-                              competitor.growth_rate > 0.0
-                                ? "text-sm font-medium text-green-600"
-                                : "text-sm font-medium text-red-600"
-                            }>
-                              <div className="flex items-center w-[100px]">
-                                {competitor.growth_rate > 0.0 ?
-                                  <ChevronUp className="text-green-500" /> :
-                                  <ChevronDown className="text-red-500" />
-                                }
-                                {competitor.growth_rate}%
-                              </div>
-                            </span>
-                          </div>
+                            </>
+                          )}
                         </div>
 
                         <Button
@@ -351,17 +424,16 @@ export function CompetitorsPage() {
                         <div className="pt-6 mt-6 border-t">
                           <div
                             className="overflow-y-auto scrollbar-hide"
-                            style={{ maxHeight: `${postsHeight[competitor.id] || 320}px` }}
-                          >
+                            style={{ maxHeight: `${postsHeight[competitor.id] || 320}px` }}>
                             <div className="space-y-4">
                               {posts.length > 0 ? (
                                 posts.map((post) => (
                                   <div key={post.id} className="flex flex-col items-start gap-4 p-4 border rounded-lg ">
-                                    <div className="flex w-full gap-4">
+                                    <div className="flex flex-col w-full gap-4 md:flex-row">
                                       {post.media?.video ? (
                                         <video
                                           src={post.media.video}
-                                          className="object-cover w-2/3 h-64 rounded-lg"
+                                          className="object-cover w-full h-64 rounded-lg md:w-2/3"
                                           muted
                                           controls
                                         />
@@ -369,10 +441,10 @@ export function CompetitorsPage() {
                                         <img
                                           src={post.media.image}
                                           alt="Post"
-                                          className="object-cover w-2/3 h-64 rounded-lg"
+                                          className="object-cover w-full h-64 rounded-lg md:w-2/3"
                                         />
                                       ) : (
-                                        <div className="flex items-center justify-center w-2/3 h-64 bg-gray-200 rounded-lg">
+                                        <div className="flex items-center justify-center w-full h-64 bg-gray-200 rounded-lg md:w-2/3">
                                           <span className="text-lg text-gray-500">No media</span>
                                         </div>
                                       )}
@@ -389,6 +461,7 @@ export function CompetitorsPage() {
                                           <span className="text-base font-medium text-slate-700">
                                             {post.engagement?.shares && post.engagement?.shares.toLocaleString()}
                                             {!post.engagement?.shares && <span className="text-slate-500"> No shares</span>}
+
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -396,6 +469,7 @@ export function CompetitorsPage() {
                                           <span className="text-base font-medium text-slate-700">
                                             {post.engagement?.comments && post.engagement?.comments.toLocaleString()}
                                             {!post.engagement?.comments && <span className="text-slate-500"> No comments </span>}
+
                                           </span>
                                         </div>
                                       </div>
@@ -413,6 +487,13 @@ export function CompetitorsPage() {
                                 </div>
                               )}
                             </div>
+
+                          </div>
+                          <div
+                            className="flex items-center justify-center h-4 mt-2 rounded cursor-ns-resize hover:bg-gray-100"
+                            onMouseDown={(e) => handleResize(competitor.id, e)}
+                          >
+                            <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
                           </div>
                           <div
                             className="flex items-center justify-center h-4 mt-2 cursor-ns-resize hover:bg-gray-100 rounded"
@@ -430,6 +511,6 @@ export function CompetitorsPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

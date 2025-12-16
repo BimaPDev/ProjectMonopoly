@@ -4,6 +4,7 @@ playwright==1.51.0
 beautifulsoup4==4.12.3
 webdriver-manager==4.0.2
 soupsieve==2.5
+undetected-chromedriver
 
 # Database
 psycopg2-binary==2.9.10

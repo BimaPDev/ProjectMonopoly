@@ -72,8 +72,8 @@ func ParseSocialInput(input string, platform string) (*ParsedSocial, error) {
 	profileURL := fmt.Sprintf(config.urlTemplate, username)
 
 	return &ParsedSocial{
-		Platform:   platform,
-		Username:   username,
+		Platform:   strings.ToLower(platform),
+		Username:   strings.ToLower(username),
 		ProfileURL: profileURL,
 	}, nil
 }

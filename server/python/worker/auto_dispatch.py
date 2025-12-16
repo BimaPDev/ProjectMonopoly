@@ -88,6 +88,45 @@ def dispatch_loop():
             logging.exception("dispatcher error: %s", e)
 
         if not did_work:
+            # Check for pending scrapes (competitors with last_checked IS NULL)
+            # We implement a simple cooldown to prevent spamming the task
+            # Only check every 10 seconds approx (since loop sleeps 1.0) -> actually let's use a timestamp check
+            
+            now = time.time()
+            # print(f"DEBUG: checking pending scrapes... last={dispatch_loop.last_scrape_dispatch}")
+            
+            if not hasattr(dispatch_loop, "last_scrape_dispatch"):
+                dispatch_loop.last_scrape_dispatch = 0
+                
+            if now - dispatch_loop.last_scrape_dispatch > 60: # Check every 60 seconds
+                # print("DEBUG: Running check query...")
+                try:
+                    with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
+                        # Default to 7 days if not set
+                        interval = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", "7"))
+                        
+                        # Check for NULL (never scraped) or Old (needs update)
+                        cur.execute(
+                            "SELECT COUNT(*) FROM competitors WHERE last_checked IS NULL OR last_checked < NOW() - (INTERVAL '1 day' * %s)",
+                            (interval,)
+                        )
+                        row = cur.fetchone()
+                        if row and row[0] > 0:
+                            print(f"DEBUG: Found {row[0]} competitors to scrape!")
+                            logging.info(f"Found {row[0]} competitors pending scrape (new or outdated). Dispatching task.")
+                            res = app.send_task("worker.tasks.weekly_instagram_scrape", queue="celery")
+                            print(f"DEBUG: Task dispatched: {res.id}")
+                            logging.info(f"Scrape task dispatched: {res.id}")
+                            dispatch_loop.last_scrape_dispatch = now
+                            did_work = True
+                        else:
+                            pass
+                            # print("DEBUG: No competitors to scrape.")
+                except Exception as e:
+                     print(f"DEBUG: Error: {e}")
+                     logging.error(f"Error checking pending scrapes: {e}")
+
+        if not did_work:
             time.sleep(SLEEP)
 
 if __name__ == "__main__":

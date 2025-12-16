@@ -21,6 +21,7 @@ import (
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/BimaPDev/ProjectMonopoly/internal/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 var citeRe = regexp.MustCompile(`\[(p\.|CP)(\d+)\]`)
@@ -192,6 +193,95 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 			fmt.Printf("SearchCompetitorPosts error: %v\n", err)
 		} else {
 			fmt.Printf("SearchCompetitorPosts found %d posts\n", len(compPosts))
+		}
+
+		// Fallback: if no posts found with search, try to identify competitor and get their recent posts
+		if len(compPosts) == 0 {
+			fmt.Printf("No posts found with search, trying competitor-specific fallback\n")
+
+			// Try to extract competitor name from question
+			mentionedCompetitor := extractCompetitorName(ar.Question)
+
+			if mentionedCompetitor != "" {
+				fmt.Printf("Detected competitor mention: %s\n", mentionedCompetitor)
+				// Get all user's competitors to find a match
+				userCompetitors, err := q.ListUserCompetitors(ctx, int32(userID))
+				if err == nil {
+					// Find competitor that matches the mentioned name (case-insensitive)
+					var targetCompetitorID uuid.UUID
+					foundMatch := false
+					for _, comp := range userCompetitors {
+						if containsAnyFold(comp.Username, mentionedCompetitor) {
+							targetCompetitorID = comp.ID
+							foundMatch = true
+							fmt.Printf("Found matching competitor: %s (ID: %s)\n", comp.Username, targetCompetitorID.String())
+							break
+						}
+					}
+
+					// If we found a matching competitor, get their recent posts
+					if foundMatch {
+						allPosts, err := q.ListVisibleCompetitorPosts(ctx, db.ListVisibleCompetitorPostsParams{
+							UserID:  int32(userID),
+							GroupID: sql.NullInt32{Int32: ar.GroupID, Valid: true},
+						})
+						if err == nil {
+							for _, post := range allPosts {
+								if post.CompetitorID.Valid && post.CompetitorID.UUID == targetCompetitorID && len(compPosts) < 5 {
+									compPosts = append(compPosts, db.SearchCompetitorPostsRow{
+										ID:           post.ID,
+										CompetitorID: post.CompetitorID,
+										Platform:     post.Platform,
+										PostID:       post.PostID,
+										Content:      post.Content,
+										PostedAt:     post.PostedAt,
+										Engagement:   post.Engagement,
+										CompetitorUsername: func() string {
+											// Get the username from competitors list
+											for _, c := range userCompetitors {
+												if c.ID == targetCompetitorID {
+													return c.Username
+												}
+											}
+											return ""
+										}(),
+										Relevance: 0,
+									})
+								}
+							}
+							fmt.Printf("Found %d posts from mentioned competitor\n", len(compPosts))
+						}
+					}
+				}
+			}
+
+			// If still no posts, fallback to any recent posts
+			if len(compPosts) == 0 {
+				fmt.Printf("No competitor-specific posts found, fetching any recent posts\n")
+				recentPosts, err := q.GetRecentCompetitorPosts(ctx, db.GetRecentCompetitorPostsParams{
+					UserID:  int32(userID),
+					GroupID: sql.NullInt32{Int32: ar.GroupID, Valid: true},
+					Limit:   5,
+				})
+				if err != nil {
+					fmt.Printf("GetRecentCompetitorPosts error: %v\n", err)
+				} else {
+					fmt.Printf("GetRecentCompetitorPosts found %d posts\n", len(recentPosts))
+					for _, rp := range recentPosts {
+						compPosts = append(compPosts, db.SearchCompetitorPostsRow{
+							ID:                 rp.ID,
+							CompetitorID:       rp.CompetitorID,
+							Platform:           rp.Platform,
+							PostID:             rp.PostID,
+							Content:            rp.Content,
+							PostedAt:           rp.PostedAt,
+							Engagement:         rp.Engagement,
+							CompetitorUsername: rp.CompetitorUsername,
+							Relevance:          0,
+						})
+					}
+				}
+			}
 		}
 
 		// Topic filter removed - not needed for indie games/marketing RAG
@@ -692,4 +782,37 @@ func conciseQuery(s string) string {
 		out = append(out, w)
 	}
 	return strings.Join(out, " ")
+}
+
+// extractCompetitorName tries to extract a competitor name from the question
+// This is a simple heuristic that looks for patterns like "like X's" or "from X"
+func extractCompetitorName(question string) string {
+	// Common patterns that might indicate a competitor mention:
+	// "like Cbum's", "from Cbum", "Cbum's posts", etc.
+	patterns := []string{
+		`like\s+(\w+)'?s?`,      // "like Cbum's"
+		`from\s+(\w+)`,          // "from Cbum"
+		`@(\w+)`,                // "@cbum"
+		`(\w+)'?s?\s+posts?`,    // "Cbum's posts"
+		`(\w+)'?s?\s+content`,   // "Cbum's content"
+		`style\s+of\s+(\w+)`,    // "style of Cbum"
+		`similar\s+to\s+(\w+)`,  // "similar to Cbum"
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(`(?i)` + pattern)
+		if matches := re.FindStringSubmatch(question); len(matches) > 1 {
+			name := matches[1]
+			// Filter out common words that aren't names
+			commonWords := map[string]bool{
+				"the": true, "this": true, "that": true, "their": true,
+				"them": true, "these": true, "those": true, "my": true,
+				"your": true, "his": true, "her": true, "its": true,
+			}
+			if !commonWords[strings.ToLower(name)] && len(name) > 2 {
+				return name
+			}
+		}
+	}
+	return ""
 }

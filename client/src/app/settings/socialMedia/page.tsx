@@ -45,6 +45,7 @@ const socialPlatforms = [
 ];
 
 export default function SocialMedia() {
+    console.log("SocialMedia Component Loaded: Ver 1.1 (Auth Fix)");
     // State for creating groups
     const [formData, setFormData] = useState({
         ID: '',
@@ -110,7 +111,10 @@ export default function SocialMedia() {
         try {
             const res = await fetch(`/api/groups`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem('token')}`
+                },
                 body: JSON.stringify({ userID, name, description }),
             });
 
@@ -159,7 +163,10 @@ export default function SocialMedia() {
         }
         const res = await fetch(`/api/GroupItem?groupID=${selectedGroup.ID}`, {
             method: "GET",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${localStorage.getItem('token')}`
+            },
         });
 
         if (!res.ok) {
@@ -229,8 +236,18 @@ export default function SocialMedia() {
         try {
             const res = await fetch(`/api/groups?userID=${numericID}`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json" }
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem('token')}`
+                }
             });
+
+            if (res.status === 401) {
+                console.error("401 Unauthorized: Redirecting to login");
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+                return;
+            }
 
             if (!res.ok) {
                 const errorText = await res.text();
@@ -277,7 +294,10 @@ export default function SocialMedia() {
             setIsLoading(true);
             const res = await fetch(`/api/AddGroupItem`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem('token')}`
+                },
                 body: JSON.stringify(requestData)
             });
 

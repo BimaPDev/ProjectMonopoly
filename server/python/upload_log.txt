@@ -1,0 +1,15 @@
+Uploading posts from /app/socialmedia/scrape_result/kimkardashian_posts_20251214_063728.json to database...
+Extracted username from filename: kimkardashian
+Using competitor ID: 77aee4a0-9d8d-4333-bad4-d309c90c1d73 for @kimkardashian
+✅ New post: DSFeUbcEf0B
+✅ New post: DSORlodgaVB
+✅ New post: DSDeFhWEv81
+✅ New post: DSAz4UREidB
+✅ New post: DR2PkNPiTfM
+✅ New post: DR6V-QGjXbH
+✅ New post: DSNz1ZuEqUb
+✅ New post: DSEQa0UkQN9
+✅ New post: DSGm6Vzgcqo
+✅ New post: DSCJOofkf7n
+Successfully uploaded 10 posts to database
+Upload completed successfully!

@@ -24,8 +24,7 @@ SELECT
   similarity(c.content, p.q) AS sim
 FROM workshop_chunks c
 JOIN workshop_documents d ON d.id = c.document_id, p
-WHERE d.user_id = p.user_id
-  AND d.group_id = p.group_id
+WHERE d.group_id = p.group_id
   AND similarity(c.content, p.q) >= 0.25
 ORDER BY c.content <-> p.q
 LIMIT (SELECT n FROM p);
@@ -49,8 +48,7 @@ SELECT
   ) AS rank
 FROM workshop_chunks c
 JOIN workshop_documents d ON d.id = c.document_id, p
-WHERE d.user_id  = p.user_id
-  AND d.group_id = p.group_id
+WHERE d.group_id = p.group_id
   AND (
     c.tsv @@ websearch_to_tsquery('english', p.q)
     OR c.content ILIKE '%' || p.q || '%'

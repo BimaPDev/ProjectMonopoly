@@ -58,12 +58,12 @@ class WeeklyInstagramScraper:
                         FROM competitors c
                         LEFT JOIN competitor_posts cp ON c.id = cp.competitor_id 
                             AND cp.platform = 'instagram'
-                            AND cp.scraped_at >= NOW() - INTERVAL '%s days'
+                            AND cp.scraped_at >= NOW() - (INTERVAL '1 day' * %s)
                         WHERE LOWER(c.platform) = 'instagram'
                         GROUP BY c.id, c.username, c.profile_url, c.last_checked
                         HAVING 
                             c.last_checked IS NULL 
-                            OR c.last_checked < NOW() - INTERVAL '%s days'
+                            OR c.last_checked < NOW() - (INTERVAL '1 day' * %s)
                         ORDER BY c.last_checked ASC NULLS FIRST
                     """, (self.scrape_interval_days, self.scrape_interval_days))
                     
@@ -94,15 +94,14 @@ class WeeklyInstagramScraper:
             password = os.getenv("INSTAGRAM_PASSWORD")
             
             if not username or not password:
-                log.error("❌ Instagram credentials not found in environment variables")
-                log.error("   Please set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD")
-                return False
-            
+                log.warning("⚠️  Instagram credentials not set. Scraper will run in GUEST MODE.")
+                # Continue without credentials
+                
             self.scraper = InstagramScraper(username, password)
             
-            # Attempt to login
+            # Attempt to login (which will handle guest mode if no creds)
             if not self.scraper.login():
-                log.error("❌ Failed to login to Instagram")
+                log.error("❌ Failed to login to Instagram (even guest mode failed)")
                 return False
             
             log.info("✅ Instagram scraper initialized successfully")
@@ -145,6 +144,7 @@ class WeeklyInstagramScraper:
     def update_competitor_last_checked(self, competitor_id: str):
         """
         Update the last_checked timestamp for a competitor.
+        This should be called after an attempt to scrape, regardless of success.
         """
         try:
             with psycopg.connect(self.database_url) as conn:
@@ -155,6 +155,7 @@ class WeeklyInstagramScraper:
                         WHERE id = %s
                     """, (competitor_id,))
                     conn.commit()
+                    log.debug(f"Updated last_checked for competitor {competitor_id}")
                     
         except Exception as e:
             log.error(f"❌ Error updating last_checked for competitor {competitor_id}: {e}")
@@ -171,8 +172,13 @@ class WeeklyInstagramScraper:
         if not competitors:
             log.info("ℹ️ No competitors need scraping at this time")
             return
+            
+        # CRITICAL: Mark all competitors as checked immediately to prevent auto_dispatch
+        # from spawning multiple tasks for the same competitors while we are starting up.
+        log.info(f"🔒 Locking {len(competitors)} competitors to prevent duplicate scraping...")
+        for comp in competitors:
+            self.update_competitor_last_checked(comp['id'])
         
-        # Initialize the scraper
         if not self.initialize_scraper():
             log.error("❌ Failed to initialize scraper, aborting weekly scrape")
             return

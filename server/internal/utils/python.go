@@ -130,3 +130,43 @@ func TriggerModel(model, input string) (string, error) {
 
 	return out.String(), nil
 }
+
+// TriggerWeeklyScraper executes the weekly scraper immediately
+// This is useful when a new competitor is added
+func TriggerWeeklyScraper() error {
+	// Path to the Python script
+	scriptPath := filepath.Join("python", "socialmedia", "weekly_scraper.py")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return fmt.Errorf("Python script does not exist at path: %s", scriptPath)
+	}
+
+	// Detect Python command
+	pythonCmd := DetectPythonCommand()
+
+	// Build arguments - run as main
+	args := []string{scriptPath}
+
+	// Execute Python script in background (don't wait for output)
+	// We use exec.Command but then Start() instead of Run()
+	cmd := exec.Command(pythonCmd, args...)
+
+	// Create a log file for the scraper
+	logFile, err := os.OpenFile("scraper_trigger.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err == nil {
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+		defer logFile.Close()
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("error starting scraper script: %v", err)
+	}
+
+	// Release resources
+	go func() {
+		_ = cmd.Wait()
+	}()
+
+	return nil
+}

@@ -166,7 +166,7 @@ const CompetitorAddForm: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                className="flex-1 px-4 py-2 font-medium text-white transition-all transform rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 hover:scale-105"
+                                className="flex-1 px-4 py-2 font-medium text-white transition-all transform bg-black rounded-lg hover:cursorcursor-pointer"
                             >
                                 Add Account
                             </button>

@@ -1,0 +1,7 @@
+Uploading posts from /app/socialmedia/scrape_result/kimkardashian_posts_20251215_085032.json to database...
+Using username from profile stats: kimkardashian
+Using competitor ID: 9fab06d3-4b9c-429d-a5cd-3be13b6dcccf for @kimkardashian
+Calculated Analytics: EngRate=0.11%, Freq=1.46/week
+Updated stats for @kimkardashian: 354000000 followers, 6557 posts, 0.11% ER
+Successfully uploaded 5 posts to database
+Upload completed successfully!

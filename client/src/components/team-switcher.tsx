@@ -66,7 +66,10 @@ export function TeamSwitcher() {
         `/api/groups?userID=${userID}`,
         {
           method: "GET",
-          headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          },
         }
       );
 
