@@ -115,6 +115,7 @@ CREATE TABLE "upload_jobs" (
 CREATE TABLE competitor_posts (
   id SERIAL PRIMARY KEY,
   competitor_id UUID REFERENCES competitors(id) ON DELETE CASCADE,
+  username TEXT,
   platform VARCHAR(50) NOT NULL,
   post_id VARCHAR(100) NOT NULL,
   content TEXT,
