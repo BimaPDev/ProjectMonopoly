@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronsUpDown, Plus, Users, ChevronDown } from "lucide-react";
+import { ChevronsUpDown, Plus, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -66,7 +66,10 @@ export function TeamSwitcher() {
         `/api/groups?userID=${userID}`,
         {
           method: "GET",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          },
         }
       );
 

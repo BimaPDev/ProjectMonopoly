@@ -25,9 +25,12 @@ func LoginHandler(queries *db.Queries) gin.HandlerFunc {
 			return
 		}
 
+		fmt.Printf("🔍 Login attempt for Email: '%s'\n", creds.Email)
+
 		// Fetch user from database
 		user, err := queries.GetUserByEmailWithPassword(context.Background(), creds.Email)
 		if err != nil {
+			fmt.Printf("❌ Login failed: User not found for email '%s' (Error: %v)\n", creds.Email, err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			return
 		}
@@ -35,6 +38,7 @@ func LoginHandler(queries *db.Queries) gin.HandlerFunc {
 		// Compare password hash
 		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(creds.Password))
 		if err != nil {
+			fmt.Printf("❌ Login failed: Invalid password for user '%s'\n", creds.Email)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}

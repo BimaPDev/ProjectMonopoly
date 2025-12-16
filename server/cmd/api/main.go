@@ -90,6 +90,8 @@ func main() {
 			// Note: CreateCompetitor expects :groupID param
 			protected.POST("/groups/:groupID/competitors", wrap(handlers.CreateCompetitor))
 			protected.GET("/groups/:groupID/competitors", wrap(handlers.ListUserCompetitors))
+			protected.POST("/groups/competitors", wrap(handlers.CreateCompetitor))
+			protected.GET("/groups/competitors", wrap(handlers.ListUserCompetitors))
 			protected.GET("/competitors/posts", wrap(handlers.ListVisibleCompetitorPosts))
 
 			// Workshop

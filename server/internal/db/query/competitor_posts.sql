@@ -35,7 +35,7 @@ FROM competitors
 WHERE platform = $1 AND username = $2;
 
 INSERT INTO competitors (platform, username, profile_url, last_checked)
-VALUES ($1, $2, $3, NOW())
+VALUES ($1, $2, $3, NULL)
 ON CONFLICT (platform, username) DO UPDATE SET
   profile_url = EXCLUDED.profile_url,
   last_checked = EXCLUDED.last_checked

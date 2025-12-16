@@ -109,4 +109,13 @@ func CreateCompetitor(c *gin.Context, queries *db.Queries) {
 		},
 	}
 	c.JSON(http.StatusOK, resp)
+
+	// Trigger scraper in background
+	go func() {
+		if err := utils.TriggerWeeklyScraper(); err != nil {
+			log.Printf("⚠️ Failed to trigger background scraper: %v", err)
+		} else {
+			log.Printf("🚀 Triggered background scraper for new competitor")
+		}
+	}()
 }

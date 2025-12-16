@@ -162,7 +162,7 @@ ORDER BY id;
 
 -- name: CreateCompetitor :one
 INSERT INTO competitors (platform, username, profile_url, last_checked)
-VALUES ($1, $2, $3, NOW())
+VALUES ($1, $2, $3, NULL)
 RETURNING *;
 
 -- name: GetGroupCompetitors :many
@@ -284,7 +284,7 @@ WHERE id NOT IN (
 
 -- name: GetCompetitorByPlatformUsername :one
 SELECT * FROM competitors
-WHERE platform = $1 AND username = $2;
+WHERE platform = $1 AND LOWER(username) = LOWER($2);
 
 -- name: UpdateGroupItemData :exec
 UPDATE group_items

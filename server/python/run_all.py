@@ -100,6 +100,7 @@ if __name__ == "__main__":
     env["CELERY_RESULT_BACKEND"] = BACKEND_URL
     env["DATABASE_URL"] = DATABASE_URL
     env["DOCS_DIR"] = DOCS_DIR
+    env["C_FORCE_ROOT"] = "1" # Allow Celery to run as root
 
     procs = []
     try:

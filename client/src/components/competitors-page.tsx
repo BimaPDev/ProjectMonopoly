@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import CompetitorAddForm from "@/components/competitorAddForm.tsx"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,7 +30,7 @@ interface Competitors {
   platform: string,
   username: string,
   profile_url: string,
-  last_checked: Date,
+  last_checked: string | null,
   followers: number | 0,
   engagement_rate: number | 0,
   growth_rate: number | 0,
@@ -125,7 +125,7 @@ export function CompetitorsPage() {
         platform: competitor.platform,
         username: competitor.username,
         profile_url: competitor.profile_url,
-        followers: competitor.followers.Valid ? competitor.followers.Int64 : 0,
+        followers: competitor.followers.Valid ? Number(competitor.followers.Int64) : 0,
         last_checked: competitor.last_checked.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
         engagement_rate: competitor.engagement_rate?.Valid
           ? parseFloat(competitor.engagement_rate.String)
@@ -191,9 +191,13 @@ export function CompetitorsPage() {
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-
+              <div className="text-2xl font-bold">
+                {(competitors.length > 0
+                  ? (competitors.reduce((acc, curr) => acc + curr.engagement_rate, 0) / competitors.length).toFixed(2)
+                  : "0.00")}%
+              </div>
               <p className="text-xs text-muted-foreground">
-                Coming soon
+                Average across all competitors
               </p>
             </CardContent>
           </Card>
@@ -205,7 +209,12 @@ export function CompetitorsPage() {
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">Coming soon</p>
+              <div className="text-2xl font-bold">
+                {(competitors.length > 0
+                  ? (competitors.reduce((acc, curr) => acc + curr.growth_rate, 0) / competitors.length).toFixed(2)
+                  : "0.00")}%
+              </div>
+              <p className="text-xs text-muted-foreground">growth over time</p>
             </CardContent>
           </Card>
           <Card>
@@ -216,8 +225,12 @@ export function CompetitorsPage() {
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-
-              <p className="text-xs text-muted-foreground">Coming soon</p>
+              <div className="text-2xl font-bold">
+                {(competitors.length > 0
+                  ? (competitors.reduce((acc, curr) => acc + curr.posting_frequency, 0) / competitors.length).toFixed(1)
+                  : "0.0")}
+              </div>
+              <p className="text-xs text-muted-foreground">posts / week</p>
             </CardContent>
           </Card>
         </div>
@@ -235,6 +248,8 @@ export function CompetitorsPage() {
                 {competitors.map((competitor) => {
                   const posts = competitorsPost.filter(p => p.competitor_id === competitor.id);
                   const isExpanded = expandedCompetitors.has(competitor.id);
+                  const followersCount = Number(competitor.followers);
+                  const isScraping = !competitor.last_checked || followersCount === 0;
 
                   return (
                     <div key={competitor.id + competitor.username} className="p-4 border rounded-lg">
@@ -242,7 +257,7 @@ export function CompetitorsPage() {
                         <div className="flex items-center flex-1 gap-4">
                           <div className="flex items-center w-[150px]">
                             <Avatar className="h-9 w-9">
-                              <AvatarImage src={competitor.profile_url} />
+
                               <AvatarFallback>
                                 {competitor.username.slice(0, 2)}
                               </AvatarFallback>
@@ -250,59 +265,78 @@ export function CompetitorsPage() {
                             <div className="flex flex-col ml-4">
                               <p className="font-semibold text-medium">{competitor.username}</p>
                               <span className="text-xs text-slate-600">
-                                {new Date(competitor.last_checked).toLocaleDateString()}
+                                {isScraping ? "Processing..." : competitor.last_checked}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex ml-4 w-[100px] justify-center">
-                            <div className="flex items-center gap-4 ml-3">
-                              <div className="flex flex-col items-center">
-                                {(() => {
-                                  const platform = socialPlatforms.find(p => p.id === competitor.platform);
-                                  const Icon = platform?.icon;
-                                  return Icon ? (
-                                    <div>
-                                      <div className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground">
-                                        <Icon className="w-4 h-4" />
-                                      </div>
-                                    </div>
-                                  ) : <span className="text-sm"> {competitor.platform}</span>;
-                                })()}
-                                <span className="text-sm font-medium">
-                                  {formatNumber(competitor.followers)}
+                          {/* If last_checked is null OR followers is 0, show Scraping status */}
+                          {isScraping ? (
+                            <div className="flex items-center justify-center flex-1">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
+                                Scraping...
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex ml-4 w-[100px] justify-center">
+                                <div className="flex items-center gap-4 ml-3">
+                                  <div className="flex flex-col items-center">
+                                    {(() => {
+                                      const platform = socialPlatforms.find(p => p.id === competitor.platform);
+                                      const Icon = platform?.icon;
+                                      return Icon ? (
+                                        <div>
+                                          <div className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground">
+                                            <Icon className="w-4 h-4" />
+                                          </div>
+                                        </div>
+                                      ) : <span className="text-sm"> {competitor.platform}</span>;
+                                    })()}
+                                    <span className="text-sm font-medium">
+                                      {formatNumber(competitor.followers)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex w-[160px] ml-5 items-center gap-4">
+                                <div className="w-full">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Engagement</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {competitor.engagement_rate}%
+                                    </span>
+                                  </div>
+                                  <Progress value={competitor.engagement_rate * 10} className="h-2" />
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between ml-2">
+                                <span className={
+                                  competitor.growth_rate > 0.0
+                                    ? "text-sm font-medium text-green-600"
+                                    : "text-sm font-medium text-red-600"
+                                }>
+                                  <div className="flex items-center w-[100px]">
+                                    {competitor.growth_rate > 0.0 ?
+                                      <ChevronUp className="text-green-500" /> :
+                                      <ChevronDown className="text-red-500" />
+                                    }
+                                    {competitor.growth_rate}%
+                                  </div>
                                 </span>
                               </div>
-                            </div>
-                          </div>
 
-                          <div className="flex w-[160px] ml-5 items-center gap-4">
-                            <div className="w-full">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Engagement</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {competitor.engagement_rate}%
-                                </span>
+                              <div className="flex flex-col items-center justify-center w-[100px] ml-4">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-sm font-medium">{competitor.posting_frequency.toFixed(1)}</span>
+                                  <span className="text-xs text-muted-foreground">/wk</span>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Freq</span>
                               </div>
-                              <Progress value={competitor.engagement_rate * 10} className="h-2" />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between ml-2">
-                            <span className={
-                              competitor.growth_rate > 0.0
-                                ? "text-sm font-medium text-green-600"
-                                : "text-sm font-medium text-red-600"
-                            }>
-                              <div className="flex items-center w-[100px]">
-                                {competitor.growth_rate > 0.0 ?
-                                  <ChevronUp className="text-green-500" /> :
-                                  <ChevronDown className="text-red-500" />
-                                }
-                                {competitor.growth_rate}%
-                              </div>
-                            </span>
-                          </div>
+                            </>
+                          )}
                         </div>
 
                         <Button
@@ -396,6 +430,6 @@ export function CompetitorsPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

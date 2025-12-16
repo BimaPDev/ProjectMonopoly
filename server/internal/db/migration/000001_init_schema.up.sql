@@ -45,7 +45,17 @@ CREATE TABLE competitors (
   engagement_rate NUMERIC(4,2) DEFAULT 0.0,
   growth_rate NUMERIC(4,2) DEFAULT 0.0,
   posting_frequency NUMERIC(5,2) DEFAULT 0.0,
+  total_posts BIGINT DEFAULT 0,
   UNIQUE (platform, username)
+);
+
+CREATE TABLE competitor_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  competitor_id UUID REFERENCES competitors(id) ON DELETE CASCADE,
+  followers BIGINT,
+  engagement_rate NUMERIC(5,2),
+  snapshot_date DATE DEFAULT CURRENT_DATE,
+  UNIQUE (competitor_id, snapshot_date)
 );
 
 CREATE TABLE user_competitors (

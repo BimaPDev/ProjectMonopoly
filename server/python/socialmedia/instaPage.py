@@ -1,12 +1,12 @@
+import undetected_chromedriver as uc
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException, WebDriverException
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.service import Service
+# from selenium.webdriver.chrome.service import Service # Not needed for uc
 import time
 import json
 import os
@@ -51,58 +51,55 @@ class InstagramScraper:
         self.setup_driver()
 
     def setup_driver(self):
-        chrome_options = Options()
+        print("Setting up undetected-chromedriver...")
+        options = uc.ChromeOptions()
     
         # REQUIRED for Docker/headless environments
-        #chrome_options.add_argument("--headless=new")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--headless=new") # uc supports this now
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--remote-debugging-port=9222") # Valid port for debugging
     
-        # Stability improvements (REMOVED --single-process)
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--disable-software-rasterizer")
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--disable-dev-tools")
-        chrome_options.add_argument("--no-zygote")  # Better than single-process
-        chrome_options.add_argument("--disable-setuid-sandbox")
+        # Stability improvements
     
-        # Memory and performance
-        chrome_options.add_argument("--disable-background-networking")
-        chrome_options.add_argument("--disable-default-apps")
-        chrome_options.add_argument("--disable-sync")
-        chrome_options.add_argument("--disable-translate")
-        chrome_options.add_argument("--hide-scrollbars")
-        chrome_options.add_argument("--metrics-recording-only")
-        chrome_options.add_argument("--mute-audio")
-        chrome_options.add_argument("--no-first-run")
-    
-        # Additional stability options
-        chrome_options.add_argument("--disable-notifications")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-    
-        # Critical: Prevent crashes
-        chrome_options.add_argument("--disable-crash-reporter")
-        chrome_options.add_argument("--disable-in-process-stack-traces")
+        # Stability improvements
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--disable-dev-tools")
+        options.add_argument("--no-zygote")
+        options.add_argument("--disable-setuid-sandbox")
+        
+        # Additional options that help with detection
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--disable-notifications")
+        options.add_argument("--lang=en-US")
         
         try:
-            from webdriver_manager.chrome import ChromeDriverManager
-            self.driver = webdriver.Chrome(
-                service=Service(ChromeDriverManager().install()), 
-                options=chrome_options
+            # uc.Chrome automatically handles driver download
+            # use_subprocess=True is often recommended for stability
+            self.driver = uc.Chrome(
+                options=options,
+                use_subprocess=True,
+                version_main=None # Auto-detect installed chrome version
             )
+            
             # Set page load timeout
-            self.driver.execute_cdp_cmd('Network.setUserAgentOverride', {
-        "userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    })
-            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             self.driver.set_page_load_timeout(60)
+            print("Undetected ChromeDriver initialized successfully")
+            
         except Exception as e:
-            print(f"WebDriver Manager failed: {e}")
-            self.driver = webdriver.Chrome(options=chrome_options)
-            self.driver.set_page_load_timeout(60)    
+            print(f"Failed to initialize undetected-chromedriver: {e}")
+            print("Falling back to standard selenium (likely to fail anti-bot checks)...")
+            # Fallback (mostly for local testing if uc fails completely)
+            try:
+                from selenium.webdriver.chrome.options import Options
+                chrome_options = Options()
+                chrome_options.add_argument("--headless=new")
+                chrome_options.add_argument("--no-sandbox")
+                self.driver = webdriver.Chrome(options=chrome_options)
+            except Exception as e2:
+                print(f"Fallback failed: {e2}")
+                raise e    
     
     def save_cookies(self):
         os.makedirs(os.path.dirname(self.cookies_path) or '.', exist_ok=True)
@@ -121,7 +118,11 @@ class InstagramScraper:
                 except Exception as e:
                     print(f"Error adding cookie: {e}")
             print("Cookies loaded successfully!")
-            self.driver.get("https://www.instagram.com")
+            try:
+                self.driver.get("https://www.instagram.com")
+            except Exception as e:
+                print(f"Driver crashed during cookie navigation: {e}")
+                return False
             try:
                 WebDriverWait(self.driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, "//nav//a[contains(@href, '/explore')]"))
@@ -141,8 +142,16 @@ class InstagramScraper:
         
         # Otherwise, perform username/password login
         if not self.username or not self.password:
-            print("No saved cookies and no credentials provided. Cannot login.")
-            return False
+            print("No saved cookies and no credentials provided. Continuing in GUEST MODE (Public Access).")
+            # In guest mode, we just try to visit the homepage and then proceed
+            try:
+                self.driver.get("https://www.instagram.com")
+                time.sleep(2)
+                # Dismiss potential login popups if key ones appear immediately
+                return True
+            except Exception as e:
+                print(f"Guest mode init failed: {e}")
+                return False
             
         print("Logging in with username and password...")
         print("Loading Instagram login page...")
@@ -284,10 +293,46 @@ class InstagramScraper:
         time.sleep(3)
         
         try:
-            profile_name = re.search(r"instagram\.com/([^/?]+)", profile_url).group(1)
-        except:
-            profile_name = "instagram_profile"
+            try:
+                profile_name = re.search(r"instagram\.com/([^/?]+)", profile_url).group(1)
+            except:
+                profile_name = "instagram_profile"
+
+            # Extract profile stats
+            time.sleep(2)
+            meta_desc = self.driver.find_element(By.XPATH, "//meta[@property='og:description']").get_attribute("content")
+            print(f"Profile meta description: {meta_desc}")
             
+            followers = 0
+            following = 0
+            posts_count = 0
+            
+            # Parse "100M Followers, 10 Following, 100 Posts"
+            # Normalized patterns needed because it varies by language/region potentially, but usually English here
+            if meta_desc:
+                # Extract Followers
+                m_fol = re.search(r"([\d,.]+K?M?B?)\s+Followers", meta_desc, re.IGNORECASE)
+                if m_fol:
+                    followers = parse_shorthand(m_fol.group(1))
+                    
+                # Extract Following
+                m_fng = re.search(r"([\d,.]+K?M?B?)\s+Following", meta_desc, re.IGNORECASE)
+                if m_fng:
+                    following = parse_shorthand(m_fng.group(1))
+                    
+                # Extract Posts
+                m_posts = re.search(r"([\d,.]+K?M?B?)\s+Posts", meta_desc, re.IGNORECASE)
+                if m_posts:
+                    posts_count = parse_shorthand(m_posts.group(1))
+
+            print(f"Scraped Stats - Followers: {followers}, Following: {following}, Posts: {posts_count}")
+            
+        except Exception as e:
+            print(f"Error scraping profile stats: {e}")
+            followers = 0
+            following = 0
+            posts_count = 0
+
         posts_data = []
         post_links = set()
         
@@ -347,8 +392,21 @@ class InstagramScraper:
         scrape_result_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
         os.makedirs(scrape_result_dir, exist_ok=True)
         json_filename = os.path.join(scrape_result_dir, f"{profile_name}_posts_{timestamp}.json")
+        
+        # Structure the payload
+        export_data = {
+            "profile_info": {
+                "username": profile_name,
+                "followers": followers,
+                "following": following,
+                "posts_count": posts_count,
+                "scraped_at": timestamp
+            },
+            "posts": posts_data
+        }
+        
         with open(json_filename, "w", encoding="utf-8") as jf:
-            json.dump(posts_data, jf, ensure_ascii=False, indent=4)
+            json.dump(export_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all posts to {json_filename}\n")
         
 

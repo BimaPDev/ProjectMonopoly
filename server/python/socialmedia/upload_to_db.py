@@ -81,7 +81,7 @@ def create_or_get_competitor(conn, platform, username, profile_url):
     with conn.cursor() as cur:
         cur.execute("""
             SELECT id FROM competitors 
-            WHERE platform = %s AND username = %s
+            WHERE platform = %s AND LOWER(username) = LOWER(%s)
         """, (platform, username))
         
         result = cur.fetchone()
@@ -113,23 +113,54 @@ def upload_posts_to_db(json_file_path):
         print(f"Error parsing JSON: {e}")
         return False
     
-    if not posts_data:
-        print("No posts data found in file")
+    # Handle both old (list) and new (dict) JSON formats
+    if isinstance(posts_data, list):
+        posts_list = posts_data
+        profile_stats = {}
+    elif isinstance(posts_data, dict):
+        posts_list = posts_data.get('posts', [])
+        profile_stats = posts_data.get('profile_info', {})
+    else:
+        print("Error: JSON content is neither list nor dict")
         return False
-    
+
+    if not posts_list:
+        print("No posts data found in file")
+        # Even if no posts, we might want to update stats? But logic below relies on posts for competitor ID
+        # Let's try to get username from profile_stats if available
+        if not profile_stats:
+            return False
+
     # Get database connection
     conn = get_database_connection()
     
     try:
-        # Determine competitor info from the first post
-        first_post = posts_data[0]
-        url = first_post['url']
+        # Determine username
+        username = 'unknown'
         
-        # Extract username from URL
-        parsed_url = urlparse(url)
-        path_parts = parsed_url.path.strip('/').split('/')
-        username = path_parts[0] if path_parts else 'unknown'
+        # Priority 1: From profile stats (most reliable)
+        if profile_stats.get('username'):
+            username = profile_stats['username']
+            print(f"Using username from profile stats: {username}")
+            
+        # Priority 2: From filename
+        elif username == 'unknown':
+            filename = os.path.basename(json_file_path)
+            match = re.match(r"^(.*)_posts_\d{8}_\d{6}\.json$", filename)
+            if match:
+                username = match.group(1)
+                print(f"Extracted username from filename: {username}")
         
+        # Priority 3: From first post URL (fallback)
+        if username == 'unknown' and posts_list:
+            first_post = posts_list[0]
+            url = first_post.get('url', '')
+            parsed_url = urlparse(url)
+            path_parts = parsed_url.path.strip('/').split('/')
+            if path_parts:
+                username = path_parts[0]
+                print(f"Extracted username from post URL: {username}")
+                
         # Create or get competitor
         competitor_id = create_or_get_competitor(
             conn,'instagram', 
@@ -137,10 +168,132 @@ def upload_posts_to_db(json_file_path):
         )
         print(f"Using competitor ID: {competitor_id} for @{username}")
         
+        # Update competitor stats directly if available
+        if profile_stats:
+            try:
+                followers = int(str(profile_stats.get('followers', 0)).replace(',', ''))
+                posts_count = int(str(profile_stats.get('posts_count', 0)).replace(',', ''))
+                
+                # --- Analytics Calculation ---
+                engagement_rate = 0.0
+                posting_freq = 0.0
+                
+                if posts_list and followers > 0:
+                    total_likes = 0
+                    total_comments = 0
+                    valid_posts = 0
+                    min_date = None
+                    max_date = None
+                    
+                    for p in posts_list:
+                        try:
+                            l = int(str(p.get('likes', '0')).replace(',', '') or '0')
+                            c = int(str(p.get('comments_count', '0')).replace(',', '') or '0')
+                            total_likes += l
+                            total_comments += c
+                            valid_posts += 1
+                            
+                            # Date parsing for frequency
+                            p_date_str = p.get('post_date')
+                            if p_date_str:
+                                # Handle various date formats if needed, or assume standard ISO from scraper
+                                # standard format from scraper seems to be ISO or similar
+                                try:
+                                    dt = parse_posted_at(p_date_str)
+                                    if dt:
+                                        if min_date is None or dt < min_date: min_date = dt
+                                        if max_date is None or dt > max_date: max_date = dt
+                                except:
+                                    pass
+                        except:
+                            pass
+                            
+                    if valid_posts > 0:
+                        avg_interactions = (total_likes + total_comments) / valid_posts
+                        engagement_rate = (avg_interactions / followers) * 100
+                        
+                    # Frequency (Posts per Week)
+                    # If we have a date range
+                    if valid_posts > 1 and min_date and max_date:
+                        delta_days = (max_date - min_date).days
+                        if delta_days > 0:
+                            weeks = delta_days / 7.0
+                            posting_freq = valid_posts / weeks
+                        else:
+                            # all posted same day?
+                            posting_freq = valid_posts # treat as "per week" if highly active in 1 day? or just raw count
+                    elif valid_posts == 1:
+                        posting_freq = 1.0 # placeholder
+                        
+                # --- Growth Rate Calculation ---
+                growth_rate = 0.0
+                try:
+                    with conn.cursor() as cur:
+                        # Get a snapshot from roughly 7 days ago
+                        cur.execute("""
+                            SELECT followers 
+                            FROM competitor_snapshots 
+                            WHERE competitor_id = %s 
+                            AND snapshot_date <= CURRENT_DATE - INTERVAL '1 day'
+                            ORDER BY snapshot_date DESC 
+                            LIMIT 1
+                        """, (competitor_id,))
+                        row = cur.fetchone()
+                        
+                        # If no 7-day old snapshot, try any previous snapshot
+                        if not row:
+                             cur.execute("""
+                                SELECT followers 
+                                FROM competitor_snapshots 
+                                WHERE competitor_id = %s 
+                                AND snapshot_date < CURRENT_DATE
+                                ORDER BY snapshot_date ASC 
+                                LIMIT 1
+                            """, (competitor_id,))
+                             row = cur.fetchone()
+
+                        if row and row[0] and row[0] > 0:
+                            prev_followers = float(row[0])
+                            growth_rate = ((followers - prev_followers) / prev_followers) * 100
+                except Exception as e:
+                    print(f"Error calculating growth rate: {e}")
+
+                print(f"Calculated Analytics: EngRate={engagement_rate:.2f}%, Freq={posting_freq:.2f}/week, Growth={growth_rate:.2f}%")
+
+                with conn.cursor() as cur:
+                    # Update Competitor
+                    cur.execute("""
+                        UPDATE competitors 
+                        SET followers = %s, 
+                            total_posts = %s,
+                            engagement_rate = %s,
+                            growth_rate = %s,
+                            posting_frequency = %s,
+                            last_checked = NOW()
+                        WHERE id = %s
+                    """, (followers, posts_count, engagement_rate, growth_rate, posting_freq, competitor_id))
+                    
+                    # Add Snapshot
+                    cur.execute("""
+                        INSERT INTO competitor_snapshots (competitor_id, followers, engagement_rate, snapshot_date)
+                        VALUES (%s, %s, %s, CURRENT_DATE)
+                        ON CONFLICT (competitor_id, snapshot_date) 
+                        DO UPDATE SET 
+                            followers = EXCLUDED.followers,
+                            engagement_rate = EXCLUDED.engagement_rate
+                    """, (competitor_id, followers, engagement_rate))
+                    
+                    conn.commit()
+                print(f"Updated stats for @{username}: {followers} followers, {posts_count} posts, {engagement_rate:.2f}% ER")
+            except Exception as e:
+                print(f"Error updating competitor stats: {e}")
+                import traceback
+                traceback.print_exc()
+
         # Process each post
         uploaded_count = 0
         with conn.cursor() as cur:
-            for post in posts_data:
+            for post in posts_list:
                 try:
                     # Extract post ID from URL
                     post_id = extract_post_id(post['url'])
@@ -164,13 +317,6 @@ def upload_posts_to_db(json_file_path):
                     caption = post.get('caption', '')
                     caption_hash = generate_caption_hash(caption)
                     
-                    # Check if post with this caption already exists
-                    cur.execute("""
-                        SELECT COUNT(*) FROM competitor_posts 
-                        WHERE competitor_id = %s AND caption_hash = %s
-                    """, (competitor_id, caption_hash))
-                    existed_before = cur.fetchone()[0] > 0
-                    
                     # Insert or update post using caption-based deduplication
                     cur.execute("""
                         INSERT INTO competitor_posts (
@@ -178,9 +324,8 @@ def upload_posts_to_db(json_file_path):
                             posted_at, engagement, hashtags, scraped_at, caption_hash
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (competitor_id, caption_hash) DO UPDATE SET
-                            platform = EXCLUDED.platform,
-                            post_id = EXCLUDED.post_id,
+                        ON CONFLICT (platform, post_id) DO UPDATE SET
+                            competitor_id = EXCLUDED.competitor_id,
                             content = EXCLUDED.content,
                             media = EXCLUDED.media,
                             posted_at = EXCLUDED.posted_at,
@@ -195,15 +340,15 @@ def upload_posts_to_db(json_file_path):
                         datetime.now(), caption_hash
                     ))
                     
-                    if existed_before:
-                        print(f"🔄 Updated post: {post_id} (caption match)")
-                    else:
-                        print(f"✅ New post: {post_id}")
-                    
+                    if cur.statusmessage == "INSERT 0 1": 
+                         # This check might depend on driver, usually we rely on ON CONFLICT
+                         pass
+                        
                     uploaded_count += 1
                     
                 except Exception as e:
                     print(f"Error processing post {post.get('url', 'unknown')}: {e}")
+                    conn.rollback() # Important: Rollback the failed transaction so we can continue
                     continue
 
         # Finalize database changes
