@@ -62,3 +62,35 @@ WHERE uc.user_id = $1
   )
 ORDER BY cp.posted_at DESC
 LIMIT $4;
+
+-- name: GetRecentCompetitorPosts :many
+SELECT
+  cp.id,
+  cp.competitor_id,
+  cp.platform,
+  cp.post_id,
+  cp.content,
+  cp.posted_at,
+  cp.engagement,
+  c.username as competitor_username
+FROM competitor_posts cp
+JOIN competitors c ON c.id = cp.competitor_id
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL)
+ORDER BY cp.posted_at DESC
+LIMIT $3;
+
+-- name: GetCompetitorAnalytics :many
+SELECT
+  c.id,
+  c.platform,
+  c.username,
+  c.followers,
+  c.engagement_rate,
+  c.growth_rate,
+  c.posting_frequency
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL);
