@@ -90,3 +90,17 @@ WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
 ORDER BY cp.posted_at DESC
 LIMIT $3;
+
+-- name: GetCompetitorAnalytics :many
+SELECT
+  c.id,
+  c.platform,
+  c.username,
+  c.followers,
+  c.engagement_rate,
+  c.growth_rate,
+  c.posting_frequency
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL);
