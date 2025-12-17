@@ -23,7 +23,6 @@ import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 
 import { CgComment } from "react-icons/cg";
-import { useGroup } from "./groupContext";
 import { socialPlatforms } from "@/components/socialPlatforms";
 import { useGroup } from "./groupContext";
 import { TriangleAlert } from "lucide-react";
@@ -88,25 +87,7 @@ export function CompetitorsPage() {
     });
   };
 
-  const handleResize = (competitorId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = postsHeight[competitorId] || 320;
-
-    const doDrag = (e: MouseEvent) => {
-      const delta = e.clientY - startY;
-      const newHeight = Math.max(200, Math.min(800, startHeight + delta));
-      setPostsHeight(prev => ({ ...prev, [competitorId]: newHeight }));
-    };
-
-    const stopDrag = () => {
-      document.removeEventListener('mousemove', doDrag);
-      document.removeEventListener('mouseup', stopDrag);
-    };
-
-    document.addEventListener('mousemove', doDrag);
-    document.addEventListener('mouseup', stopDrag);
-  };
+  
 
   const fetchCompetitorsPosts = async () => {
     try {
@@ -496,7 +477,7 @@ export function CompetitorsPage() {
                             <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
                           </div>
                           <div
-                            className="flex items-center justify-center h-4 mt-2 cursor-ns-resize hover:bg-gray-100 rounded"
+                            className="flex items-center justify-center h-4 mt-2 rounded cursor-ns-resize hover:bg-gray-100"
                             onMouseDown={(e) => handleResize(competitor.id, e)}
                           >
                             <div className="w-12 h-1 bg-gray-300 rounded-full"></div>

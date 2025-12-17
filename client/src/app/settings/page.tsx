@@ -41,7 +41,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
 }) => (
   <div
     onClick={onClick}
-    className={`p-4 bg-gray-900 border border-gray-800 rounded-xl transition-all duration-200 ${onClick ? 'cursor-pointer hover:bg-gray-800/50 hover:border-gray-700' : ''
+    className={`p-4 bg-black border border-gray-800 rounded-xl transition-all duration-200 ${onClick ? 'cursor-pointer hover:bg-black hover:border-gray-600' : ''
       }`}
   >
     <div className="flex items-center justify-between">
@@ -326,14 +326,14 @@ export default function Settings() {
                 showChevron={false}
               />
             </div> */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-black border-gray-800">
               <CardHeader>
                 <CardTitle className="text-white">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
                   variant="outline"
-                  className="w-full text-white bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  className="w-full text-white bg-black border-gray-700 hover:bg-black hover:border-gray-600"
                   onClick={() => navigate('/dashboard/settings/socialmedia')}
                 >
                   <Instagram className="w-4 h-4 mr-2" />
@@ -341,7 +341,7 @@ export default function Settings() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full text-white bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  className="w-full text-white bg-black border-gray-700 hover:bg-black hover:border-gray-600"
                 >
                   <Bell className="w-4 h-4 mr-2" />
                   Notification Center
@@ -362,7 +362,7 @@ export default function Settings() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Account Info */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-black border-gray-800">
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-12 h-12 text-lg font-semibold text-white bg-blue-600 rounded-full">
@@ -379,7 +379,7 @@ export default function Settings() {
               <CardContent>
                 <Button
                   variant="outline"
-                  className="w-full text-white bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  className="w-full text-white bg-black border-gray-700 hover:bg-black hover:border-gray-600"
                 >
                   Edit Profile
                 </Button>
@@ -390,7 +390,7 @@ export default function Settings() {
 
 
             {/* Help & Support */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-black border-gray-800">
               <CardHeader>
                 <CardTitle className="text-white">Help & Support</CardTitle>
               </CardHeader>
@@ -405,7 +405,7 @@ export default function Settings() {
                   Report a Bug
                 </a>
                 <Separator className="my-3 bg-gray-800" />
-                <p className="text-gray-500">Version 1.0.0</p>
+                <p className="text-gray-500">Version 2.0.1</p>
               </CardContent>
             </Card>
           </div>

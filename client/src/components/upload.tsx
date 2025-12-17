@@ -93,7 +93,7 @@ export default function UploadPage() {
       try {
         const res = await fetch(`/api/groups?userID=${userID}`, {
           method: "GET",
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem('token')}` }
         });
 
         if (!res.ok) {
@@ -259,7 +259,7 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen text-white bg-black">
+    <div className="min-h-screen text-white">
       <TooltipProvider>
         <div className="container max-w-6xl py-10 mx-auto">
           <div className="space-y-8">
@@ -276,12 +276,12 @@ export default function UploadPage() {
             </div>
 
             {/* Progress Bar */}
-            <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">
+            <div className="p-6 bg-black border border-gray-800 rounded-xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-gray-300">Upload Progress</span>
                 <span className="text-sm text-gray-400">{progress}%</span>
               </div>
-              <Progress value={progress} className="w-full h-2 bg-gray-800" />
+              <Progress value={progress} className="w-full h-2 bg-black" />
             </div>
 
             {/* Success Message */}
@@ -317,14 +317,14 @@ export default function UploadPage() {
                     transition={{ duration: 0.2 }}
                     className="flex flex-col gap-6"
                   >
-                    <Card className="bg-gray-900 border-gray-800">
+                    <Card className="bg-black border-gray-800">
                       <CardContent className="p-6">
                         <div
                           className={cn(
                             "relative flex min-h-[400px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
                             dragActive
                               ? "border-blue-500 bg-blue-500/5"
-                              : "border-gray-700 hover:border-blue-500 hover:bg-gray-800/50",
+                              : "border-gray-700 hover:border-blue-500 hover:bg-black",
                             preview && "border-none"
                           )}
                           onClick={() => fileRef.current?.click()}
@@ -348,7 +348,7 @@ export default function UploadPage() {
                             />
                           ) : (
                             <div className="flex flex-col items-center justify-center p-4 space-y-4 text-center">
-                              <div className="p-4 rounded-full bg-blue-500/10">
+                              <div className="p-4 border rounded-full bg-black border-gray-800">
                                 <Upload className="w-8 h-8 text-blue-400" />
                               </div>
                               <div className="space-y-2">
@@ -375,14 +375,14 @@ export default function UploadPage() {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Card className="relative bg-gray-900 border-gray-800">
+                    <Card className="relative bg-black border-gray-800">
                       <CardContent className="p-6">
                         {preview && (
                           <>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="absolute z-10 text-white right-2 top-2 bg-gray-800/80 hover:bg-gray-700"
+                              className="absolute z-10 text-white right-2 top-2 bg-black/80 border border-gray-700 hover:bg-black hover:border-gray-600"
                               onClick={() => {
                                 setSelectedFile(null);
                                 setPreview("");
@@ -421,7 +421,7 @@ export default function UploadPage() {
                       className="space-y-6"
                     >
                       {/* Content Details */}
-                      <Card className="bg-gray-900 border-gray-800">
+                      <Card className="bg-black border-gray-800">
                         <CardContent className="p-6 space-y-6">
                           <FormField
                             control={form.control}
@@ -432,7 +432,7 @@ export default function UploadPage() {
                                 <FormControl>
                                   <Input
                                     placeholder="Enter a title for your post"
-                                    className="text-white bg-gray-800 border-gray-700 placeholder:text-gray-400 focus:border-blue-500"
+                                    className="text-white bg-black border-gray-700 placeholder:text-gray-400 focus:border-blue-500"
                                     {...field}
                                   />
                                 </FormControl>
@@ -461,7 +461,7 @@ export default function UploadPage() {
                                 <FormControl>
                                   <Textarea
                                     placeholder="Add hashtags separated by spaces (e.g. #trending #viral)"
-                                    className="min-h-[100px] resize-none bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 focus:border-blue-500"
+                                    className="min-h-[100px] resize-none p-2 bg-black border-gray-700 text-white placeholder:text-gray-400 focus:border-blue-500"
                                     {...field}
                                   />
                                 </FormControl>
@@ -476,7 +476,7 @@ export default function UploadPage() {
                       </Card>
 
                       {/* Platform & Scheduling */}
-                      <Card className="bg-gray-900 border-gray-800">
+                      <Card className="bg-black border-gray-800">
                         <CardContent className="p-6 space-y-6">
                           <FormField
                             control={form.control}
@@ -486,11 +486,11 @@ export default function UploadPage() {
                                 <FormLabel className="text-white">Group</FormLabel>
                                 <div className="space-y-3">
                                   {groups.map((g) => (
-                                    <div key={g.ID} className="flex items-center p-3 space-x-3 transition-colors bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600">
+                                    <div key={g.ID} className="flex items-center p-3 space-x-3 transition-colors bg-black border border-gray-700 rounded-lg hover:border-gray-600">
                                       <input
                                         type="radio"
                                         id={`group-${g.ID}`}
-                                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500 focus:ring-2"
+                                        className="w-4 h-4 text-blue-600 bg-black border-gray-600 focus:ring-blue-500 focus:ring-2"
                                         value={g.ID}
                                         checked={field.value === g.ID}
                                         onChange={() => field.onChange(g.ID)}
@@ -540,11 +540,11 @@ export default function UploadPage() {
                                 </div>
                                 <div className="space-y-3">
                                   {socialPlatforms.map((platform) => (
-                                    <div key={platform.id} className="flex items-center p-3 space-x-3 transition-colors bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600">
+                                    <div key={platform.id} className="flex items-center p-3 space-x-3 transition-colors bg-black border border-gray-700 rounded-lg hover:border-gray-600">
                                       <input
                                         type="checkbox"
                                         id={`platform-${platform.id}`}
-                                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                                        className="w-4 h-4 text-blue-600 bg-black border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                                         value={platform.id}
                                         checked={field.value?.includes(platform.id) || false}
                                         onChange={(e) => {
@@ -604,7 +604,7 @@ export default function UploadPage() {
                                       <Button
                                         variant={"outline"}
                                         className={cn(
-                                          "w-full pl-3 text-left font-normal bg-gray-800 border-gray-700 text-white hover:bg-gray-700",
+                                          "w-full pl-3 text-left font-normal bg-black border-gray-700 text-white hover:bg-black hover:border-gray-600",
                                           !field.value && "text-gray-400"
                                         )}
                                       >
@@ -653,7 +653,7 @@ export default function UploadPage() {
                               }
                             }}
                             disabled={loading}
-                            className="text-gray-300 bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-white"
+                            className="text-gray-300 bg-black border-gray-700 hover:bg-black hover:border-gray-600 hover:text-white"
                           >
                             Start Over
                           </Button>

@@ -166,14 +166,14 @@ const CompetitorAddForm: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                className="flex-1 px-4 py-2 font-medium text-white transition-all transform bg-black rounded-lg hover:cursorcursor-pointer"
+                                className="flex-1 px-4 py-2 font-medium text-black transition-all transform bg-white rounded-lg hover:cursorcursor-pointer"
                             >
                                 Add Account
                             </button>
                             <button
                                 type="button"
                                 onClick={handleReset}
-                                className="px-4 py-2 text-black transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                className="px-4 py-2 font-medium text-black transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                             >
                                 Cancel
                             </button>

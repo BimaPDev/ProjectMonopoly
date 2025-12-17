@@ -1,9 +1,13 @@
 import os, time, logging
-import psycopg
 from worker.celery_app import app
+import psycopg2
+from .config import DB_CONFIG
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-DSN = os.getenv("DATABASE_URL", "postgresql://root:secret@db:5432/project_monopoly?sslmode=disable")
+
+def get_connection():
+    return psycopg2.connect(**DB_CONFIG)
+
 SLEEP = float(os.getenv("DISPATCH_SLEEP", "1.0"))
 
 SQL_NEXT_UPLOAD = """
@@ -50,7 +54,7 @@ def dispatch_loop():
     while True:
         did_work = False
         try:
-            with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
+            with  psycopg2.connect(**DB_CONFIG) as cur:
                 # Upload job
                 cur.execute(SQL_NEXT_UPLOAD)
                 row = cur.fetchone()
@@ -85,6 +89,7 @@ def dispatch_loop():
                     did_work = True
 
         except Exception as e:
+            logging.info("NOTE: error with upload_jobs not exist but the db table is created but is empty is: EXPECTED BEHAVIOR")
             logging.exception("dispatcher error: %s", e)
 
         if not did_work:
@@ -101,7 +106,7 @@ def dispatch_loop():
             if now - dispatch_loop.last_scrape_dispatch > 60: # Check every 60 seconds
                 # print("DEBUG: Running check query...")
                 try:
-                    with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
+                    with  psycopg2.connect(**DB_CONFIG) as conn, conn.cursor() as cur:
                         # Default to 7 days if not set
                         interval = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", "7"))
                         
