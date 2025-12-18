@@ -166,9 +166,22 @@ VALUES ($1)
 RETURNING *;
 
 -- name: GetGroupCompetitors :many
-SELECT c.*
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts,
+  cp.id as profile_id,
+  cp.platform,
+  cp.handle as username,
+  cp.profile_url,
+  cp.followers,
+  cp.engagement_rate,
+  cp.growth_rate,
+  cp.posting_frequency
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
+LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1;
 
 -- name: FetchNextPendingJob :one
@@ -264,21 +277,51 @@ VALUES ($1, $2, $3, $4)
 ON CONFLICT DO NOTHING;
 
 -- name: ListUserCompetitors :many
-SELECT c.*
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts,
+  cp.id as profile_id,
+  cp.platform,
+  cp.handle as username,
+  cp.profile_url,
+  cp.followers,
+  cp.engagement_rate,
+  cp.growth_rate,
+  cp.posting_frequency
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
+LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1;
 
 -- name: ListGroupCompetitors :many
-SELECT c.*
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts,
+  cp.id as profile_id,
+  cp.platform,
+  cp.handle as username,
+  cp.profile_url,
+  cp.followers,
+  cp.engagement_rate,
+  cp.growth_rate,
+  cp.posting_frequency
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
+LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1 AND uc.group_id = $2;
 
 -- name: ListAvailableCompetitorsToUser :many
-SELECT *
-FROM competitors
-WHERE id NOT IN (
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts
+FROM competitors c
+WHERE c.id NOT IN (
   SELECT competitor_id FROM user_competitors WHERE user_id = $1
 );
 

@@ -103,15 +103,16 @@ def dispatch_loop():
                 dispatch_loop.last_scrape_dispatch = 0
                 
             if now - dispatch_loop.last_scrape_dispatch > 60: # Check every 60 seconds
-                # print("DEBUG: Running check query...")
+                print("DEBUG: Running check query...")
                 try:
                     with  psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
                         # Default to 7 days if not set
                         interval = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", "7"))
                         
                         # Check for NULL (never scraped) or Old (needs update)
+                        # Query competitor_profiles since that's where last_checked lives now
                         cur.execute(
-                            "SELECT COUNT(*) FROM competitors WHERE last_checked IS NULL OR last_checked < NOW() - (INTERVAL '1 day' * %s)",
+                            "SELECT COUNT(DISTINCT cp.competitor_id) FROM competitor_profiles cp WHERE cp.last_checked IS NULL OR cp.last_checked < NOW() - (INTERVAL '1 day' * %s)",
                             (interval,)
                         )
                         row = cur.fetchone()

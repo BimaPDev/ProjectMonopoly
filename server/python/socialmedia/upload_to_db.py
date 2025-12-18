@@ -77,28 +77,43 @@ def get_database_connection():
         sys.exit(1)
 
 def create_or_get_competitor(conn, platform, username, profile_url):
-    # Check if competitor exists, else create new one
+    """
+    Create or get competitor and their profile.
+    Updated for new schema: competitors table no longer has platform/username.
+    Returns tuple: (competitor_id, profile_id)
+    """
     with conn.cursor() as cur:
+        # Check if competitor profile exists
         cur.execute("""
-            SELECT id FROM competitors 
-            WHERE platform = %s AND LOWER(username) = LOWER(%s)
+            SELECT cp.competitor_id, cp.id
+            FROM competitor_profiles cp
+            WHERE LOWER(cp.platform) = LOWER(%s) AND LOWER(cp.handle) = LOWER(%s)
         """, (platform, username))
-        
+
         result = cur.fetchone()
         if result:
-            return result[0]
-        
-        # Create new competitor if not exists
+            return result  # (competitor_id, profile_id)
+
+        # Create new competitor entity
         cur.execute("""
-            INSERT INTO competitors (platform, username, profile_url, last_checked)
-            VALUES (%s, %s, %s, NOW())
-            ON CONFLICT (platform, username) DO UPDATE SET
-                profile_url = EXCLUDED.profile_url,
-                last_checked = EXCLUDED.last_checked
+            INSERT INTO competitors (display_name)
+            VALUES (%s)
             RETURNING id
-        """, (platform, username, profile_url))
-        
-        return cur.fetchone()[0]
+        """, (username,))
+
+        competitor_id = cur.fetchone()[0]
+
+        # Create competitor profile
+        cur.execute("""
+            INSERT INTO competitor_profiles
+                (competitor_id, platform, handle, profile_url, last_checked)
+            VALUES (%s, %s, %s, %s, NOW())
+            RETURNING id
+        """, (competitor_id, platform, username, profile_url))
+
+        profile_id = cur.fetchone()[0]
+
+        return (competitor_id, profile_id)
 
 def upload_posts_to_db(json_file_path):
     # Upload posts from JSON file to database
@@ -161,12 +176,12 @@ def upload_posts_to_db(json_file_path):
                 username = path_parts[0]
                 print(f"Extracted username from post URL: {username}")
                 
-        # Create or get competitor
-        competitor_id = create_or_get_competitor(
-            conn,'instagram', 
+        # Create or get competitor (returns tuple: competitor_id, profile_id)
+        competitor_id, profile_id = create_or_get_competitor(
+            conn,'instagram',
             username,f"https://www.instagram.com/{username}/"
         )
-        print(f"Using competitor ID: {competitor_id} for @{username}")
+        print(f"Using competitor ID: {competitor_id}, profile ID: {profile_id} for @{username}")
         
         # Update competitor stats directly if available
         if profile_stats:
@@ -261,17 +276,24 @@ def upload_posts_to_db(json_file_path):
                 print(f"Calculated Analytics: EngRate={engagement_rate:.2f}%, Freq={posting_freq:.2f}/week, Growth={growth_rate:.2f}%")
 
                 with conn.cursor() as cur:
-                    # Update Competitor
+                    # Update Competitor Profile stats (new schema)
                     cur.execute("""
-                        UPDATE competitors 
-                        SET followers = %s, 
-                            total_posts = %s,
+                        UPDATE competitor_profiles
+                        SET followers = %s,
                             engagement_rate = %s,
                             growth_rate = %s,
                             posting_frequency = %s,
                             last_checked = NOW()
                         WHERE id = %s
-                    """, (followers, posts_count, engagement_rate, growth_rate, posting_freq, competitor_id))
+                    """, (followers, engagement_rate, growth_rate, posting_freq, profile_id))
+
+                    # Update total_posts in competitors table
+                    cur.execute("""
+                        UPDATE competitors
+                        SET total_posts = %s,
+                            last_checked = NOW()
+                        WHERE id = %s
+                    """, (posts_count, competitor_id))
                     
                     # Add Snapshot
                     cur.execute("""
@@ -359,14 +381,16 @@ def upload_posts_to_db(json_file_path):
                     caption_hash = generate_caption_hash(caption)
                     
                     # Insert or update post using caption-based deduplication
+                    # Updated for new schema: use profile_id instead of competitor_id
                     cur.execute("""
                         INSERT INTO competitor_posts (
-                            competitor_id,username, platform, post_id, content, media,
+                            competitor_id, profile_id, username, platform, post_id, content, media,
                             posted_at, engagement, hashtags, scraped_at, caption_hash
                         )
-                        VALUES (%s, %s,%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (platform, post_id) DO UPDATE SET
                             competitor_id = EXCLUDED.competitor_id,
+                            profile_id = EXCLUDED.profile_id,
                             content = EXCLUDED.content,
                             media = EXCLUDED.media,
                             posted_at = EXCLUDED.posted_at,
@@ -375,12 +399,17 @@ def upload_posts_to_db(json_file_path):
                             scraped_at = EXCLUDED.scraped_at
                     """, (
                         competitor_id,
+                        profile_id,
                         username,
                         'instagram',
-                        post_id,post.get('caption', ''),
-                        json.dumps(media_data),posted_at,
-                        json.dumps(engagement),post.get('hashtags', []),
-                        datetime.now(), caption_hash
+                        post_id,
+                        post.get('caption', ''),
+                        json.dumps(media_data),
+                        posted_at,
+                        json.dumps(engagement),
+                        post.get('hashtags', []),
+                        datetime.now(),
+                        caption_hash
                     ))
                     
                     if cur.statusmessage == "INSERT 0 1": 
