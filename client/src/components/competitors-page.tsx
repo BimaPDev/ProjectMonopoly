@@ -178,21 +178,22 @@ export function CompetitorsPage() {
         const normalized: Competitors[] = (data || []).map((competitor: any) => ({
           id: competitor.id,
           display_name: competitor.username,
-          last_checked: competitor.last_checked?.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
-          total_posts: 0,
+          last_checked: competitor.last_checked ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
+          total_posts: competitor.total_posts,
           profiles: [{
             id: competitor.id,
             platform: competitor.platform,
             handle: competitor.username,
             profile_url: competitor.profile_url,
-            followers: competitor.followers?.Valid ? Number(competitor.followers.Int64) : 0,
-            engagement_rate: competitor.engagement_rate?.Valid ? parseFloat(competitor.engagement_rate.String) : 0,
-            growth_rate: competitor.growth_rate?.Valid ? parseFloat(competitor.growth_rate.String) : 0,
-            posting_frequency: competitor.posting_frequency?.Valid ? parseFloat(competitor.posting_frequency.String) : 0,
-            last_checked: competitor.last_checked?.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
+            followers: competitor.followers ? Number(competitor.followers) : 0,
+            engagement_rate: competitor.engagement_rate ? parseFloat(competitor.engagement_rate) : 0,
+            growth_rate: competitor.growth_rate ? parseFloat(competitor.growth_rate) : 0,
+            posting_frequency: competitor.posting_frequency ? parseFloat(competitor.posting_frequency) : 0,
+            last_checked: competitor.last_checked ? new Date(competitor.last_checked).toLocaleDateString() : null,
           }],
         }));
         setCompetitors(normalized);
+        console.log("COMPETITOR", competitors)
       }
     } catch (e: any) {
       console.error("Could not fetch competitors:", e);
