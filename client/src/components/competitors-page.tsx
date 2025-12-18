@@ -22,7 +22,6 @@ import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 
 import { CgComment } from "react-icons/cg";
-
 import { socialPlatforms } from "@/components/socialPlatforms";
 
 interface Profile {
@@ -102,15 +101,17 @@ export function CompetitorsPage() {
     });
   };
 
+  
+
   const fetchCompetitorsPosts = async () => {
     try {
-      const res = await fetch(`/api/competitors/posts`, {
+      const res = await fetch(`/api/competitors/posts?group_id=${activeGroup?.ID}`, {
         method: "GET",
         headers: { 'Content-Type': "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
       const data = await res.json();
-      console.log("DATA", data)
+
       const normalized: CompetitorPost[] = data.map((post: any) => ({
         id: post.id,
         competitor_id: post.competitor_id,
@@ -126,7 +127,7 @@ export function CompetitorsPage() {
       setCompetitorsPosts(normalized);
 
     } catch (e: any) {
-      throw new Error(e || "Could not fetch competitors posts");
+      throw new Error(e || "error getting posts");
     }
   }
 
@@ -179,13 +180,31 @@ export function CompetitorsPage() {
     }
   }
   useEffect(() => {
-    fetchCompetitors();
-    fetchCompetitorsPosts();
-  }, []);
+    if (activeGroup?.ID) {
+      fetchCompetitors();
+      fetchCompetitorsPosts();
+    }
+  }, [activeGroup]);
+
+  if (!activeGroup) {
+    return (
+      <div className="flex justify-center w-full h-[45px] text-center">
+        <div className="flex gap-2 p-2 border border-red-500 border-dashed">
+          <div className=" w-[30px] h-[30px] flex justify-center items-center rounded-lg">
+
+            <TriangleAlert className="text-yellow-400"></TriangleAlert>
+          </div>
+          <h1 className="font-semibold">Please select a group to continue </h1>
+        </div>
+      </div>
+    );
+  }
+
   return (
+
     <div className="flex-1 pt-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Competitors</h2>
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Competitors</h2>
         <div className="flex items-center space-x-2">
           <div className={'mr-2'}>
             <CompetitorAddForm />
@@ -333,7 +352,7 @@ export function CompetitorsPage() {
                                 </div>
                               </div>
 
-                              <div className="flex w-[160px] ml-5 items-center gap-4">
+                              <div className="flex w-full sm:w-[160px] sm:ml-5 items-center gap-4">
                                 <div className="w-full">
                                   <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium">Avg Engagement</span>
@@ -381,19 +400,19 @@ export function CompetitorsPage() {
 
                       {isExpanded && (
                         <div className="pt-6 mt-6 border-t">
-                          <h4 className="text-sm font-medium text-neutral-400 mb-4">Platform Stats</h4>
+                          <h4 className="mb-4 text-sm font-medium text-neutral-400">Platform Stats</h4>
                           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                             {(competitor.profiles || []).map((profile) => {
                               const platform = socialPlatforms.find(p => p.id.toLowerCase() === profile.platform.toLowerCase());
                               const Icon = platform?.icon;
                               return (
-                                <div key={profile.id} className="flex items-center gap-4 p-4 bg-neutral-800/50 rounded-lg">
+                                <div key={profile.id} className="flex items-center gap-4 p-4 rounded-lg bg-neutral-800/50">
                                   <div className={`p-2 rounded-lg ${platform?.color || 'bg-gray-600'}`}>
                                     {Icon && <Icon className="w-5 h-5 text-white" />}
                                   </div>
                                   <div className="flex-1">
                                     <p className="font-medium text-white">{profile.handle}</p>
-                                    <p className="text-xs text-neutral-400 capitalize">{profile.platform}</p>
+                                    <p className="text-xs capitalize text-neutral-400">{profile.platform}</p>
                                   </div>
                                   <div className="text-right">
                                     <p className="font-semibold text-white">{formatNumber(profile.followers || 0)}</p>
@@ -407,7 +426,7 @@ export function CompetitorsPage() {
                               );
                             })}
                             {(!competitor.profiles || competitor.profiles.length === 0) && (
-                              <div className="col-span-full py-8 text-center">
+                              <div className="py-8 text-center col-span-full">
                                 <span className="text-neutral-400">No platforms connected. Click Edit to add platforms.</span>
                               </div>
                             )}

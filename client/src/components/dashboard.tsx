@@ -83,7 +83,7 @@ export function Dashboard() {
     const token = localStorage.getItem("token");
     if (!localStorage.getItem("userID")) {
       try {
-        console.log("Fetching userid...");
+        // console.log("Fetching userid...");
         const response = await fetch(`/api/UserID`, {
           method: "POST",
           headers: { 'Content-Type': "application/json", "Authorization": `Bearer ${token}` },

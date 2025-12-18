@@ -183,7 +183,7 @@ export default function LLMTestPage() {
                                 ) : (
                                     <div className="space-y-2">
                                         <Label className="text-red-400">Error Details:</Label>
-                                        <div className="p-4 text-sm border rounded-lg bg-red-950/20 border-red-900/50 text-red-300">
+                                        <div className="p-4 text-sm text-red-300 border rounded-lg bg-red-950/20 border-red-900/50">
                                             {response.error}
                                         </div>
                                     </div>

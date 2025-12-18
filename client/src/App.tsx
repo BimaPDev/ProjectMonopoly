@@ -16,15 +16,14 @@ import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Settings from "./app/settings/page";
-import GameContextPage from "./app/gameContext/page";
+import GameContextPage from "./app/gamecontext/page.tsx";
 import LLMTestPage from "./app/llmTest/page.tsx";
 import SocialMedia from "./app/settings/socialMedia/page.tsx";
 
-// Add the GroupProvider import
-import { GroupProvider } from "./components/groupContext.tsx"; // Adjust the path as needed
+import { GroupProvider } from "./components/groupContext.tsx"; 
 import { Toaster } from "@/components/ui/toaster";
 
-// Add your Google Client ID here
+
 const googleClientId =
   "1054535744463-vofp68rffke3c3m9r1o4vaq6ss0iggt1.apps.googleusercontent.com";
 
@@ -61,9 +60,9 @@ function App() {
               path="/dashboard/settings"
               element={<Settings />}
             />
-            <Route 
+            <Route
               path="/dashboard/settings/socialmedia"
-              element={<SocialMedia/>}
+              element={<SocialMedia />}
             />
             <Route
               path="/dashboard/gamecontext"

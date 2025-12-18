@@ -358,7 +358,7 @@ export default function SocialMedia() {
                     {/* Groups Section */}
                     <div className="space-y-6 xl:col-span-2">
                         {/* Groups Header */}
-                        <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">
+                        <div className="p-6 bg-black border border-gray-800 rounded-xl">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
                                     <div className="p-3 rounded-lg bg-blue-500/10">
@@ -368,7 +368,7 @@ export default function SocialMedia() {
                                 </div>
                                 <button
                                     onClick={fetchGroups}
-                                    className="flex items-center gap-2 px-4 py-2 text-gray-300 transition-colors bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 hover:text-white hover:border-gray-600"
+                                    className="flex items-center gap-2 px-4 py-2 text-gray-300 transition-colors bg-black border border-gray-700 rounded-lg hover:bg-black hover:text-white hover:border-gray-600"
                                 >
                                     <RefreshCw className={`w-4 h-4 ${isFetchingGroups ? 'animate-spin' : ''}`} />
                                     Refresh Groups
@@ -378,7 +378,7 @@ export default function SocialMedia() {
 
                         {/* Groups Content */}
                         {isFetchingGroups ? (
-                            <div className="p-12 bg-gray-900 border border-gray-800 rounded-xl">
+                            <div className="p-12 bg-black border border-gray-800 rounded-xl">
                                 <div className="text-center">
                                     <div className="inline-flex items-center gap-3 text-gray-400">
                                         <div className="w-8 h-8 border-b-2 border-blue-400 rounded-full animate-spin"></div>
@@ -389,9 +389,9 @@ export default function SocialMedia() {
                         ) : (
                             <div className="space-y-4">
                                 {groups.length === 0 ? (
-                                    <div className="p-12 bg-gray-900 border border-gray-800 rounded-xl">
+                                    <div className="p-12 bg-black border border-gray-800 rounded-xl">
                                         <div className="text-center">
-                                            <div className="inline-block p-4 mb-4 rounded-full bg-gray-800/50">
+                                            <div className="inline-block p-4 mb-4 border rounded-full bg-black border-gray-800">
                                                 <Users className="w-8 h-8 text-gray-400" />
                                             </div>
                                             <p className="mb-2 text-lg text-gray-300">No groups found</p>
@@ -415,7 +415,7 @@ export default function SocialMedia() {
                                                 }}
                                                 className={`p-6 rounded-xl cursor-pointer transition-all duration-300 border ${selectedGroup?.ID === group.ID
                                                     ? 'border-blue-500/50 bg-blue-900/10 shadow-lg shadow-blue-500/10'
-                                                    : 'border-gray-800 bg-gray-900 hover:border-gray-700 hover:bg-gray-800/50'
+                                                    : 'border-gray-800 bg-black hover:border-gray-700 hover:bg-black'
                                                     }`}
                                             >
                                                 <h3 className="mb-1 font-medium text-white">{group.name}</h3>
@@ -426,7 +426,7 @@ export default function SocialMedia() {
                                 )}
                             </div>
                         )}
-                        <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">
+                        <div className="p-6 bg-black border border-gray-800 rounded-xl">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-3 rounded-lg bg-purple-500/10">
                                     <UserRoundPen className="w-6 h-6 text-purple-400" />
@@ -443,7 +443,7 @@ export default function SocialMedia() {
                                     {groupItems.map(item => {
                                         const isEditing = editingItem === (item.ID + item.Platform);
                                         return (
-                                            <div key={item.ID + item.Platform} className="p-4 border border-gray-800 rounded-lg">
+                                            <div key={item.ID + item.Platform} className="p-4 border border-gray-800 rounded-lg bg-black">
                                                 {isEditing ? (
                                                     <div className="space-y-4">
                                                         <div>
@@ -452,7 +452,7 @@ export default function SocialMedia() {
                                                                 value={editForm.Username}
                                                                 onChange={(e) => setEditForm(prev => ({ ...prev, Username: e.target.value }))}
                                                                 placeholder="Username"
-                                                                className="w-full p-3 text-white bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
+                                                                className="w-full p-3 text-white bg-black border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
                                                             />
                                                         </div>
                                                         <div className='w-full'>
@@ -463,7 +463,7 @@ export default function SocialMedia() {
                                                                     onChange={(e) => setEditForm(prev => ({ ...prev, Password: e.target.value }))}
                                                                     placeholder="Password"
                                                                     type={showPass ? 'text' : 'password'}
-                                                                    className="w-full p-3 pr-10 text-white bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
+                                                                    className="w-full p-3 pr-10 text-white bg-black border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
                                                                 />
                                                                 <div className='flex justify-end w-full'>
                                                                     <button
@@ -542,7 +542,7 @@ export default function SocialMedia() {
                     {/* Right Sidebar */}
                     <div className="space-y-6">
                         {/* Add Social Media Login */}
-                        <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">
+                        <div className="p-6 bg-black border border-gray-800 rounded-xl">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-3 rounded-lg bg-emerald-500/10">
                                     <UserPlus className="w-6 h-6 text-emerald-400" />
@@ -575,7 +575,7 @@ export default function SocialMedia() {
                                             name="username"
                                             value={membershipForm.username}
                                             onChange={(e) => setMembershipForm(prev => ({ ...prev, [e.target.name]: e.target.value }))}
-                                            className="w-full p-3 text-white bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
+                                            className="w-full p-3 text-white bg-black border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
                                             placeholder="Enter username or email"
                                         />
                                     </div>
@@ -590,7 +590,7 @@ export default function SocialMedia() {
                                             name="password"
                                             value={membershipForm.password}
                                             onChange={(e) => setMembershipForm(prev => ({ ...prev, [e.target.name]: e.target.value }))}
-                                            className="w-full p-3 text-white bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
+                                            className="w-full p-3 text-white bg-black border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400"
                                             placeholder="Enter password"
                                         />
                                     </div>
@@ -600,15 +600,15 @@ export default function SocialMedia() {
                                         <Select
                                             onValueChange={(value) => setMembershipForm(prev => ({ ...prev, platform: value }))}
                                         >
-                                            <SelectTrigger className="text-white bg-gray-800 border-gray-700">
+                                            <SelectTrigger className="text-white bg-black border-gray-700">
                                                 <SelectValue placeholder="Select a platform" />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-gray-800 border-gray-700">
+                                            <SelectContent className="bg-black border-gray-700">
                                                 {socialPlatforms.map((platform) => (
                                                     <SelectItem
                                                         key={platform.id}
                                                         value={platform.name}
-                                                        className="text-white hover:bg-gray-700"
+                                                        className="text-white hover:bg-black hover:border-gray-600"
                                                     >
                                                         <div className="flex items-center gap-2">
                                                             <div

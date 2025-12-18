@@ -361,10 +361,10 @@ def upload_posts_to_db(json_file_path):
                     # Insert or update post using caption-based deduplication
                     cur.execute("""
                         INSERT INTO competitor_posts (
-                            competitor_id, platform, post_id, content, media,
+                            competitor_id,username, platform, post_id, content, media,
                             posted_at, engagement, hashtags, scraped_at, caption_hash
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s,%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (platform, post_id) DO UPDATE SET
                             competitor_id = EXCLUDED.competitor_id,
                             content = EXCLUDED.content,
@@ -374,7 +374,9 @@ def upload_posts_to_db(json_file_path):
                             hashtags = EXCLUDED.hashtags,
                             scraped_at = EXCLUDED.scraped_at
                     """, (
-                        competitor_id,'instagram',
+                        competitor_id,
+                        username,
+                        'instagram',
                         post_id,post.get('caption', ''),
                         json.dumps(media_data),posted_at,
                         json.dumps(engagement),post.get('hashtags', []),

@@ -32,7 +32,7 @@ export function TeamSwitcher() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [hasFetched, setHasFetched] = React.useState(false);
 
-  // First effect - load userID from localStorage when component mounts
+
   React.useEffect(() => {
     try {
       const storedUserID = localStorage.getItem("userID");
@@ -40,7 +40,7 @@ export function TeamSwitcher() {
         const parsedUserID = Number(storedUserID);
         setUserID(parsedUserID);
       } else {
-        setUserID(1); // Default testing ID
+        setUserID(1);
       }
     } catch (err) {
       console.error('Error accessing localStorage:', err);
@@ -48,7 +48,7 @@ export function TeamSwitcher() {
     }
   }, []);
 
-  // Second effect - fetch groups whenever userID changes
+
   React.useEffect(() => {
     if (userID !== null && !hasFetched) {
       fetchGroups();
@@ -87,8 +87,8 @@ export function TeamSwitcher() {
       setGroups(data);
 
       // Set active group if there are groups available and no active group is set
-      // Check for both null and undefined, and ensure we have groups
-      if (data.length > 0 && (!activeGroup || activeGroup === null)) {
+      if (data.length > 0 && !activeGroup) {
+        console.log('Setting first group as active:', data[0]);
         setActiveGroup(data[0]);
       }
 
@@ -114,7 +114,7 @@ export function TeamSwitcher() {
     try {
       const res = await fetch(`/api/groups`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ userID, name, description }),
       });
 
@@ -139,10 +139,10 @@ export function TeamSwitcher() {
             setIsOpen(!isOpen);
           }}>
             <SidebarMenuButton size="lg">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
-                <Users className="h-4 w-4" />
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
+                <Users className="w-4 h-4" />
               </div>
-              <div className="flex-1 text-left text-sm leading-tight">
+              <div className="flex-1 text-sm leading-tight text-left">
                 <span className="font-semibold">
                   {loading
                     ? "Loading..."
@@ -158,7 +158,7 @@ export function TeamSwitcher() {
                   </span>
                 )}
               </div>
-              <ChevronsUpDown className="h-4 w-4" />
+              <ChevronsUpDown className="w-4 h-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
 
@@ -194,8 +194,8 @@ export function TeamSwitcher() {
                       setIsOpen(false);
                     }}
                   >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-                      <Users className="h-4 w-4" />
+                    <div className="flex items-center justify-center w-6 h-6 bg-white border rounded-lg border-zinc-200 dark:border-zinc-800 dark:bg-zinc-950">
+                      <Users className="w-4 h-4" />
                     </div>
                     <span className="ml-2">{g.name}</span>
                   </DropdownMenuItem>
@@ -206,7 +206,7 @@ export function TeamSwitcher() {
             <DropdownMenuSeparator />
 
             <DropdownMenuItem onClick={createGroup} key="create">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="w-4 h-4 mr-2" />
               Create Group
             </DropdownMenuItem>
           </DropdownMenuContent>
