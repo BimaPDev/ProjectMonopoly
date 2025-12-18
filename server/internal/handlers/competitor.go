@@ -47,27 +47,46 @@ func CreateCompetitor(c *gin.Context, queries *db.Queries) {
 		return
 	}
 
-	// Check if competitor already exists
+	// Check if competitor already exists by platform and username
 	var competitor db.Competitor
+	var profileID string
 	existing, err := queries.GetCompetitorByPlatformUsername(c.Request.Context(), db.GetCompetitorByPlatformUsernameParams{
 		Platform: parsed.Platform,
 		Lower:    parsed.Username,
 	})
 	if err == nil {
 		competitor = existing
-	} else {
-		// Create new competitor if not found
-		newComp, err := queries.CreateCompetitor(c.Request.Context(), db.CreateCompetitorParams{
-			Platform:   parsed.Platform,
-			Username:   parsed.Username,
-			ProfileUrl: parsed.ProfileURL,
+		// Get the profile for response (optional, just for profile_url)
+		profile, profErr := queries.GetProfileByCompetitorAndPlatform(c.Request.Context(), db.GetProfileByCompetitorAndPlatformParams{
+			CompetitorID: competitor.ID,
+			Platform:     parsed.Platform,
 		})
+		if profErr == nil {
+			profileID = profile.ID.String()
+		}
+	} else {
+		// Create new competitor entity (just display_name)
+		newComp, err := queries.CreateCompetitor(c.Request.Context(), sql.NullString{String: parsed.Username, Valid: true})
 		if err != nil {
 			log.Printf("❌ Failed to create competitor: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create competitor"})
 			return
 		}
 		competitor = newComp
+
+		// Create competitor profile with platform, handle, profile_url
+		profile, err := queries.CreateCompetitorProfile(c.Request.Context(), db.CreateCompetitorProfileParams{
+			CompetitorID: competitor.ID,
+			Platform:     parsed.Platform,
+			Handle:       parsed.Username,
+			ProfileUrl:   sql.NullString{String: parsed.ProfileURL, Valid: parsed.ProfileURL != ""},
+		})
+		if err != nil {
+			log.Printf("❌ Failed to create competitor profile: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create competitor profile"})
+			return
+		}
+		profileID = profile.ID.String()
 	}
 
 	// Convert groupID into sql.NullInt32
@@ -97,14 +116,21 @@ func CreateCompetitor(c *gin.Context, queries *db.Queries) {
 		return
 	}
 
-	// Success response
+	// Success response - use new field names
+	displayName := parsed.Username
+	if competitor.DisplayName.Valid {
+		displayName = competitor.DisplayName.String
+	}
+
 	resp := map[string]interface{}{
 		"message": "Competitor added",
 		"competitor": map[string]interface{}{
 			"id":           competitor.ID,
-			"platform":     competitor.Platform,
-			"username":     competitor.Username,
-			"profile_url":  competitor.ProfileUrl,
+			"platform":     parsed.Platform,
+			"username":     parsed.Username,
+			"display_name": displayName,
+			"profile_url":  parsed.ProfileURL,
+			"profile_id":   profileID,
 			"last_checked": competitor.LastChecked,
 		},
 	}

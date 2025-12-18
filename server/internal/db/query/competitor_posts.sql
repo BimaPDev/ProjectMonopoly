@@ -50,7 +50,8 @@ SELECT
   cp.content,
   cp.posted_at,
   cp.engagement,
-  c.username as competitor_username,
+  c.display_name as competitor_name,
+  cpr.handle as competitor_handle,
   -- Calculate relevance score for ranking
   CASE
     WHEN to_tsvector('english', COALESCE(cp.content, '')) @@ websearch_to_tsquery('english', $3) THEN 3
@@ -59,6 +60,7 @@ SELECT
   END as relevance
 FROM competitor_posts cp
 JOIN competitors c ON c.id = cp.competitor_id
+JOIN competitor_profiles cpr ON cpr.id = cp.profile_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
@@ -82,9 +84,11 @@ SELECT
   cp.content,
   cp.posted_at,
   cp.engagement,
-  c.username as competitor_username
+  c.display_name as competitor_name,
+  cpr.handle as competitor_handle
 FROM competitor_posts cp
 JOIN competitors c ON c.id = cp.competitor_id
+JOIN competitor_profiles cpr ON cpr.id = cp.profile_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
@@ -94,13 +98,15 @@ LIMIT $3;
 -- name: GetCompetitorAnalytics :many
 SELECT
   c.id,
-  c.platform,
-  c.username,
-  c.followers,
-  c.engagement_rate,
-  c.growth_rate,
-  c.posting_frequency
+  c.display_name,
+  cpr.platform,
+  cpr.handle,
+  cpr.followers,
+  cpr.engagement_rate,
+  cpr.growth_rate,
+  cpr.posting_frequency
 FROM competitors c
+JOIN competitor_profiles cpr ON cpr.competitor_id = c.id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL);
