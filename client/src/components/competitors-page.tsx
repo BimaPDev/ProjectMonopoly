@@ -20,8 +20,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 import { useEffect, useState } from "react";
-
-import { CgComment } from "react-icons/cg";
+import { useGroup } from "./groupContext";
+import { TriangleAlert } from "lucide-react";
 import { socialPlatforms } from "@/components/socialPlatforms";
 
 interface Profile {
@@ -88,7 +88,8 @@ export function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitors[]>([]);
   const [expandedCompetitors, setExpandedCompetitors] = useState<Set<string>>(new Set());
   const [editingCompetitor, setEditingCompetitor] = useState<Competitors | null>(null);
-
+  const { activeGroup } = useGroup();
+  const [postsHeight, setPostsHeight] = useState<{ [key: string]: number }>({});
   const toggleCompetitorPosts = (competitorId: string) => {
     setExpandedCompetitors(prev => {
       const newSet = new Set(prev);
@@ -101,7 +102,7 @@ export function CompetitorsPage() {
     });
   };
 
-  
+
 
   const fetchCompetitorsPosts = async () => {
     try {
@@ -130,7 +131,25 @@ export function CompetitorsPage() {
       throw new Error(e || "error getting posts");
     }
   }
+  const handleResize = (competitorId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = postsHeight[competitorId] || 320;
 
+    const doDrag = (e: MouseEvent) => {
+      const delta = e.clientY - startY;
+      const newHeight = Math.max(200, Math.min(800, startHeight + delta));
+      setPostsHeight(prev => ({ ...prev, [competitorId]: newHeight }));
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  }
   const fetchCompetitors = async () => {
     try {
       // Try new API first, fallback to legacy
