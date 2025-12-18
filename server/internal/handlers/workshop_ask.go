@@ -211,10 +211,10 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					var targetCompetitorID uuid.UUID
 					foundMatch := false
 					for _, comp := range userCompetitors {
-						if containsAnyFold(comp.Username, mentionedCompetitor) {
+						if containsAnyFold(comp.DisplayName.String, mentionedCompetitor) {
 							targetCompetitorID = comp.ID
 							foundMatch = true
-							fmt.Printf("Found matching competitor: %s (ID: %s)\n", comp.Username, targetCompetitorID.String())
+							fmt.Printf("Found matching competitor: %s (ID: %s)\n", comp.DisplayName.String, targetCompetitorID.String())
 							break
 						}
 					}
@@ -236,15 +236,23 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 										Content:      post.Content,
 										PostedAt:     post.PostedAt,
 										Engagement:   post.Engagement,
-										CompetitorUsername: func() string {
-											// Get the username from competitors list
-											for _, c := range userCompetitors {
-												if c.ID == targetCompetitorID {
-													return c.Username
-												}
-											}
-											return ""
-										}(),
+										CompetitorHandle: func() string {
+// Get the display name from competitors list
+for _, c := range userCompetitors {
+if c.ID == targetCompetitorID {
+return c.DisplayName.String
+}
+}
+return ""
+}(),
+CompetitorName: func() sql.NullString {
+for _, c := range userCompetitors {
+if c.ID == targetCompetitorID {
+return c.DisplayName
+}
+}
+return sql.NullString{}
+}(),
 										Relevance: 0,
 									})
 								}
@@ -269,15 +277,16 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					fmt.Printf("GetRecentCompetitorPosts found %d posts\n", len(recentPosts))
 					for _, rp := range recentPosts {
 						compPosts = append(compPosts, db.SearchCompetitorPostsRow{
-							ID:                 rp.ID,
-							CompetitorID:       rp.CompetitorID,
-							Platform:           rp.Platform,
-							PostID:             rp.PostID,
-							Content:            rp.Content,
-							PostedAt:           rp.PostedAt,
-							Engagement:         rp.Engagement,
-							CompetitorUsername: rp.CompetitorUsername,
-							Relevance:          0,
+							ID:               rp.ID,
+							CompetitorID:     rp.CompetitorID,
+							Platform:         rp.Platform,
+							PostID:           rp.PostID,
+							Content:          rp.Content,
+							PostedAt:         rp.PostedAt,
+							Engagement:       rp.Engagement,
+							CompetitorHandle: rp.CompetitorHandle,
+							CompetitorName:   rp.CompetitorName,
+							Relevance:        0,
 						})
 					}
 				}
@@ -431,9 +440,8 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					postedAt = cp.PostedAt.Time.Format("2006-01-02")
 				}
 
-				// Cite as [CP1], [CP2] etc.
 				fmt.Fprintf(&b, "[CP%d] %s (%s) @%s: %s\n\n",
-					i+1, cp.Platform, postedAt, cp.CompetitorUsername, content)
+					i+1, cp.Platform, postedAt, cp.CompetitorHandle, content)
 
 				hits = append(hits, askHit{
 					DocumentID: fmt.Sprintf("post:%s:%s", cp.Platform, cp.PostID),
@@ -453,7 +461,11 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 		if err == nil && len(compAnalytics) > 0 {
 			b.WriteString("=== Competitor Analytics ===\n")
 			for _, ca := range compAnalytics {
-				fmt.Fprintf(&b, "Competitor: %s (%s)\n", ca.Username, ca.Platform)
+				displayName := ca.Handle
+				if ca.DisplayName.Valid {
+					displayName = ca.DisplayName.String
+				}
+				fmt.Fprintf(&b, "Competitor: %s (%s)\n", displayName, ca.Platform)
 				if ca.Followers.Valid {
 					fmt.Fprintf(&b, "  Followers: %d\n", ca.Followers.Int64)
 				}
@@ -490,9 +502,8 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 				if rp.PostedAt.Valid {
 					postedAt = rp.PostedAt.Time.Format("2006-01-02")
 				}
-				// Use [RCPx] for Recent Competitor Post to distinguish from search hits
 				fmt.Fprintf(&b, "[RCP%d] %s (%s) @%s: %s\n\n",
-					i+1, rp.Platform, postedAt, rp.CompetitorUsername, content)
+					i+1, rp.Platform, postedAt, rp.CompetitorHandle, content)
 			}
 		}
 
@@ -846,13 +857,13 @@ func extractCompetitorName(question string) string {
 	// Common patterns that might indicate a competitor mention:
 	// "like Cbum's", "from Cbum", "Cbum's posts", etc.
 	patterns := []string{
-		`like\s+(\w+)'?s?`,      // "like Cbum's"
-		`from\s+(\w+)`,          // "from Cbum"
-		`@(\w+)`,                // "@cbum"
-		`(\w+)'?s?\s+posts?`,    // "Cbum's posts"
-		`(\w+)'?s?\s+content`,   // "Cbum's content"
-		`style\s+of\s+(\w+)`,    // "style of Cbum"
-		`similar\s+to\s+(\w+)`,  // "similar to Cbum"
+		`like\s+(\w+)'?s?`,     // "like Cbum's"
+		`from\s+(\w+)`,         // "from Cbum"
+		`@(\w+)`,               // "@cbum"
+		`(\w+)'?s?\s+posts?`,   // "Cbum's posts"
+		`(\w+)'?s?\s+content`,  // "Cbum's content"
+		`style\s+of\s+(\w+)`,   // "style of Cbum"
+		`similar\s+to\s+(\w+)`, // "similar to Cbum"
 	}
 
 	for _, pattern := range patterns {
