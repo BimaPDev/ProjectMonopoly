@@ -1,12 +1,11 @@
 "use client";
 
-import * as React from "react";
 import {
   BarChart3,
-
-  Radio, ChevronUp, ChevronDown, Heart, Share,
+  Radio, ChevronUp, ChevronDown, Heart, Share, Pencil,
 } from "lucide-react";
 import CompetitorAddForm from "@/components/competitorAddForm.tsx"
+import CompetitorEditModal from "@/components/CompetitorEditModal"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -21,21 +20,36 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 import { useEffect, useState } from "react";
-
-import { CgComment } from "react-icons/cg";
-import { socialPlatforms } from "@/components/socialPlatforms";
 import { useGroup } from "./groupContext";
 import { TriangleAlert } from "lucide-react";
+import { socialPlatforms } from "@/components/socialPlatforms";
+
+interface Profile {
+  id: string;
+  platform: string;
+  handle: string;
+  profile_url: string;
+  followers: number;
+  engagement_rate: number;
+  growth_rate: number;
+  posting_frequency: number;
+  last_checked: string | null;
+}
+
 interface Competitors {
   id: string,
-  platform: string,
-  username: string,
-  profile_url: string,
+  display_name: string,
   last_checked: string | null,
-  followers: number | 0,
-  engagement_rate: number | 0,
-  growth_rate: number | 0,
-  posting_frequency: number | 0,
+  total_posts: number | 0,
+  profiles: Profile[],
+  // Legacy fields for backwards compatibility
+  platform?: string,
+  username?: string,
+  profile_url?: string,
+  followers?: number | 0,
+  engagement_rate?: number | 0,
+  growth_rate?: number | 0,
+  posting_frequency?: number | 0,
 }
 interface CompetitorPost {
   id: number;
@@ -47,7 +61,7 @@ interface CompetitorPost {
   posted_at: string | null;
   engagement: {
     likes: number;
-    shares: number;
+    shares?: number;
     comments: number;
   } | null;
   hashtags: string[];
@@ -73,6 +87,7 @@ export function CompetitorsPage() {
   const [competitorsPost, setCompetitorsPosts] = useState<CompetitorPost[]>([]);
   const [competitors, setCompetitors] = useState<Competitors[]>([]);
   const [expandedCompetitors, setExpandedCompetitors] = useState<Set<string>>(new Set());
+  const [editingCompetitor, setEditingCompetitor] = useState<Competitors | null>(null);
   const { activeGroup } = useGroup();
   const [postsHeight, setPostsHeight] = useState<{ [key: string]: number }>({});
   const toggleCompetitorPosts = (competitorId: string) => {
@@ -87,7 +102,7 @@ export function CompetitorsPage() {
     });
   };
 
-  
+
 
   const fetchCompetitorsPosts = async () => {
     try {
@@ -103,9 +118,9 @@ export function CompetitorsPage() {
         competitor_id: post.competitor_id,
         platform: post.platform,
         content: post.content.Valid ? post.content.String : null,
-        media: post.media.Valid ? post.media.RawMessage : null,
+        media: post.media,
         posted_at: post.posted_at.Valid ? post.posted_at.Time : null,
-        engagement: post.engagement.Valid ? post.engagement.RawMessage : null,
+        engagement: post.engagement,
         hashtags: post.hashtags,
 
       }));
@@ -115,42 +130,6 @@ export function CompetitorsPage() {
     } catch (e: any) {
       throw new Error(e || "error getting posts");
     }
-  }
-
-  const fetchCompetitors = async () => {
-    try {
-      const res = await fetch(`/api/groups/${activeGroup?.ID || "1"}/competitors`, {
-        method: "GET",
-        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
-      console.log("DATA", data)
-      const normalized: Competitors[] = data.map((competitor: any) => ({
-        id: competitor.id,
-        platform: competitor.platform,
-        username: competitor.username,
-        profile_url: competitor.profile_url,
-        followers: competitor.followers.Valid ? Number(competitor.followers.Int64) : 0,
-        last_checked: competitor.last_checked.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : "",
-        engagement_rate: competitor.engagement_rate?.Valid
-          ? parseFloat(competitor.engagement_rate.String)
-          : 0,
-
-        growth_rate: competitor.growth_rate?.Valid
-          ? parseFloat(competitor.growth_rate.String)
-          : 0,
-
-        posting_frequency: competitor.posting_frequency?.Valid
-          ? parseFloat(competitor.posting_frequency.String)
-          : 0,
-      }));
-      setCompetitors(normalized)
-
-    } catch (e: any) {
-      throw new Error(e || "error getting competitor");
-
-    }
-
   }
   const handleResize = (competitorId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -170,6 +149,55 @@ export function CompetitorsPage() {
 
     document.addEventListener('mousemove', doDrag);
     document.addEventListener('mouseup', stopDrag);
+  }
+  const fetchCompetitors = async () => {
+    try {
+      // Try new API first, fallback to legacy
+      let res = await fetch(`/api/competitors/with-profiles`, {
+        method: "GET",
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const normalized: Competitors[] = (data || []).map((competitor: any) => ({
+          id: competitor.id,
+          display_name: competitor.display_name || competitor.username || 'Unknown',
+          last_checked: competitor.last_checked?.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
+          total_posts: competitor.total_posts?.Valid ? Number(competitor.total_posts.Int64) : 0,
+          profiles: competitor.profiles || [],
+        }));
+        setCompetitors(normalized);
+      } else {
+        // Fallback to legacy endpoint
+        res = await fetch(`/api/groups/competitors`, {
+          method: "GET",
+          headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await res.json();
+        const normalized: Competitors[] = (data || []).map((competitor: any) => ({
+          id: competitor.id,
+          display_name: competitor.username,
+          last_checked: competitor.last_checked ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
+          total_posts: competitor.total_posts,
+          profiles: [{
+            id: competitor.id,
+            platform: competitor.platform,
+            handle: competitor.username,
+            profile_url: competitor.profile_url,
+            followers: competitor.followers ? Number(competitor.followers) : 0,
+            engagement_rate: competitor.engagement_rate ? parseFloat(competitor.engagement_rate) : 0,
+            growth_rate: competitor.growth_rate ? parseFloat(competitor.growth_rate) : 0,
+            posting_frequency: competitor.posting_frequency ? parseFloat(competitor.posting_frequency) : 0,
+            last_checked: competitor.last_checked ? new Date(competitor.last_checked).toLocaleDateString() : null,
+          }],
+        }));
+        setCompetitors(normalized);
+        console.log("COMPETITOR", competitors)
+      }
+    } catch (e: any) {
+      console.error("Could not fetch competitors:", e);
+    }
   }
   useEffect(() => {
     if (activeGroup?.ID) {
@@ -234,9 +262,12 @@ export function CompetitorsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {(competitors.length > 0
-                  ? (competitors.reduce((acc, curr) => acc + curr.engagement_rate, 0) / competitors.length).toFixed(2)
-                  : "0.00")}%
+                {(() => {
+                  const allProfiles = competitors.flatMap(c => c.profiles || []);
+                  if (allProfiles.length === 0) return "0.00";
+                  const avg = allProfiles.reduce((acc, p) => acc + (p.engagement_rate || 0), 0) / allProfiles.length;
+                  return avg.toFixed(2);
+                })()}%
               </div>
               <p className="text-xs text-muted-foreground">
                 Average across all competitors
@@ -252,9 +283,12 @@ export function CompetitorsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {(competitors.length > 0
-                  ? (competitors.reduce((acc, curr) => acc + curr.growth_rate, 0) / competitors.length).toFixed(2)
-                  : "0.00")}%
+                {(() => {
+                  const allProfiles = competitors.flatMap(c => c.profiles || []);
+                  if (allProfiles.length === 0) return "0.00";
+                  const avg = allProfiles.reduce((acc, p) => acc + (p.growth_rate || 0), 0) / allProfiles.length;
+                  return avg.toFixed(2);
+                })()}%
               </div>
               <p className="text-xs text-muted-foreground">growth over time</p>
             </CardContent>
@@ -268,9 +302,12 @@ export function CompetitorsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {(competitors.length > 0
-                  ? (competitors.reduce((acc, curr) => acc + curr.posting_frequency, 0) / competitors.length).toFixed(1)
-                  : "0.0")}
+                {(() => {
+                  const allProfiles = competitors.flatMap(c => c.profiles || []);
+                  if (allProfiles.length === 0) return "0.0";
+                  const avg = allProfiles.reduce((acc, p) => acc + (p.posting_frequency || 0), 0) / allProfiles.length;
+                  return avg.toFixed(1);
+                })()}
               </div>
               <p className="text-xs text-muted-foreground">posts / week</p>
             </CardContent>
@@ -290,29 +327,34 @@ export function CompetitorsPage() {
                 {competitors.map((competitor) => {
                   const posts = competitorsPost.filter(p => p.competitor_id === competitor.id);
                   const isExpanded = expandedCompetitors.has(competitor.id);
-                  // const followersCount = Number(competitor.followers);
-                  const isScraping = !competitor.last_checked;
+                  // Calculate totals from profiles
+                  const totalFollowers = competitor.profiles?.reduce((acc, p) => acc + (p.followers || 0), 0) || 0;
+                  const avgEngagement = competitor.profiles?.length
+                    ? competitor.profiles.reduce((acc, p) => acc + (p.engagement_rate || 0), 0) / competitor.profiles.length
+                    : 0;
+                  const isScraping = !competitor.last_checked || totalFollowers === 0;
 
                   return (
-                    <div key={competitor.id + competitor.username} className="p-4 border rounded-lg">
-                      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-                        <div className="flex flex-col items-start flex-1 gap-4 sm:flex-row sm:items-center">
-                          <div className="flex items-center min-w-[150px]">
+                    <div key={competitor.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center flex-1 gap-4">
+                          <div className="flex items-center w-[200px]">
                             <Avatar className="h-9 w-9">
-
                               <AvatarFallback>
-                                {competitor.username.slice(0, 2)}
+                                {(competitor.display_name || 'UN').slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col ml-4">
-                              <p className="font-semibold text-medium">{competitor.username}</p>
+                              <p className="font-semibold text-medium">{competitor.display_name}</p>
                               <span className="text-xs text-slate-600">
                                 {isScraping ? "Processing..." : competitor.last_checked}
+                              </span>
+                              <span className="text-xs text-blue-500">
+                                {competitor.profiles?.length || 0} platform(s)
                               </span>
                             </div>
                           </div>
 
-                          {/* If last_checked is null OR followers is 0, show Scraping status */}
                           {isScraping ? (
                             <div className="flex items-center justify-center flex-1">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
@@ -321,166 +363,93 @@ export function CompetitorsPage() {
                             </div>
                           ) : (
                             <>
-                              <div className="flex sm:ml-4 w-full sm:w-[100px] justify-center">
-                                <div className="flex items-center gap-4 sm:ml-3">
-                                  <div className="flex flex-col items-center">
-                                    {(() => {
-                                      const platform = socialPlatforms.find(p => p.id === competitor.platform);
-                                      const Icon = platform?.icon;
-                                      return Icon ? (
-                                        <div>
-                                          <div className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground">
-                                            <Icon className="w-4 h-4" />
-                                          </div>
-                                        </div>
-                                      ) : <span className="text-sm"> {competitor.platform}</span>;
-                                    })()}
-                                    <span className="text-sm font-medium">
-                                      {formatNumber(competitor.followers)}
-                                    </span>
-                                  </div>
+                              <div className="flex ml-4 w-[100px] justify-center">
+                                <div className="flex flex-col items-center">
+                                  <span className="text-sm font-medium">
+                                    {formatNumber(totalFollowers)}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">Total Followers</span>
                                 </div>
                               </div>
 
                               <div className="flex w-full sm:w-[160px] sm:ml-5 items-center gap-4">
                                 <div className="w-full">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium">Engagement</span>
+                                    <span className="text-sm font-medium">Avg Engagement</span>
                                     <span className="text-sm text-muted-foreground">
-                                      {competitor.engagement_rate}%
+                                      {avgEngagement.toFixed(1)}%
                                     </span>
                                   </div>
-                                  <Progress value={competitor.engagement_rate * 10} className="h-2" />
+                                  <Progress value={avgEngagement * 10} className="h-2" />
                                 </div>
-                              </div>
-
-                              <div className="flex items-center justify-between sm:ml-2">
-                                <span className={
-                                  competitor.growth_rate > 0.0
-                                    ? "text-sm font-medium text-green-600"
-                                    : "text-sm font-medium text-red-600"
-                                }>
-                                  <div className="flex items-center w-full sm:w-[100px]">
-                                    {competitor.growth_rate > 0.0 ?
-                                      <ChevronUp className="text-green-500" /> :
-                                      <ChevronDown className="text-red-500" />
-                                    }
-                                    {competitor.growth_rate}%
-                                  </div>
-                                </span>
-                              </div>
-
-                              <div className="flex flex-col items-center justify-center w-full sm:w-[100px] sm:ml-4">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-sm font-medium">{competitor.posting_frequency.toFixed(1)}</span>
-                                  <span className="text-xs text-muted-foreground">/wk</span>
-                                </div>
-                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Freq</span>
                               </div>
                             </>
                           )}
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleCompetitorPosts(competitor.id)}
-                          className="flex items-center gap-2"
-                        >
-                          {isExpanded ? (
-                            <>
-                              <ChevronUp className="w-4 h-4" />
-                              Hide Posts
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="w-4 h-4" />
-                              Show Posts ({posts.length})
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingCompetitor(competitor)}
+                            className="flex items-center gap-2"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleCompetitorPosts(competitor.id)}
+                            className="flex items-center gap-2"
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="w-4 h-4" />
+                                Hide
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-4 h-4" />
+                                Show More
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
 
                       {isExpanded && (
                         <div className="pt-6 mt-6 border-t">
-                          <div
-                            className="overflow-y-auto scrollbar-hide"
-                            style={{ maxHeight: `${postsHeight[competitor.id] || 320}px` }}>
-                            <div className="space-y-4">
-                              {posts.length > 0 ? (
-                                posts.map((post) => (
-                                  <div key={post.id} className="flex flex-col items-start gap-4 p-4 border rounded-lg ">
-                                    <div className="flex flex-col w-full gap-4 md:flex-row">
-                                      {post.media?.video ? (
-                                        <video
-                                          src={post.media.video}
-                                          className="object-cover w-full h-64 rounded-lg md:w-2/3"
-                                          muted
-                                          controls
-                                        />
-                                      ) : post.media?.image ? (
-                                        <img
-                                          src={post.media.image}
-                                          alt="Post"
-                                          className="object-cover w-full h-64 rounded-lg md:w-2/3"
-                                        />
-                                      ) : (
-                                        <div className="flex items-center justify-center w-full h-64 bg-gray-200 rounded-lg md:w-2/3">
-                                          <span className="text-lg text-gray-500">No media</span>
-                                        </div>
-                                      )}
-                                      <div className="flex flex-col flex-1 gap-4 p-4">
-                                        <div className="flex items-center gap-2">
-                                          <Heart className="w-6 h-6 text-red-500" />
-                                          <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.likes && post.engagement?.likes.toLocaleString()}
-                                            {!post.engagement?.likes && <span className="text-slate-500">No likes, or likes could be hidden</span>}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <Share className="w-6 h-6 text-blue-500" />
-                                          <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.shares && post.engagement?.shares.toLocaleString()}
-                                            {!post.engagement?.shares && <span className="text-slate-500"> No shares</span>}
-
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <CgComment className="w-6 h-6 text-green-500" />
-                                          <span className="text-base font-medium text-slate-700">
-                                            {post.engagement?.comments && post.engagement?.comments.toLocaleString()}
-                                            {!post.engagement?.comments && <span className="text-slate-500"> No comments </span>}
-
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="w-full">
-                                      <p className="text-sm leading-relaxed text-slate-600">
-                                        {post.content ? post.content : <span>No content</span>}
-                                      </p>
-                                    </div>
+                          <h4 className="mb-4 text-sm font-medium text-neutral-400">Platform Stats</h4>
+                          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                            {(competitor.profiles || []).map((profile) => {
+                              const platform = socialPlatforms.find(p => p.id.toLowerCase() === profile.platform.toLowerCase());
+                              const Icon = platform?.icon;
+                              return (
+                                <div key={profile.id} className="flex items-center gap-4 p-4 rounded-lg bg-neutral-800/50">
+                                  <div className={`p-2 rounded-lg ${platform?.color || 'bg-gray-600'}`}>
+                                    {Icon && <Icon className="w-5 h-5 text-white" />}
                                   </div>
-                                ))
-                              ) : (
-                                <div className="py-8 text-center">
-                                  <span className="text-lg text-gray-400">No posts available</span>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-white">{profile.handle}</p>
+                                    <p className="text-xs capitalize text-neutral-400">{profile.platform}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-semibold text-white">{formatNumber(profile.followers || 0)}</p>
+                                    <p className="text-xs text-neutral-400">followers</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-semibold text-green-400">{(profile.engagement_rate || 0).toFixed(1)}%</p>
+                                    <p className="text-xs text-neutral-400">engagement</p>
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-
-                          </div>
-                          <div
-                            className="flex items-center justify-center h-4 mt-2 rounded cursor-ns-resize hover:bg-gray-100"
-                            onMouseDown={(e) => handleResize(competitor.id, e)}
-                          >
-                            <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
-                          </div>
-                          <div
-                            className="flex items-center justify-center h-4 mt-2 rounded cursor-ns-resize hover:bg-gray-100"
-                            onMouseDown={(e) => handleResize(competitor.id, e)}
-                          >
-                            <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+                              );
+                            })}
+                            {(!competitor.profiles || competitor.profiles.length === 0) && (
+                              <div className="py-8 text-center col-span-full">
+                                <span className="text-neutral-400">No platforms connected. Click Edit to add platforms.</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -492,6 +461,18 @@ export function CompetitorsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editingCompetitor && (
+        <CompetitorEditModal
+          isOpen={!!editingCompetitor}
+          onClose={() => setEditingCompetitor(null)}
+          competitorId={editingCompetitor.id}
+          competitorName={editingCompetitor.display_name}
+          existingProfiles={editingCompetitor.profiles || []}
+          onSave={() => fetchCompetitors()}
+        />
+      )}
     </div >
   );
 }

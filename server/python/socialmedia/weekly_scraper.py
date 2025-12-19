@@ -48,23 +48,26 @@ class WeeklyInstagramScraper:
             with psycopg.connect(self.database_url) as conn:
                 with conn.cursor() as cur:
                     # Query for Instagram competitors that need scraping
+                    # Updated for new schema: competitors table no longer has platform/username
+                    # These are now in competitor_profiles table
                     cur.execute("""
-                        SELECT 
+                        SELECT
                             c.id,
-                            c.username,
-                            c.profile_url,
-                            c.last_checked,
-                            COUNT(cp.id) as post_count
+                            cp.handle as username,
+                            cp.profile_url,
+                            cp.last_checked,
+                            COUNT(posts.id) as post_count,
+                            cp.id as profile_id
                         FROM competitors c
-                        LEFT JOIN competitor_posts cp ON c.id = cp.competitor_id 
-                            AND cp.platform = 'instagram'
-                            AND cp.scraped_at >= NOW() - (INTERVAL '1 day' * %s)
-                        WHERE LOWER(c.platform) = 'instagram'
-                        GROUP BY c.id, c.username, c.profile_url, c.last_checked
-                        HAVING 
-                            c.last_checked IS NULL 
-                            OR c.last_checked < NOW() - (INTERVAL '1 day' * %s)
-                        ORDER BY c.last_checked ASC NULLS FIRST
+                        JOIN competitor_profiles cp ON c.id = cp.competitor_id
+                        LEFT JOIN competitor_posts posts ON cp.id = posts.profile_id
+                            AND posts.scraped_at >= NOW() - (INTERVAL '1 day' * %s)
+                        WHERE LOWER(cp.platform) = 'instagram'
+                        GROUP BY c.id, cp.handle, cp.profile_url, cp.last_checked, cp.id
+                        HAVING
+                            cp.last_checked IS NULL
+                            OR cp.last_checked < NOW() - (INTERVAL '1 day' * %s)
+                        ORDER BY cp.last_checked ASC NULLS FIRST
                     """, (self.scrape_interval_days, self.scrape_interval_days))
                     
                     competitors = []
@@ -74,7 +77,8 @@ class WeeklyInstagramScraper:
                             'username': row[1],
                             'profile_url': row[2],
                             'last_checked': row[3],
-                            'recent_post_count': row[4]
+                            'recent_post_count': row[4],
+                            'profile_id': str(row[5])
                         })
                     
                     log.info(f"📊 Found {len(competitors)} Instagram competitors to scrape")
@@ -131,8 +135,8 @@ class WeeklyInstagramScraper:
                 log.warning(f"⚠️ No posts found for @{username}")
                 return False
             
-            # Update the competitor's last_checked timestamp
-            self.update_competitor_last_checked(competitor['id'])
+            # Update the competitor profile's last_checked timestamp
+            self.update_competitor_last_checked(competitor['profile_id'])
             
             log.info(f"✅ Successfully scraped {len(posts_data)} posts for @{username}")
             return True
@@ -141,24 +145,25 @@ class WeeklyInstagramScraper:
             log.error(f"❌ Error scraping @{username}: {e}")
             return False
     
-    def update_competitor_last_checked(self, competitor_id: str):
+    def update_competitor_last_checked(self, competitor_profile_id: str):
         """
-        Update the last_checked timestamp for a competitor.
+        Update the last_checked timestamp for a competitor profile.
         This should be called after an attempt to scrape, regardless of success.
+        Updated for new schema: last_checked is now in competitor_profiles table.
         """
         try:
             with psycopg.connect(self.database_url) as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        UPDATE competitors 
-                        SET last_checked = NOW() 
+                        UPDATE competitor_profiles
+                        SET last_checked = NOW()
                         WHERE id = %s
-                    """, (competitor_id,))
+                    """, (competitor_profile_id,))
                     conn.commit()
-                    log.debug(f"Updated last_checked for competitor {competitor_id}")
-                    
+                    log.debug(f"Updated last_checked for competitor profile {competitor_profile_id}")
+
         except Exception as e:
-            log.error(f"❌ Error updating last_checked for competitor {competitor_id}: {e}")
+            log.error(f"❌ Error updating last_checked for competitor profile {competitor_profile_id}: {e}")
     
     def run_weekly_scrape(self):
         """
@@ -173,11 +178,11 @@ class WeeklyInstagramScraper:
             log.info("ℹ️ No competitors need scraping at this time")
             return
             
-        # CRITICAL: Mark all competitors as checked immediately to prevent auto_dispatch
+        # CRITICAL: Mark all competitor profiles as checked immediately to prevent auto_dispatch
         # from spawning multiple tasks for the same competitors while we are starting up.
-        log.info(f"🔒 Locking {len(competitors)} competitors to prevent duplicate scraping...")
+        log.info(f"🔒 Locking {len(competitors)} competitor profiles to prevent duplicate scraping...")
         for comp in competitors:
-            self.update_competitor_last_checked(comp['id'])
+            self.update_competitor_last_checked(comp['profile_id'])
         
         if not self.initialize_scraper():
             log.error("❌ Failed to initialize scraper, aborting weekly scrape")

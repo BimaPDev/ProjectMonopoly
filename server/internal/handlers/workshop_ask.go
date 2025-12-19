@@ -24,7 +24,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var citeRe = regexp.MustCompile(`\[(p\.|CP)(\d+)\]`)
+var citeRe = regexp.MustCompile(`\[(p\.|CP|RCP)(\d+)\]`)
 
 // ---------------- Conversation Memory (2h TTL, last 3 turns) ----------------
 
@@ -211,10 +211,10 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					var targetCompetitorID uuid.UUID
 					foundMatch := false
 					for _, comp := range userCompetitors {
-						if containsAnyFold(comp.Username, mentionedCompetitor) {
+						if containsAnyFold(comp.DisplayName.String, mentionedCompetitor) {
 							targetCompetitorID = comp.ID
 							foundMatch = true
-							fmt.Printf("Found matching competitor: %s (ID: %s)\n", comp.Username, targetCompetitorID.String())
+							fmt.Printf("Found matching competitor: %s (ID: %s)\n", comp.DisplayName.String, targetCompetitorID.String())
 							break
 						}
 					}
@@ -236,15 +236,23 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 										Content:      post.Content,
 										PostedAt:     post.PostedAt,
 										Engagement:   post.Engagement,
-										CompetitorUsername: func() string {
-											// Get the username from competitors list
-											for _, c := range userCompetitors {
-												if c.ID == targetCompetitorID {
-													return c.Username
-												}
-											}
-											return ""
-										}(),
+										CompetitorHandle: func() string {
+// Get the display name from competitors list
+for _, c := range userCompetitors {
+if c.ID == targetCompetitorID {
+return c.DisplayName.String
+}
+}
+return ""
+}(),
+CompetitorName: func() sql.NullString {
+for _, c := range userCompetitors {
+if c.ID == targetCompetitorID {
+return c.DisplayName
+}
+}
+return sql.NullString{}
+}(),
 										Relevance: 0,
 									})
 								}
@@ -269,15 +277,16 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					fmt.Printf("GetRecentCompetitorPosts found %d posts\n", len(recentPosts))
 					for _, rp := range recentPosts {
 						compPosts = append(compPosts, db.SearchCompetitorPostsRow{
-							ID:                 rp.ID,
-							CompetitorID:       rp.CompetitorID,
-							Platform:           rp.Platform,
-							PostID:             rp.PostID,
-							Content:            rp.Content,
-							PostedAt:           rp.PostedAt,
-							Engagement:         rp.Engagement,
-							CompetitorUsername: rp.CompetitorUsername,
-							Relevance:          0,
+							ID:               rp.ID,
+							CompetitorID:     rp.CompetitorID,
+							Platform:         rp.Platform,
+							PostID:           rp.PostID,
+							Content:          rp.Content,
+							PostedAt:         rp.PostedAt,
+							Engagement:       rp.Engagement,
+							CompetitorHandle: rp.CompetitorHandle,
+							CompetitorName:   rp.CompetitorName,
+							Relevance:        0,
 						})
 					}
 				}
@@ -431,9 +440,8 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					postedAt = cp.PostedAt.Time.Format("2006-01-02")
 				}
 
-				// Cite as [CP1], [CP2] etc.
 				fmt.Fprintf(&b, "[CP%d] %s (%s) @%s: %s\n\n",
-					i+1, cp.Platform, postedAt, cp.CompetitorUsername, content)
+					i+1, cp.Platform, postedAt, cp.CompetitorHandle, content)
 
 				hits = append(hits, askHit{
 					DocumentID: fmt.Sprintf("post:%s:%s", cp.Platform, cp.PostID),
@@ -441,6 +449,61 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					Index:      0,
 					Snippet:    content,
 				})
+			}
+
+		}
+
+		// Fetch and inject General Competitor Analytics
+		compAnalytics, err := q.GetCompetitorAnalytics(ctx, db.GetCompetitorAnalyticsParams{
+			UserID:  int32(userID),
+			GroupID: sql.NullInt32{Int32: ar.GroupID, Valid: true},
+		})
+		if err == nil && len(compAnalytics) > 0 {
+			b.WriteString("=== Competitor Analytics ===\n")
+			for _, ca := range compAnalytics {
+				displayName := ca.Handle
+				if ca.DisplayName.Valid {
+					displayName = ca.DisplayName.String
+				}
+				fmt.Fprintf(&b, "Competitor: %s (%s)\n", displayName, ca.Platform)
+				if ca.Followers.Valid {
+					fmt.Fprintf(&b, "  Followers: %d\n", ca.Followers.Int64)
+				}
+				if ca.EngagementRate.Valid {
+					fmt.Fprintf(&b, "  Engagement Rate: %s\n", ca.EngagementRate.String)
+				}
+				if ca.GrowthRate.Valid {
+					fmt.Fprintf(&b, "  Growth Rate: %s\n", ca.GrowthRate.String)
+				}
+				if ca.PostingFrequency.Valid {
+					fmt.Fprintf(&b, "  Posting Frequency: %s/week\n", ca.PostingFrequency.String)
+				}
+				b.WriteString("\n")
+			}
+		}
+
+		// Fetch and inject Recent Competitor Posts (Broad Context)
+		recentPosts, err := q.GetRecentCompetitorPosts(ctx, db.GetRecentCompetitorPostsParams{
+			UserID:  int32(userID),
+			GroupID: sql.NullInt32{Int32: ar.GroupID, Valid: true},
+			Limit:   15,
+		})
+		if err == nil && len(recentPosts) > 0 {
+			b.WriteString("=== Recent Competitor Posts (General Context) ===\n")
+			for i, rp := range recentPosts {
+				content := "No content"
+				if rp.Content.Valid {
+					content = rp.Content.String
+				}
+				if len(content) > 300 {
+					content = content[:300] + "..."
+				}
+				postedAt := "Unknown date"
+				if rp.PostedAt.Valid {
+					postedAt = rp.PostedAt.Time.Format("2006-01-02")
+				}
+				fmt.Fprintf(&b, "[RCP%d] %s (%s) @%s: %s\n\n",
+					i+1, rp.Platform, postedAt, rp.CompetitorHandle, content)
 			}
 		}
 
@@ -472,9 +535,10 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 		// No-context handling
 		var sys, user string
 		hasClientHistory := len(ar.History) > 0
+		hasContext := b.Len() > 0
 
 		// If client provides history, treat as conversational even without RAG context
-		if len(rows) == 0 && len(compPosts) == 0 && len(history) == 0 && !hasClientHistory {
+		if !hasContext && !hasClientHistory {
 			if !ar.AllowOutside {
 				c.JSON(http.StatusOK, askResp{
 					Answer: "No relevant context on this topic in your PDFs. Enable allow_outside or upload a relevant document.",
@@ -489,7 +553,7 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 			} else {
 				user = "Question: " + ar.Question
 			}
-		} else if hasClientHistory && len(rows) == 0 && len(compPosts) == 0 && len(history) == 0 {
+		} else if hasClientHistory && !hasContext {
 			// Client history exists but no RAG context - conversational mode
 			if mode == "opinion" {
 				sys = "You are a helpful AI assistant. Provide thoughtful recommendations and advice based on the conversation history and your general knowledge. Be practical and actionable."
@@ -563,7 +627,7 @@ func buildStrictUserPrompt(contextBlock, question string) string {
 	} else {
 		b.WriteString("Context:\n<none>\n")
 	}
-	b.WriteString("Instructions: Use ONLY the Context above. If the answer is not present, say you don't know. Cite pages like [p.X] or posts like [CPX].\n")
+	b.WriteString("Instructions: Use the Context above (Game Info, Analytics, Competitor Posts, Documents) to answer. Synthesize insights from the data to answer the question. Cite pages like [p.X], posts like [CPX], or recent posts like [RCPX].\n")
 	b.WriteString("Question: " + question)
 	return b.String()
 }
@@ -575,7 +639,7 @@ func buildContextOnly(contextBlock string) string {
 	} else {
 		b.WriteString("Context:\n<none>\n")
 	}
-	b.WriteString("Instructions: Use the Context above to answer questions. Cite pages like [p.X] or posts like [CPX] when referencing the context.\n")
+	b.WriteString("Instructions: Use the Context above to answer questions. Cite pages like [p.X], posts like [CPX], or recent posts like [RCPX] when referencing the context.\n")
 	return b.String()
 }
 
@@ -590,7 +654,9 @@ func buildOpinionUserPrompt(contextBlock string, ar askReq) string {
 	tone := orDefault(ar.Tone, "neutral")
 	b.WriteString("Task: Provide a recommendation with rationale.\n")
 	fmt.Fprintf(&b, "Tone: %s\nOutput: %s\n", tone, output)
-	fmt.Fprintf(&b, "Rules:\n- Prefer evidence from Context and cite [p.X] or [CPX].\n- allow_outside=%v. If you add outside knowledge, add a separate 'Assumptions' section.\n- If Context is insufficient and allow_outside=false, say you don’t know.\n", ar.AllowOutside)
+	fmt.Fprintf(&b, "Rules:\n- Prefer evidence from Context and cite [p.X], [CPX], or [RCPX].\n- allow_outside=%v. If you add outside knowledge, add a separate 'Assumptions' section.\n- If Context is insufficient and allow_outside=false, say you don’t know.\n", ar.AllowOutside)
+	b.WriteString("- If asked for a Social Media Strategy/Post: Structure it with headers (1. Video Script, 2. Caption, 3. Engagement Strategy). \n")
+	b.WriteString("- For Engagement Strategy: Recommend specific actions with the Competitors listed in 'Competitor Analytics' (e.g. 'Comment on @[Username]...').\n")
 	b.WriteString("Question: " + ar.Question)
 	return b.String()
 }
@@ -602,6 +668,7 @@ func buildOpinionNoContext(ar askReq) string {
 	b.WriteString("Task: Provide a recommendation with rationale.\n")
 	fmt.Fprintf(&b, "Tone: %s\nOutput: %s\n", tone, output)
 	b.WriteString("Rules:\n- No citations allowed because there is no Context.\n- Add an 'Assumptions' section for any external facts or heuristics you use.\n")
+	b.WriteString("- If asked for a Social Media Strategy: Structure it with headers (Script, Caption, Engagement).\n")
 	b.WriteString("Question: " + ar.Question)
 	return b.String()
 }
@@ -781,7 +848,7 @@ func conciseQuery(s string) string {
 		seen[w] = true
 		out = append(out, w)
 	}
-	return strings.Join(out, " ")
+	return strings.Join(out, " or ")
 }
 
 // extractCompetitorName tries to extract a competitor name from the question
@@ -790,13 +857,13 @@ func extractCompetitorName(question string) string {
 	// Common patterns that might indicate a competitor mention:
 	// "like Cbum's", "from Cbum", "Cbum's posts", etc.
 	patterns := []string{
-		`like\s+(\w+)'?s?`,      // "like Cbum's"
-		`from\s+(\w+)`,          // "from Cbum"
-		`@(\w+)`,                // "@cbum"
-		`(\w+)'?s?\s+posts?`,    // "Cbum's posts"
-		`(\w+)'?s?\s+content`,   // "Cbum's content"
-		`style\s+of\s+(\w+)`,    // "style of Cbum"
-		`similar\s+to\s+(\w+)`,  // "similar to Cbum"
+		`like\s+(\w+)'?s?`,     // "like Cbum's"
+		`from\s+(\w+)`,         // "from Cbum"
+		`@(\w+)`,               // "@cbum"
+		`(\w+)'?s?\s+posts?`,   // "Cbum's posts"
+		`(\w+)'?s?\s+content`,  // "Cbum's content"
+		`style\s+of\s+(\w+)`,   // "style of Cbum"
+		`similar\s+to\s+(\w+)`, // "similar to Cbum"
 	}
 
 	for _, pattern := range patterns {
