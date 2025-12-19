@@ -236,23 +236,15 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 										Content:      post.Content,
 										PostedAt:     post.PostedAt,
 										Engagement:   post.Engagement,
-										CompetitorHandle: func() string {
-// Get the display name from competitors list
-for _, c := range userCompetitors {
-if c.ID == targetCompetitorID {
-return c.DisplayName.String
-}
-}
-return ""
-}(),
-CompetitorName: func() sql.NullString {
-for _, c := range userCompetitors {
-if c.ID == targetCompetitorID {
-return c.DisplayName
-}
-}
-return sql.NullString{}
-}(),
+										CompetitorUsername: func() string {
+											// Get the display name from competitors list
+											for _, c := range userCompetitors {
+												if c.ID == targetCompetitorID {
+													return c.DisplayName.String
+												}
+											}
+											return ""
+										}(),
 										Relevance: 0,
 									})
 								}
@@ -283,10 +275,9 @@ return sql.NullString{}
 							PostID:           rp.PostID,
 							Content:          rp.Content,
 							PostedAt:         rp.PostedAt,
-							Engagement:       rp.Engagement,
-							CompetitorHandle: rp.CompetitorHandle,
-							CompetitorName:   rp.CompetitorName,
-							Relevance:        0,
+							Engagement:         rp.Engagement,
+							CompetitorUsername: rp.CompetitorUsername,
+							Relevance:          0,
 						})
 					}
 				}
@@ -441,7 +432,7 @@ return sql.NullString{}
 				}
 
 				fmt.Fprintf(&b, "[CP%d] %s (%s) @%s: %s\n\n",
-					i+1, cp.Platform, postedAt, cp.CompetitorHandle, content)
+					i+1, cp.Platform, postedAt, cp.CompetitorUsername, content)
 
 				hits = append(hits, askHit{
 					DocumentID: fmt.Sprintf("post:%s:%s", cp.Platform, cp.PostID),
@@ -461,10 +452,7 @@ return sql.NullString{}
 		if err == nil && len(compAnalytics) > 0 {
 			b.WriteString("=== Competitor Analytics ===\n")
 			for _, ca := range compAnalytics {
-				displayName := ca.Handle
-				if ca.DisplayName.Valid {
-					displayName = ca.DisplayName.String
-				}
+				displayName := ca.Username
 				fmt.Fprintf(&b, "Competitor: %s (%s)\n", displayName, ca.Platform)
 				if ca.Followers.Valid {
 					fmt.Fprintf(&b, "  Followers: %d\n", ca.Followers.Int64)
@@ -503,7 +491,7 @@ return sql.NullString{}
 					postedAt = rp.PostedAt.Time.Format("2006-01-02")
 				}
 				fmt.Fprintf(&b, "[RCP%d] %s (%s) @%s: %s\n\n",
-					i+1, rp.Platform, postedAt, rp.CompetitorHandle, content)
+					i+1, rp.Platform, postedAt, rp.CompetitorUsername, content)
 			}
 		}
 
