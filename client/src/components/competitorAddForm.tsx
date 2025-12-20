@@ -2,7 +2,12 @@ import React, { useState } from "react";
 import { socialPlatforms } from "@/components/socialPlatforms";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { useGroup } from "./groupContext";
-const CompetitorAddForm: React.FC = () => {
+
+interface CompetitorAddFormProps {
+    onSuccess?: () => void;
+}
+
+const CompetitorAddForm: React.FC<CompetitorAddFormProps> = ({ onSuccess }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [selectedPlatform, setSelectedPlatform] = useState(socialPlatforms[0]);
     const [socialUrl, setSocialUrl] = useState("");
@@ -38,6 +43,10 @@ const CompetitorAddForm: React.FC = () => {
             const data = await res.json();
             console.log(data);
             handleReset();
+            // Notify parent to refresh the competitors list
+            if (onSuccess) {
+                onSuccess();
+            }
         } catch (e: any) {
             throw new Error(e || "Could not add competitor");
         }

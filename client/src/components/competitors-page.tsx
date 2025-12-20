@@ -239,7 +239,7 @@ export function CompetitorsPage() {
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Competitors</h2>
         <div className="flex items-center space-x-2">
           <div className={'mr-2'}>
-            <CompetitorAddForm />
+            <CompetitorAddForm onSuccess={fetchCompetitors} />
           </div>
           <Button variant="outline" className="gap-2" asChild>
             <a href="/competitors/live">
