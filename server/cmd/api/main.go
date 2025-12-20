@@ -93,6 +93,7 @@ func main() {
 			protected.POST("/groups/competitors", wrap(handlers.CreateCompetitor))
 			protected.GET("/groups/competitors", wrap(handlers.ListUserCompetitors))
 			protected.GET("/competitors/posts", wrap(handlers.ListVisibleCompetitorPosts))
+			protected.GET("/competitors/with-profiles", wrap(handlers.ListCompetitorsWithProfiles))
 
 			// Workshop
 			protected.POST("/workshop/upload", wrap(handlers.WorkshopUploadHandler))

@@ -20,7 +20,7 @@ import GameContextPage from "./app/gamecontext/page.tsx";
 import LLMTestPage from "./app/llmTest/page.tsx";
 import SocialMedia from "./app/settings/socialMedia/page.tsx";
 
-import { GroupProvider } from "./components/groupContext.tsx"; 
+import { GroupProvider } from "./components/groupContext.tsx";
 import { Toaster } from "@/components/ui/toaster";
 
 

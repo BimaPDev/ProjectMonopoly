@@ -160,13 +160,25 @@ export function CompetitorsPage() {
 
       if (res.ok) {
         const data = await res.json();
+        console.log("API Response:", JSON.stringify(data, null, 2));
         const normalized: Competitors[] = (data || []).map((competitor: any) => ({
           id: competitor.id,
-          display_name: competitor.display_name || competitor.username || 'Unknown',
-          last_checked: competitor.last_checked?.Valid ? new Date(competitor.last_checked.Time).toLocaleDateString() : null,
-          total_posts: competitor.total_posts?.Valid ? Number(competitor.total_posts.Int64) : 0,
-          profiles: competitor.profiles || [],
+          display_name: competitor.display_name || 'Unknown',
+          last_checked: competitor.last_checked ? new Date(competitor.last_checked).toLocaleDateString() : null,
+          total_posts: competitor.total_posts || 0,
+          profiles: (competitor.profiles || []).map((p: any) => ({
+            id: p.id,
+            platform: p.platform,
+            handle: p.handle,
+            profile_url: p.profile_url,
+            followers: p.followers || 0,
+            engagement_rate: p.engagement_rate || 0,
+            growth_rate: p.growth_rate || 0,
+            posting_frequency: p.posting_frequency || 0,
+            last_checked: p.last_checked ? new Date(p.last_checked).toLocaleDateString() : null,
+          })),
         }));
+        console.log("Normalized data:", JSON.stringify(normalized, null, 2));
         setCompetitors(normalized);
       } else {
         // Fallback to legacy endpoint
@@ -332,7 +344,20 @@ export function CompetitorsPage() {
                   const avgEngagement = competitor.profiles?.length
                     ? competitor.profiles.reduce((acc, p) => acc + (p.engagement_rate || 0), 0) / competitor.profiles.length
                     : 0;
-                  const isScraping = !competitor.last_checked || totalFollowers === 0;
+
+                  // Logic: Only show scraping if we have NO data AND NO date
+                  const hasData = totalFollowers > 0;
+                  const hasDate = !!competitor.last_checked;
+                  const isScraping = !hasData && !hasDate;
+
+                  console.log(`Competitor: ${competitor.display_name}`, {
+                    last_checked: competitor.last_checked,
+                    totalFollowers,
+                    profilesCount: competitor.profiles?.length,
+                    isScraping,
+                    hasData,
+                    hasDate
+                  });
 
                   return (
                     <div key={competitor.id} className="p-4 border rounded-lg">
@@ -358,7 +383,7 @@ export function CompetitorsPage() {
                           {isScraping ? (
                             <div className="flex items-center justify-center flex-1">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
-                                Scraping...
+                                Still Scraping...
                               </span>
                             </div>
                           ) : (
