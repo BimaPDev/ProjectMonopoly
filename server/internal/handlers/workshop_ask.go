@@ -236,16 +236,17 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 										Content:      post.Content,
 										PostedAt:     post.PostedAt,
 										Engagement:   post.Engagement,
-										CompetitorUsername: func() string {
+										CompetitorName: func() sql.NullString {
 											// Get the display name from competitors list
 											for _, c := range userCompetitors {
 												if c.ID == targetCompetitorID {
-													return c.DisplayName.String
+													return c.DisplayName
 												}
 											}
-											return ""
+											return sql.NullString{}
 										}(),
-										Relevance: 0,
+										CompetitorHandle: "",
+										Relevance:        0,
 									})
 								}
 							}
@@ -275,9 +276,10 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 							PostID:           rp.PostID,
 							Content:          rp.Content,
 							PostedAt:         rp.PostedAt,
-							Engagement:         rp.Engagement,
-							CompetitorUsername: rp.CompetitorUsername,
-							Relevance:          0,
+							Engagement:       rp.Engagement,
+							CompetitorName:   rp.CompetitorName,
+							CompetitorHandle: rp.CompetitorHandle,
+							Relevance:        0,
 						})
 					}
 				}
@@ -431,8 +433,12 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 					postedAt = cp.PostedAt.Time.Format("2006-01-02")
 				}
 
+				competitorDisplay := cp.CompetitorHandle
+				if cp.CompetitorName.Valid && cp.CompetitorName.String != "" {
+					competitorDisplay = cp.CompetitorName.String
+				}
 				fmt.Fprintf(&b, "[CP%d] %s (%s) @%s: %s\n\n",
-					i+1, cp.Platform, postedAt, cp.CompetitorUsername, content)
+					i+1, cp.Platform, postedAt, competitorDisplay, content)
 
 				hits = append(hits, askHit{
 					DocumentID: fmt.Sprintf("post:%s:%s", cp.Platform, cp.PostID),
@@ -452,7 +458,10 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 		if err == nil && len(compAnalytics) > 0 {
 			b.WriteString("=== Competitor Analytics ===\n")
 			for _, ca := range compAnalytics {
-				displayName := ca.Username
+				displayName := ca.Handle
+				if ca.DisplayName.Valid && ca.DisplayName.String != "" {
+					displayName = ca.DisplayName.String
+				}
 				fmt.Fprintf(&b, "Competitor: %s (%s)\n", displayName, ca.Platform)
 				if ca.Followers.Valid {
 					fmt.Fprintf(&b, "  Followers: %d\n", ca.Followers.Int64)
@@ -490,8 +499,12 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 				if rp.PostedAt.Valid {
 					postedAt = rp.PostedAt.Time.Format("2006-01-02")
 				}
+				competitorDisplay := rp.CompetitorHandle
+				if rp.CompetitorName.Valid && rp.CompetitorName.String != "" {
+					competitorDisplay = rp.CompetitorName.String
+				}
 				fmt.Fprintf(&b, "[RCP%d] %s (%s) @%s: %s\n\n",
-					i+1, rp.Platform, postedAt, rp.CompetitorUsername, content)
+					i+1, rp.Platform, postedAt, competitorDisplay, content)
 			}
 		}
 

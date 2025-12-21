@@ -633,26 +633,62 @@ func (q *Queries) GetGroupByID(ctx context.Context, id int32) (Group, error) {
 }
 
 const getGroupCompetitors = `-- name: GetGroupCompetitors :many
-SELECT c.id, c.last_checked, c.total_posts, c.display_name
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts,
+  cp.id as profile_id,
+  cp.platform,
+  cp.handle as username,
+  cp.profile_url,
+  cp.followers,
+  cp.engagement_rate,
+  cp.growth_rate,
+  cp.posting_frequency
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
+LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1
 `
 
-func (q *Queries) GetGroupCompetitors(ctx context.Context, userID int32) ([]Competitor, error) {
+type GetGroupCompetitorsRow struct {
+	ID               uuid.UUID      `json:"id"`
+	DisplayName      sql.NullString `json:"display_name"`
+	LastChecked      sql.NullTime   `json:"last_checked"`
+	TotalPosts       sql.NullInt64  `json:"total_posts"`
+	ProfileID        uuid.NullUUID  `json:"profile_id"`
+	Platform         sql.NullString `json:"platform"`
+	Username         sql.NullString `json:"username"`
+	ProfileUrl       sql.NullString `json:"profile_url"`
+	Followers        sql.NullInt64  `json:"followers"`
+	EngagementRate   sql.NullString `json:"engagement_rate"`
+	GrowthRate       sql.NullString `json:"growth_rate"`
+	PostingFrequency sql.NullString `json:"posting_frequency"`
+}
+
+func (q *Queries) GetGroupCompetitors(ctx context.Context, userID int32) ([]GetGroupCompetitorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getGroupCompetitors, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Competitor
+	var items []GetGroupCompetitorsRow
 	for rows.Next() {
-		var i Competitor
+		var i GetGroupCompetitorsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.DisplayName,
 			&i.LastChecked,
 			&i.TotalPosts,
-			&i.DisplayName,
+			&i.ProfileID,
+			&i.Platform,
+			&i.Username,
+			&i.ProfileUrl,
+			&i.Followers,
+			&i.EngagementRate,
+			&i.GrowthRate,
+			&i.PostingFrequency,
 		); err != nil {
 			return nil, err
 		}
@@ -974,27 +1010,38 @@ func (q *Queries) LinkUserToCompetitor(ctx context.Context, arg LinkUserToCompet
 }
 
 const listAvailableCompetitorsToUser = `-- name: ListAvailableCompetitorsToUser :many
-SELECT id, last_checked, total_posts, display_name
-FROM competitors
-WHERE id NOT IN (
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts
+FROM competitors c
+WHERE c.id NOT IN (
   SELECT competitor_id FROM user_competitors WHERE user_id = $1
 )
 `
 
-func (q *Queries) ListAvailableCompetitorsToUser(ctx context.Context, userID int32) ([]Competitor, error) {
+type ListAvailableCompetitorsToUserRow struct {
+	ID          uuid.UUID      `json:"id"`
+	DisplayName sql.NullString `json:"display_name"`
+	LastChecked sql.NullTime   `json:"last_checked"`
+	TotalPosts  sql.NullInt64  `json:"total_posts"`
+}
+
+func (q *Queries) ListAvailableCompetitorsToUser(ctx context.Context, userID int32) ([]ListAvailableCompetitorsToUserRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAvailableCompetitorsToUser, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Competitor
+	var items []ListAvailableCompetitorsToUserRow
 	for rows.Next() {
-		var i Competitor
+		var i ListAvailableCompetitorsToUserRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.DisplayName,
 			&i.LastChecked,
 			&i.TotalPosts,
-			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -1068,9 +1115,22 @@ func (q *Queries) ListGameContextsByUser(ctx context.Context, userID int32) ([]G
 }
 
 const listGroupCompetitors = `-- name: ListGroupCompetitors :many
-SELECT c.id, c.last_checked, c.total_posts, c.display_name
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts,
+  cp.id as profile_id,
+  cp.platform,
+  cp.handle as username,
+  cp.profile_url,
+  cp.followers,
+  cp.engagement_rate,
+  cp.growth_rate,
+  cp.posting_frequency
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
+LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1 AND uc.group_id = $2
 `
 
@@ -1079,20 +1139,43 @@ type ListGroupCompetitorsParams struct {
 	GroupID sql.NullInt32 `json:"group_id"`
 }
 
-func (q *Queries) ListGroupCompetitors(ctx context.Context, arg ListGroupCompetitorsParams) ([]Competitor, error) {
+type ListGroupCompetitorsRow struct {
+	ID               uuid.UUID      `json:"id"`
+	DisplayName      sql.NullString `json:"display_name"`
+	LastChecked      sql.NullTime   `json:"last_checked"`
+	TotalPosts       sql.NullInt64  `json:"total_posts"`
+	ProfileID        uuid.NullUUID  `json:"profile_id"`
+	Platform         sql.NullString `json:"platform"`
+	Username         sql.NullString `json:"username"`
+	ProfileUrl       sql.NullString `json:"profile_url"`
+	Followers        sql.NullInt64  `json:"followers"`
+	EngagementRate   sql.NullString `json:"engagement_rate"`
+	GrowthRate       sql.NullString `json:"growth_rate"`
+	PostingFrequency sql.NullString `json:"posting_frequency"`
+}
+
+func (q *Queries) ListGroupCompetitors(ctx context.Context, arg ListGroupCompetitorsParams) ([]ListGroupCompetitorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listGroupCompetitors, arg.UserID, arg.GroupID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Competitor
+	var items []ListGroupCompetitorsRow
 	for rows.Next() {
-		var i Competitor
+		var i ListGroupCompetitorsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.DisplayName,
 			&i.LastChecked,
 			&i.TotalPosts,
-			&i.DisplayName,
+			&i.ProfileID,
+			&i.Platform,
+			&i.Username,
+			&i.ProfileUrl,
+			&i.Followers,
+			&i.EngagementRate,
+			&i.GrowthRate,
+			&i.PostingFrequency,
 		); err != nil {
 			return nil, err
 		}
@@ -1196,26 +1279,62 @@ func (q *Queries) ListSocialMediaDataByGroup(ctx context.Context, groupID int32)
 }
 
 const listUserCompetitors = `-- name: ListUserCompetitors :many
-SELECT c.id, c.last_checked, c.total_posts, c.display_name
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts,
+  cp.id as profile_id,
+  cp.platform,
+  cp.handle as username,
+  cp.profile_url,
+  cp.followers,
+  cp.engagement_rate,
+  cp.growth_rate,
+  cp.posting_frequency
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
+LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1
 `
 
-func (q *Queries) ListUserCompetitors(ctx context.Context, userID int32) ([]Competitor, error) {
+type ListUserCompetitorsRow struct {
+	ID               uuid.UUID      `json:"id"`
+	DisplayName      sql.NullString `json:"display_name"`
+	LastChecked      sql.NullTime   `json:"last_checked"`
+	TotalPosts       sql.NullInt64  `json:"total_posts"`
+	ProfileID        uuid.NullUUID  `json:"profile_id"`
+	Platform         sql.NullString `json:"platform"`
+	Username         sql.NullString `json:"username"`
+	ProfileUrl       sql.NullString `json:"profile_url"`
+	Followers        sql.NullInt64  `json:"followers"`
+	EngagementRate   sql.NullString `json:"engagement_rate"`
+	GrowthRate       sql.NullString `json:"growth_rate"`
+	PostingFrequency sql.NullString `json:"posting_frequency"`
+}
+
+func (q *Queries) ListUserCompetitors(ctx context.Context, userID int32) ([]ListUserCompetitorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listUserCompetitors, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Competitor
+	var items []ListUserCompetitorsRow
 	for rows.Next() {
-		var i Competitor
+		var i ListUserCompetitorsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.DisplayName,
 			&i.LastChecked,
 			&i.TotalPosts,
-			&i.DisplayName,
+			&i.ProfileID,
+			&i.Platform,
+			&i.Username,
+			&i.ProfileUrl,
+			&i.Followers,
+			&i.EngagementRate,
+			&i.GrowthRate,
+			&i.PostingFrequency,
 		); err != nil {
 			return nil, err
 		}

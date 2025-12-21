@@ -16,13 +16,15 @@ import (
 const getCompetitorAnalytics = `-- name: GetCompetitorAnalytics :many
 SELECT
   c.id,
-  c.platform,
-  c.username,
-  c.followers,
-  c.engagement_rate,
-  c.growth_rate,
-  c.posting_frequency
+  c.display_name,
+  cpr.platform,
+  cpr.handle,
+  cpr.followers,
+  cpr.engagement_rate,
+  cpr.growth_rate,
+  cpr.posting_frequency
 FROM competitors c
+JOIN competitor_profiles cpr ON cpr.competitor_id = c.id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
@@ -35,8 +37,9 @@ type GetCompetitorAnalyticsParams struct {
 
 type GetCompetitorAnalyticsRow struct {
 	ID               uuid.UUID      `json:"id"`
+	DisplayName      sql.NullString `json:"display_name"`
 	Platform         string         `json:"platform"`
-	Username         string         `json:"username"`
+	Handle           string         `json:"handle"`
 	Followers        sql.NullInt64  `json:"followers"`
 	EngagementRate   sql.NullString `json:"engagement_rate"`
 	GrowthRate       sql.NullString `json:"growth_rate"`
@@ -54,8 +57,9 @@ func (q *Queries) GetCompetitorAnalytics(ctx context.Context, arg GetCompetitorA
 		var i GetCompetitorAnalyticsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.DisplayName,
 			&i.Platform,
-			&i.Username,
+			&i.Handle,
 			&i.Followers,
 			&i.EngagementRate,
 			&i.GrowthRate,
@@ -83,9 +87,11 @@ SELECT
   cp.content,
   cp.posted_at,
   cp.engagement,
-  c.username as competitor_username
+  c.display_name as competitor_name,
+  cpr.handle as competitor_handle
 FROM competitor_posts cp
 JOIN competitors c ON c.id = cp.competitor_id
+JOIN competitor_profiles cpr ON cpr.id = cp.profile_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
@@ -100,14 +106,15 @@ type GetRecentCompetitorPostsParams struct {
 }
 
 type GetRecentCompetitorPostsRow struct {
-	ID                 int32                 `json:"id"`
-	CompetitorID       uuid.NullUUID         `json:"competitor_id"`
-	Platform           string                `json:"platform"`
-	PostID             string                `json:"post_id"`
-	Content            sql.NullString        `json:"content"`
-	PostedAt           sql.NullTime          `json:"posted_at"`
-	Engagement         pqtype.NullRawMessage `json:"engagement"`
-	CompetitorUsername string                `json:"competitor_username"`
+	ID               int32                 `json:"id"`
+	CompetitorID     uuid.NullUUID         `json:"competitor_id"`
+	Platform         string                `json:"platform"`
+	PostID           string                `json:"post_id"`
+	Content          sql.NullString        `json:"content"`
+	PostedAt         sql.NullTime          `json:"posted_at"`
+	Engagement       pqtype.NullRawMessage `json:"engagement"`
+	CompetitorName   sql.NullString        `json:"competitor_name"`
+	CompetitorHandle string                `json:"competitor_handle"`
 }
 
 func (q *Queries) GetRecentCompetitorPosts(ctx context.Context, arg GetRecentCompetitorPostsParams) ([]GetRecentCompetitorPostsRow, error) {
@@ -127,7 +134,8 @@ func (q *Queries) GetRecentCompetitorPosts(ctx context.Context, arg GetRecentCom
 			&i.Content,
 			&i.PostedAt,
 			&i.Engagement,
-			&i.CompetitorUsername,
+			&i.CompetitorName,
+			&i.CompetitorHandle,
 		); err != nil {
 			return nil, err
 		}
@@ -151,7 +159,8 @@ SELECT
   cp.content,
   cp.posted_at,
   cp.engagement,
-  c.username as competitor_username,
+  c.display_name as competitor_name,
+  cpr.handle as competitor_handle,
   -- Calculate relevance score for ranking
   CASE
     WHEN to_tsvector('english', COALESCE(cp.content, '')) @@ websearch_to_tsquery('english', $3) THEN 3
@@ -160,6 +169,7 @@ SELECT
   END as relevance
 FROM competitor_posts cp
 JOIN competitors c ON c.id = cp.competitor_id
+JOIN competitor_profiles cpr ON cpr.id = cp.profile_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
@@ -183,15 +193,16 @@ type SearchCompetitorPostsParams struct {
 }
 
 type SearchCompetitorPostsRow struct {
-	ID                 int32                 `json:"id"`
-	CompetitorID       uuid.NullUUID         `json:"competitor_id"`
-	Platform           string                `json:"platform"`
-	PostID             string                `json:"post_id"`
-	Content            sql.NullString        `json:"content"`
-	PostedAt           sql.NullTime          `json:"posted_at"`
-	Engagement         pqtype.NullRawMessage `json:"engagement"`
-	CompetitorUsername string                `json:"competitor_username"`
-	Relevance          int32                 `json:"relevance"`
+	ID               int32                 `json:"id"`
+	CompetitorID     uuid.NullUUID         `json:"competitor_id"`
+	Platform         string                `json:"platform"`
+	PostID           string                `json:"post_id"`
+	Content          sql.NullString        `json:"content"`
+	PostedAt         sql.NullTime          `json:"posted_at"`
+	Engagement       pqtype.NullRawMessage `json:"engagement"`
+	CompetitorName   sql.NullString        `json:"competitor_name"`
+	CompetitorHandle string                `json:"competitor_handle"`
+	Relevance        int32                 `json:"relevance"`
 }
 
 func (q *Queries) SearchCompetitorPosts(ctx context.Context, arg SearchCompetitorPostsParams) ([]SearchCompetitorPostsRow, error) {
@@ -216,7 +227,8 @@ func (q *Queries) SearchCompetitorPosts(ctx context.Context, arg SearchCompetito
 			&i.Content,
 			&i.PostedAt,
 			&i.Engagement,
-			&i.CompetitorUsername,
+			&i.CompetitorName,
+			&i.CompetitorHandle,
 			&i.Relevance,
 		); err != nil {
 			return nil, err

@@ -120,7 +120,7 @@ def dispatch_loop():
                             print(f"DEBUG: Found {row[0]} competitors to scrape!")
                             logging.info(f"Found {row[0]} competitors pending scrape (new or outdated). Dispatching task.")
                             res = app.send_task("worker.tasks.weekly_instagram_scrape", queue="celery")
-                            print(f"DEBUG: Task dispatched: {res.id}")
+                            #print(f"DEBUG: Task dispatched: {res.id}")
                             logging.info(f"Scrape task dispatched: {res.id}")
                             dispatch_loop.last_scrape_dispatch = now
                             did_work = True
