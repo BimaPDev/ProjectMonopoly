@@ -273,12 +273,12 @@ CREATE TABLE IF NOT EXISTS game_contexts (
 
   -- Section 3: Target Audience
   intended_audience TEXT,
-  age_range VARCHAR(50),
+  age_range VARCHAR(100),
   player_motivation TEXT,
   comparable_games TEXT, -- comma-separated game names
 
   -- Section 4: Marketing Goals
-  marketing_objective VARCHAR(50), -- 'awareness', 'wishlist', 'demo', etc.
+  marketing_objective VARCHAR(255), -- 'awareness', 'wishlist', 'demo', etc.
   key_events_dates TEXT, -- JSON or text describing events
   call_to_action VARCHAR(255),
 

@@ -180,6 +180,27 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 			}
 		}
 
+		// Final fallback: get default chunks (intro/overview) if still no results
+		if len(rows) == 0 {
+			fmt.Printf("All searches failed, fetching default document chunks...\n")
+			defaultChunks, err := q.GetDefaultChunks(ctx, db.GetDefaultChunksParams{
+				GroupID: ar.GroupID,
+				Limit:   limit,
+			})
+			if err == nil && len(defaultChunks) > 0 {
+				fmt.Printf("GetDefaultChunks returned %d chunks\n", len(defaultChunks))
+				for _, dc := range defaultChunks {
+					rows = append(rows, db.SearchChunksRow{
+						DocumentID: dc.DocumentID,
+						Page:       dc.Page,
+						ChunkIndex: dc.ChunkIndex,
+						Content:    dc.Content,
+						Rank:       dc.Rank,
+					})
+				}
+			}
+		}
+
 		fmt.Printf("Final row count after all searches: %d\n", len(rows))
 
 		// Search Competitor Posts
@@ -393,7 +414,8 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 		}
 
 		if len(rows) > 0 {
-			b.WriteString("Context:\n")
+			b.WriteString("=== YOUR GAME DOCUMENTS (This is YOUR game, not competitors) ===\n")
+			b.WriteString("The following content describes YOUR game that you are marketing:\n\n")
 			for i, rr := range rows {
 				page := int32(0)
 				if rr.Page.Valid {
@@ -628,7 +650,7 @@ func buildStrictUserPrompt(contextBlock, question string) string {
 	} else {
 		b.WriteString("Context:\n<none>\n")
 	}
-	b.WriteString("Instructions: Use the Context above (Game Info, Analytics, Competitor Posts, Documents) to answer. Synthesize insights from the data to answer the question. Cite pages like [p.X], posts like [CPX], or recent posts like [RCPX].\n")
+	b.WriteString("Instructions: Use the Context above (Game Info, Analytics, YOUR GAME DOCUMENTS, Competitor Posts) to answer.\nIMPORTANT: 'YOUR GAME DOCUMENTS' describes YOUR game that you are marketing. 'Competitor Posts/Analytics' are OTHER games to learn from, NOT your game.\nSynthesize insights from YOUR game documents and competitor analysis to answer the question. Cite pages like [p.X], posts like [CPX], or recent posts like [RCPX].\n")
 	b.WriteString("Question: " + question)
 	return b.String()
 }

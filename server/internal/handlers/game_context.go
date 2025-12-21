@@ -162,6 +162,7 @@ func SaveGameContext(c *gin.Context, queries *db.Queries) {
 		AdditionalInfo:      toNullString(req.AdditionalInfo),
 	})
 	if err != nil {
+		fmt.Printf("CreateGameContext ERROR: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Could not save to database: %v", err)})
 		return
 	}

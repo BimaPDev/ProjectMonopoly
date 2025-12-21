@@ -125,6 +125,63 @@ func (q *Queries) FuzzyChunks(ctx context.Context, arg FuzzyChunksParams) ([]Fuz
 	return items, nil
 }
 
+const getDefaultChunks = `-- name: GetDefaultChunks :many
+SELECT
+  c.document_id,
+  c.page,
+  c.chunk_index,
+  c.content,
+  0::float4 AS rank
+FROM workshop_chunks c
+JOIN workshop_documents d ON d.id = c.document_id
+WHERE d.group_id = $1
+  AND d.status = 'ready'
+ORDER BY d.created_at DESC, c.page ASC, c.chunk_index ASC
+LIMIT $2
+`
+
+type GetDefaultChunksParams struct {
+	GroupID int32 `json:"group_id"`
+	Limit   int32 `json:"limit"`
+}
+
+type GetDefaultChunksRow struct {
+	DocumentID uuid.UUID     `json:"document_id"`
+	Page       sql.NullInt32 `json:"page"`
+	ChunkIndex int32         `json:"chunk_index"`
+	Content    string        `json:"content"`
+	Rank       float32       `json:"rank"`
+}
+
+func (q *Queries) GetDefaultChunks(ctx context.Context, arg GetDefaultChunksParams) ([]GetDefaultChunksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDefaultChunks, arg.GroupID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDefaultChunksRow
+	for rows.Next() {
+		var i GetDefaultChunksRow
+		if err := rows.Scan(
+			&i.DocumentID,
+			&i.Page,
+			&i.ChunkIndex,
+			&i.Content,
+			&i.Rank,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGameContext = `-- name: GetGameContext :one
 SELECT id, user_id, group_id, game_title, studio_name, game_summary, platforms, engine_tech, primary_genre, subgenre, key_mechanics, playtime_length, art_style, tone, intended_audience, age_range, player_motivation, comparable_games, marketing_objective, key_events_dates, call_to_action, content_restrictions, competitors_to_avoid, additional_info, extraction_method, original_file_name, created_at, updated_at
 FROM game_contexts
