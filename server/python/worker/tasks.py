@@ -1,8 +1,9 @@
 from .celery_app import app
 #from socialmedia.tiktok import upload_tiktok_video
+from socialmedia.instagram_post import upload_instagram_media
 from .db import update_job_status  # keeps your existing upload status updates
 from worker.config import UPLOADS_DIR  # e.g., "/data/uploads"
-import os
+import os 
 import logging
 import hashlib
 
@@ -45,46 +46,76 @@ def _split_text(txt: str, size: int = 3000, overlap: int = 500):
     return out
 
 ## ---------- existing video upload task ----------
-#@app.task(name="worker.tasks.process_upload_job", queue="celery")
-#def process_upload_job(job_data):
-#    """Upload video to platform from local disk."""
-#    print(f"👷 Running upload job: {job_data.get('id')} for {job_data.get('platform')}")
-#    try:
-#        job_id = job_data["id"]
-#        platform = job_data["platform"].lower()
-#        session_id = job_data["session_id"]
-#
-#        rel_path = job_data["video_path"]  # can be 'uploads/1/video.mp4' or absolute
-#        full_path = _resolve_local_path(rel_path)
-#
-#        if not os.path.exists(full_path):
-#            raise FileNotFoundError(f"📁 Video not found at: {full_path}")
-#        print(f"📂 Uploading from: {full_path}")
-#
-#        title = (job_data.get("user_title") or "").strip()
-#        hashtags = job_data.get("user_hashtags") or []
-#        if not isinstance(hashtags, list):
-#            hashtags = []
-#        caption = (title + " " + " ".join(f"#{t}" for t in hashtags)).strip()
-#
-#        print(f"🚀 Starting upload for user {job_data['user_id']}, job {job_id}, platform: {platform}")
-#
-#        if platform == "tiktok":
-#            upload_tiktok_video(session_id, full_path, caption)
-#        else:
-#            raise Exception(f"Unsupported platform: {platform}")
-#
-#        update_job_status(job_id, "done", {"title": "", "hashtags": [], "post_time": None})
-#        print(f"✅ Upload complete for job {job_id}")
-#        return {"status": "success", "job_id": job_id}
-#
-#    except Exception as e:
-#        print(f"❌ Upload failed for job {job_data.get('id')}: {str(e)}")
-#        try:
-#            update_job_status(job_data["id"], "failed", {"title": "", "hashtags": [], "post_time": None})
-#        except Exception:
-#            pass
-#        return {"status": "failed", "job_id": job_data.get("id"), "error": str(e)}
+@app.task(name="worker.tasks.process_upload_job", queue="celery")
+def process_upload_job(job_data):
+    """Upload media to platform from local disk."""
+    print(f"Running upload job: {job_data.get('id')} for {job_data.get('platform')}")
+    try:
+        job_id = job_data["id"]
+        platform = job_data["platform"].lower()
+
+        # Handle media_path - can be single file or list of files
+        media_paths = job_data.get("media_path") or job_data.get("video_path")  # support both keys
+        if not media_paths:
+            raise ValueError("media_path or video_path is required")
+        
+        # Convert to list if single path
+        if isinstance(media_paths, str):
+            media_paths = [media_paths]
+        elif not isinstance(media_paths, list):
+            media_paths = [str(media_paths)]
+        
+        # Resolve all paths
+        full_paths = []
+        for rel_path in media_paths:
+            full_path = _resolve_local_path(rel_path)
+            if not os.path.exists(full_path):
+                raise FileNotFoundError(f"Media not found at: {full_path}")
+            full_paths.append(full_path)
+        
+        print(f"Posting {len(full_paths)} file(s) from: {full_paths}")
+
+        # Build caption from title and hashtags
+        title = (job_data.get("user_title") or "").strip()
+        hashtags = job_data.get("user_hashtags") or []
+        if not isinstance(hashtags, list):
+            hashtags = []
+        caption = (title + " " + " ".join(f"#{t}" for t in hashtags)).strip()
+
+        print(f"Starting post for user {job_data['user_id']}, job {job_id}, platform: {platform}")
+
+        # Determine headless mode (default to True for production)
+        headless = job_data.get("headless", True)
+
+        if platform == "instagram":
+            # Use single path or list based on number of files
+            media_path = full_paths[0] if len(full_paths) == 1 else full_paths
+            upload_instagram_media(media_path, caption, headless=headless)
+        elif platform == "tiktok":
+            # TikTok requires session_id and single file
+            if len(full_paths) > 1:
+                raise ValueError("TikTok uploads support only one file at a time")
+            session_id = job_data.get("session_id")
+            if not session_id:
+                raise ValueError("session_id is required for TikTok uploads")
+            # Uncomment when TikTok upload is needed:
+            # upload_tiktok_video(session_id, full_paths[0], caption)
+            raise NotImplementedError("TikTok upload is currently disabled. Uncomment upload_tiktok_video import and call.")
+        else:
+            raise Exception(f"Unsupported platform: {platform}")
+
+        update_job_status(job_id, "done", {"title": "", "hashtags": [], "post_time": None})
+        print(f"Post complete for job {job_id}")
+        return {"status": "success", "job_id": job_id, "files_uploaded": len(full_paths)}
+
+    except Exception as e:
+        print(f"Post failed for job {job_data.get('id')}: {str(e)}")
+        log.exception("Upload job failed")
+        try:
+            update_job_status(job_data["id"], "failed", {"title": "", "hashtags": [], "post_time": None})
+        except Exception:
+            pass
+        return {"status": "failed", "job_id": job_data.get("id"), "error": str(e)}
 
 # ---------- NEW: PDF ingest for RAG ----------
 @app.task(name="worker.tasks.process_document", queue="celery")
@@ -95,7 +126,7 @@ def process_document(document_id: str, job_id: int | None = None):
       document_id: UUID from workshop_documents.id
       job_id: optional document_ingest_jobs.id to update status
     """
-    log.info("📄 ingest start doc=%s job=%s", document_id, job_id)
+    log.info("Ingest start doc=%s job=%s", document_id, job_id)
     with psycopg.connect(DATABASE_URL, autocommit=False) as conn:
         try:
             with conn.cursor() as cur:
@@ -158,12 +189,12 @@ def process_document(document_id: str, job_id: int | None = None):
                     )
             conn.commit()
             doc.close()
-            log.info("📄 ingest done doc=%s pages=%d", document_id, pages)
+            log.info("Ingest done doc=%s pages=%d", document_id, pages)
             return {"status": "success", "document_id": document_id, "pages": pages}
 
         except Exception as e:
             conn.rollback()
-            log.exception("ingest failed")
+            log.exception("Ingest failed")
             with psycopg.connect(DATABASE_URL) as c2, c2.cursor() as cur2:
                 cur2.execute(
                     "UPDATE workshop_documents SET status='error', error=%s, updated_at=NOW() WHERE id=%s",
@@ -183,7 +214,7 @@ def weekly_instagram_scrape():
     Weekly Instagram scraping task that processes all Instagram competitors
     that haven't been scraped in the last 7 days.
     """
-    log.info("🕷️ Starting weekly Instagram scraping task")
+    log.info("Starting weekly Instagram scraping task")
     
     try:
         # Imported here to avoid circular imports
@@ -196,11 +227,101 @@ def weekly_instagram_scrape():
         scraper = WeeklyInstagramScraper()
         scraper.run_weekly_scrape()
         
-        log.info("🕷️ Weekly Instagram scraping task completed successfully")
+        log.info("Weekly Instagram scraping task completed successfully")
         return {"status": "success", "message": "Weekly Instagram scraping completed"}
         
     except Exception as e:
-        log.exception("Weekly Instagram scraping task failed")
+        log.exception("Weekly Instagram scraping failed")
+        return {"status": "failed", "error": str(e)}
+
+# ---------- Followers Scraping Task ----------
+@app.task(name="worker.tasks.scrape_followers", queue="celery")
+def scrape_followers():
+    """
+    Daily task to scrape follower counts from all social media platforms.
+    """
+    log.info("Starting followers scraping task")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        from Followers.getFollowers import get_all_followers, insert_follower_count
+        import datetime
+        
+        total_followers, platform_breakdown = get_all_followers()
+        today = datetime.date.today()
+        record_id = insert_follower_count(today, total_followers, platform_breakdown)
+        
+        log.info(f"Followers scraping completed: {total_followers:,} total followers (Record ID: {record_id})")
+        return {
+            "status": "success",
+            "date": today.isoformat(),
+            "total_followers": total_followers,
+            "platform_breakdown": platform_breakdown,
+            "record_id": record_id
+        }
+        
+    except Exception as e:
+        log.exception("Followers scraping failed")
+        return {"status": "failed", "error": str(e)}
+
+# ---------- AI Web Scraping Task ----------
+@app.task(name="worker.tasks.ai_web_scrape", queue="celery")
+def ai_web_scrape():
+    """
+    Task to scrape web content using AI web scraper for marketing and game dev content.
+    """
+    log.info("Starting AI web scraping task")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        # Note: ai_scraper.main() may not return results, so we'll just execute it
+        # and handle any results via file output or logging
+        import importlib
+        scraper_module = importlib.import_module('ai_web.ai_scraper')
+        
+        # Execute the main function if it exists
+        if hasattr(scraper_module, 'main'):
+            result = scraper_module.main()
+        else:
+            log.warning("ai_scraper module doesn't have a main() function")
+            result = None
+        
+        log.info("AI web scraping completed successfully")
+        return {"status": "success", "message": "AI web scraping completed", "result": result}
+        
+    except Exception as e:
+        log.exception("AI web scraping failed")
+        return {"status": "failed", "error": str(e)}
+
+# ---------- Trends/Hashtag Scraping Task ----------
+@app.task(name="worker.tasks.scrape_hashtag_trends", queue="celery")
+def scrape_hashtag_trends():
+    """
+    Task to scrape trending hashtags from TikTok creative center.
+    """
+    log.info("📊 Starting hashtag trends scraping task")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        # Note: This needs to be updated to return results instead of just printing
+        from trends.hashtag import scrape_hashtags
+        
+        trends = scrape_hashtags()
+        
+        log.info(f"✅ Hashtag trends scraping completed: {len(trends) if trends else 0} trends found")
+        return {"status": "success", "trends": trends}
+        
+    except Exception as e:
+        log.exception("Hashtag trends scraping task failed")
         return {"status": "failed", "error": str(e)}
 
 

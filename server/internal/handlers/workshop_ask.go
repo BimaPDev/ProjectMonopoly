@@ -180,6 +180,38 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 			}
 		}
 
+		// Ensure minimum context: fetch default chunks if we have less than 4 results
+		// Small models (3B) need sufficient context to generate good responses
+		if len(rows) < 4 {
+			fmt.Printf("Insufficient context (%d chunks), fetching default document chunks...\n", len(rows))
+			defaultChunks, err := q.GetDefaultChunks(ctx, db.GetDefaultChunksParams{
+				GroupID: ar.GroupID,
+				Limit:   limit,
+			})
+			if err == nil && len(defaultChunks) > 0 {
+				fmt.Printf("GetDefaultChunks returned %d chunks\n", len(defaultChunks))
+				for _, dc := range defaultChunks {
+					// Only add if not already present
+					alreadyHave := false
+					for _, r := range rows {
+						if r.DocumentID == dc.DocumentID && r.ChunkIndex == dc.ChunkIndex {
+							alreadyHave = true
+							break
+						}
+					}
+					if !alreadyHave {
+						rows = append(rows, db.SearchChunksRow{
+							DocumentID: dc.DocumentID,
+							Page:       dc.Page,
+							ChunkIndex: dc.ChunkIndex,
+							Content:    dc.Content,
+							Rank:       dc.Rank,
+						})
+					}
+				}
+			}
+		}
+
 		fmt.Printf("Final row count after all searches: %d\n", len(rows))
 
 		// Search Competitor Posts
@@ -393,7 +425,8 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 		}
 
 		if len(rows) > 0 {
-			b.WriteString("Context:\n")
+			b.WriteString("=== YOUR GAME DOCUMENTS (This is YOUR game, not competitors) ===\n")
+			b.WriteString("The following content describes YOUR game that you are marketing:\n\n")
 			for i, rr := range rows {
 				page := int32(0)
 				if rr.Page.Valid {
@@ -519,9 +552,9 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 			}
 		}
 
-		// Model + host
-		model := orDefault(ar.Model, envOr("OLLAMA_MODEL", "gemma3:latest"))
-		host := envOr("OLLAMA_HOST", "http://localhost:11434")
+		// Get LLM provider (Ollama or Gemini based on LLM_PROVIDER env var)
+		provider := GetLLMProvider()
+		fmt.Printf("Using LLM provider: %s\n", provider.Name())
 
 		// Modes
 		mode := strings.ToLower(strings.TrimSpace(ar.Mode))
@@ -566,10 +599,10 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 		} else {
 			if mode == "opinion" {
 				if hasClientHistory {
-					sys = "You are a helpful AI assistant. When Context is available, cite it with [p.X]. Use conversation history to understand follow-up questions. Provide practical recommendations."
-					user = buildContextOnly(b.String())
+					sys = "You are a helpful marketing AI assistant. Use the Context and conversation history to understand the user's game and their questions. Provide practical recommendations. If you reference document content, cite [p.X]. If the Context doesn't directly answer, provide general marketing advice."
+					user = buildOpinionUserPrompt(b.String(), ar) // Fixed: was buildContextOnly which didn't include the question!
 				} else {
-					sys = "Write an opinionated analysis primarily from Context. Claims from Context MUST cite [p.X]. If you add outside knowledge, put it ONLY under 'Assumptions'."
+					sys = "You are a helpful marketing AI assistant. Use the Context to inform your answer. Cite [p.X] when referencing specific document content. If the Context doesn't directly answer the question, you may provide general marketing advice - just note any assumptions you make."
 					user = buildOpinionUserPrompt(b.String(), ar)
 				}
 			} else {
@@ -583,7 +616,13 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 			}
 		}
 
-		ans, err := callOllamaWithOptions(ctx, host, model, sys, user, map[string]any{
+		// DEBUG: Log the prompts being sent to the model
+		fmt.Printf("=== DEBUG LLM PROMPT ===\n")
+		fmt.Printf("SYSTEM: %s\n", sys)
+		fmt.Printf("USER (length %d chars): %s\n", len(user), user)
+		fmt.Printf("=== END DEBUG ===\n")
+
+		ans, err := provider.Call(ctx, sys, user, map[string]any{
 			"temperature":    temp,
 			"num_ctx":        8192,
 			"repeat_penalty": 1.1,
@@ -628,7 +667,7 @@ func buildStrictUserPrompt(contextBlock, question string) string {
 	} else {
 		b.WriteString("Context:\n<none>\n")
 	}
-	b.WriteString("Instructions: Use the Context above (Game Info, Analytics, Competitor Posts, Documents) to answer. Synthesize insights from the data to answer the question. Cite pages like [p.X], posts like [CPX], or recent posts like [RCPX].\n")
+	b.WriteString("Instructions: Use the Context above (Game Info, Analytics, YOUR GAME DOCUMENTS, Competitor Posts) to answer.\nIMPORTANT: 'YOUR GAME DOCUMENTS' describes YOUR game that you are marketing. 'Competitor Posts/Analytics' are OTHER games to learn from, NOT your game.\nSynthesize insights from YOUR game documents and competitor analysis to answer the question. Cite pages like [p.X], posts like [CPX], or recent posts like [RCPX].\n")
 	b.WriteString("Question: " + question)
 	return b.String()
 }

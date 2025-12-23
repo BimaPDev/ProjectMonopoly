@@ -56,6 +56,21 @@ WHERE d.group_id = p.group_id
 ORDER BY rank DESC
 LIMIT (SELECT n FROM p);
 
+-- name: GetDefaultChunks :many
+-- Fallback: return first N chunks from any document in the group (sorted to get overview/intro first)
+SELECT
+  c.document_id,
+  c.page,
+  c.chunk_index,
+  c.content,
+  0::float4 AS rank
+FROM workshop_chunks c
+JOIN workshop_documents d ON d.id = c.document_id
+WHERE d.group_id = $1
+  AND d.status = 'ready'
+ORDER BY d.created_at DESC, c.page ASC, c.chunk_index ASC
+LIMIT $2;
+
 -- name: GetGameContext :one
 SELECT *
 FROM game_contexts

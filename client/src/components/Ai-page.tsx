@@ -167,7 +167,7 @@ export function AIPage() {
         group_id: activeGroup?.ID || 0,
         question: currentInput,
         limit: 6,
-        model: "qwen2.5:3b-instruct",
+        model: import.meta.env.VITE_OLLAMA_MODEL || "gemma3:latest",
         mode: "opinion",
         allow_outside: true,
         output: "concise answer",
