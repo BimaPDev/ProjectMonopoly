@@ -10,7 +10,7 @@ import json
 import os
 import pickle
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 
 
@@ -33,6 +33,58 @@ def parse_shorthand(value: str) -> str:
         except ValueError:
             return val
     return val
+
+
+def calculate_post_date(relative_time_str: str) -> str:
+    if not relative_time_str or "ago" not in relative_time_str.lower():
+        return ""
+    
+    # Remove bullet point and clean up
+    relative_time_str = relative_time_str.replace("·", "").strip().lower()
+    
+    # Remove "ago" and get the time part
+    relative_time_str = relative_time_str.replace("ago", "").strip()
+    
+    now = datetime.now()
+    
+    # Try to match patterns like "6d", "2h", "30m", "5 days", "2 hours", "30 minutes"
+    # Pattern 1: "6d", "2h", "30m" (shorthand)
+    match = re.search(r'(\d+)\s*([dhm])', relative_time_str)
+    if match:
+        value = int(match.group(1))
+        unit = match.group(2)
+        
+        if unit == 'd':
+            # Days ago
+            post_date = now - timedelta(days=value)
+            return post_date.strftime("%Y-%m-%d %H:%M:%S")
+        elif unit == 'h':
+            # Hours ago
+            post_date = now - timedelta(hours=value)
+            return post_date.strftime("%Y-%m-%d %H:%M:%S")
+        elif unit == 'm':
+            # Minutes ago
+            post_date = now - timedelta(minutes=value)
+            return post_date.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Pattern 2: "5 days", "2 hours", "30 minutes" (full words)
+    match = re.search(r'(\d+)\s*(day|hour|minute|days|hours|minutes)', relative_time_str)
+    if match:
+        value = int(match.group(1))
+        unit = match.group(2).lower()
+        
+        if 'day' in unit:
+            post_date = now - timedelta(days=value)
+            return post_date.strftime("%Y-%m-%d %H:%M:%S")
+        elif 'hour' in unit:
+            post_date = now - timedelta(hours=value)
+            return post_date.strftime("%Y-%m-%d %H:%M:%S")
+        elif 'minute' in unit:
+            post_date = now - timedelta(minutes=value)
+            return post_date.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # If we can't parse it, return empty string
+    return ""
 
 # Random delay function to avoid detection
 def random_delay(min_seconds=1, max_seconds=3):
@@ -148,6 +200,20 @@ class TikTokScraper:
             profile_name = re.search(r"tiktok\.com/@([^/?]+)", profile_url).group(1)
         except:
             profile_name = "tiktok_profile"
+        
+        # Check for refresh button and click it if visible
+        try:
+            refresh_button = WebDriverWait(self.driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Refresh')]"))
+            )
+            if refresh_button.is_displayed():
+                print("Refresh button found, clicking it...")
+                refresh_button.click()
+                random_delay(2, 3)  # Wait a bit after clicking refresh
+        except (TimeoutException, NoSuchElementException):
+            print("No refresh button found, proceeding...")
+        except Exception as e:
+            print(f"Error checking for refresh button: {e}")
             
         posts_data = []
         video_links = set()
@@ -257,6 +323,7 @@ class TikTokScraper:
                     "likes_count": "",
                     "comments_count": "",
                     "shared_count": "",
+                    "saved_count": "",
                     "author": "",
                 }
                 
@@ -309,6 +376,27 @@ class TikTokScraper:
                         except NoSuchElementException:
                             pass
 
+                    # Extract post date (relative time: "x minutes/hours/days ago") and calculate actual date
+                    post_date_selectors = [
+                        "//span[contains(@class, 'TUXText') and contains(text(), 'ago')]",
+                        "//span[contains(text(), 'ago')]",
+                        "//span[contains(text(), 'd ago') or contains(text(), 'h ago') or contains(text(), 'm ago')]",
+                        "//*[contains(text(), 'ago')]"
+                    ]
+                    for sel in post_date_selectors:
+                        try:
+                            elem = self.driver.find_element(By.XPATH, sel)
+                            post_date_text = elem.text.strip()
+                            # Extract the relative time part (e.g., "6d ago", "2h ago", "30m ago")
+                            if "ago" in post_date_text:
+                                # Calculate actual post date from relative time
+                                calculated_date = calculate_post_date(post_date_text)
+                                if calculated_date:
+                                    video_data["post_date"] = calculated_date
+                                    break
+                        except NoSuchElementException:
+                            continue
+
                     # Likes
                     try:
                         like_btn = self.driver.find_element(By.XPATH, "//strong[@data-e2e='like-count']")
@@ -332,11 +420,37 @@ class TikTokScraper:
                         video_data["shared_count"] = ""
                     
                     # Saved count
-                    try:
-                        saved = self.driver.find_element(By.XPATH, "//strong[@data-e2e='undefined-count']")
-                        video_data["saved_count"] = parse_shorthand(saved.text)
-                    except NoSuchElementException:
-                        video_data["saved_count"] = ""
+                    saved_count_selectors = [
+                        "//strong[@data-e2e='undefined-count']",
+                        "//span[@data-e2e='undefined-icon']/following-sibling::strong",
+                        "//strong[contains(@class, 'undefined-count')]",
+                        "//div[contains(@class, 'action-item')]//strong[contains(text(), '')]"
+                    ]
+                    saved_count_found = False
+                    for sel in saved_count_selectors:
+                        try:
+                            saved_elem = WebDriverWait(self.driver, 5).until(
+                                EC.presence_of_element_located((By.XPATH, sel))
+                            )
+                            saved_text = saved_elem.text.strip()
+                            if saved_text:
+                                video_data["saved_count"] = parse_shorthand(saved_text)
+                                saved_count_found = True
+                                break
+                        except (NoSuchElementException, TimeoutException):
+                            continue
+                    
+                    if not saved_count_found:
+                        # Try to find it near the undefined-icon
+                        try:
+                            icon = self.driver.find_element(By.XPATH, "//span[@data-e2e='undefined-icon']")
+                            # Find the next sibling strong element
+                            saved_elem = icon.find_element(By.XPATH, "./following-sibling::strong[@data-e2e='undefined-count']")
+                            saved_text = saved_elem.text.strip()
+                            if saved_text:
+                                video_data["saved_count"] = parse_shorthand(saved_text)
+                        except (NoSuchElementException, TimeoutException):
+                            video_data["saved_count"] = ""
 
                     # Video URL
                     try:
@@ -350,29 +464,72 @@ class TikTokScraper:
                 except Exception as e:
                     print(f"Error during standard extraction: {e}")
                 
-                # Fallback JSON parsing
-                if not success or not any([video_data["author"], video_data["description"]]):
-                    try:
-                        page_source = self.driver.page_source
-                        if not video_data["author"]:
-                            m = re.search(r'"uniqueId":"([^"]+)"', page_source)
-                            if m:
-                                video_data["author"] = m.group(1)
-                        if not video_data["description"]:
-                            m = re.search(r'"desc":"([^"]+)"', page_source)
-                            if m:
-                                desc = m.group(1)
-                                video_data["description"] = desc
-                                video_data["hashtags"] = re.findall(r"#\w+", desc)
-                        m = re.search(r'"stats":(\{[^}]+\})', page_source)
+                # Fallback JSON parsing - always try to get missing stats
+                try:
+                    page_source = self.driver.page_source
+                    
+                    # Extract author if missing
+                    if not video_data["author"]:
+                        m = re.search(r'"uniqueId":"([^"]+)"', page_source)
                         if m:
-                            stats = json.loads(m.group(1))
+                            video_data["author"] = m.group(1)
+                    
+                    # Extract description if missing
+                    if not video_data["description"]:
+                        m = re.search(r'"desc":"([^"]+)"', page_source)
+                        if m:
+                            desc = m.group(1)
+                            video_data["description"] = desc
+                            video_data["hashtags"] = re.findall(r"#\w+", desc)
+                    
+                    # Always try to extract stats from JSON (more reliable)
+                    m = re.search(r'"stats":(\{[^}]+\})', page_source)
+                    if m:
+                        stats = json.loads(m.group(1))
+                        if not video_data["likes_count"]:
                             video_data["likes_count"] = str(stats.get("diggCount", ""))
+                        if not video_data["comments_count"]:
                             video_data["comments_count"] = str(stats.get("commentCount", ""))
+                        if not video_data["shared_count"]:
                             video_data["shared_count"] = str(stats.get("shareCount", ""))
-                            video_data["saved_count"] = str(stats.get("savedCount","")) 
-                    except Exception as e:
-                        print(f"Error parsing fallback JSON: {e}")
+                        # Always try to get saved_count from JSON if not found
+                        if not video_data["saved_count"]:
+                            saved_count = stats.get("collectCount", stats.get("savedCount", ""))
+                            video_data["saved_count"] = str(saved_count) if saved_count else ""
+                    
+                    # Alternative: try to find savedCount in different JSON patterns
+                    if not video_data["saved_count"]:
+                        patterns = [
+                            r'"collectCount":(\d+)',
+                            r'"savedCount":(\d+)',
+                            r'"bookmarkCount":(\d+)'
+                        ]
+                        for pattern in patterns:
+                            m = re.search(pattern, page_source)
+                            if m:
+                                video_data["saved_count"] = m.group(1)
+                                break
+                    
+                    # Extract post_date if missing (look for "ago" patterns in HTML)
+                    if not video_data["post_date"]:
+                        # Try to find relative time patterns in the page source
+                        patterns = [
+                            r'(\d+[dhm])\s+ago',
+                            r'(\d+\s*(?:minute|hour|day)s?)\s+ago',
+                            r'·\s*(\d+[dhm])\s+ago',
+                            r'>\s*·\s*(\d+[dhm])\s+ago\s*<'
+                        ]
+                        for pattern in patterns:
+                            m = re.search(pattern, page_source, re.IGNORECASE)
+                            if m:
+                                post_date_text = m.group(1).strip() + " ago"
+                                calculated_date = calculate_post_date(post_date_text)
+                                if calculated_date:
+                                    video_data["post_date"] = calculated_date
+                                    break
+                                
+                except Exception as e:
+                    print(f"Error parsing fallback JSON: {e}")
                 
                 if video_data["author"] or video_data["description"]:
                     return video_data
@@ -617,26 +774,50 @@ class TikTokScraper:
 
 
 if __name__ == "__main__":
+    # Prompt for account name before initializing browser
+    account_name = input("Enter TikTok account name to scrape (without @): ").strip()
+    
+    if not account_name:
+        print("Error: Account name cannot be empty.")
+        exit(1)
+    
+    # Remove @ if user included it
+    account_name = account_name.lstrip("@")
+    
+    # Prompt for max posts (optional)
+    max_posts_input = input("Enter maximum number of posts to scrape (press Enter for all): ").strip()
+    max_posts = None
+    if max_posts_input:
+        try:
+            max_posts = int(max_posts_input)
+            if max_posts <= 0:
+                print("Invalid number, scraping all posts...")
+                max_posts = None
+        except ValueError:
+            print("Invalid number, scraping all posts...")
+            max_posts = None
+    
+    # Format URL with lang parameter
+    profile_url = f"https://www.tiktok.com/@{account_name}?lang=en"
+    
+    print(f"\nInitializing browser...")
+    print(f"Scraping profile: {profile_url}")
+    if max_posts:
+        print(f"Maximum posts: {max_posts}")
+    else:
+        print("Scraping all available posts...")
+    
     scraper = TikTokScraper()
     
     try:
-        # Example usage - scrape explore page
-        print("Scraping explore page...")
-        explore_data = scraper.scrape_explore(max_posts=5)
+        profile_data = scraper.scrape_profile(profile_url, max_posts)
         
-        # Example usage - scrape a profile
-        # profile = "charlidamelio"  # or use full URL: "https://www.tiktok.com/@charlidamelio"
-        # max_posts = 5
-        # print("Scraping profile...")
-        # profile_data = scraper.scrape_profile(profile, max_posts)
-        
-        # Example usage - scrape a hashtag
-        # hashtag = "fyp"  # or use "#fyp"
-        # print("Scraping hashtag...")
-        # hashtag_data = scraper.scrape_hashtag(hashtag, max_posts=3)
+        print(f"\nScraping completed! Found {len(profile_data)} posts.")
         
     except KeyboardInterrupt:
         print("\nScraping interrupted by user")
+    except Exception as e:
+        print(f"\nError occurred: {e}")
     finally:
         scraper.close()
         print("Browser closed.")
