@@ -22,7 +22,7 @@ func main() {
 	fmt.Println("Starting Server v2 (Gin)...")
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
-		connStr = "user=root password=secret dbname=project_monopoly sslmode=disable"
+		log.Fatal("DATABASE_URL environment variable is not set")
 	}
 	dbConn, err := sql.Open("postgres", connStr)
 	if err != nil {

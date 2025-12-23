@@ -190,7 +190,7 @@ func ExtractGameContext(c *gin.Context, queries *db.Queries) {
 	// Method check handled by Gin
 	// setCORSHeaders removed (handled by middleware)
 
-	apiKey := "sk-2a0bb6456b094dddaca045fb70557ca2"
+	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "DEEPSEEK_API_KEY not configured"})
 		return

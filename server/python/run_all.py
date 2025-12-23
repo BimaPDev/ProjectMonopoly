@@ -4,8 +4,10 @@ import sys
 import time
 import socket
 import subprocess
+from dotenv import load_dotenv
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(REPO_ROOT, "..", ".env"))
 
 BROKER_URL = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@rabbitmq:5672//")
 BACKEND_URL = os.getenv("CELERY_RESULT_BACKEND", "rpc://")
