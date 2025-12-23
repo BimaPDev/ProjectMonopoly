@@ -349,7 +349,7 @@ def upload_instagram_media(media_path, caption, headless=False):
         # Scroll element into view and try to click
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", share_button)
         time.sleep(1)
-        
+         
         # Try regular click first, fallback to JavaScript click
         try:
             share_button.click()

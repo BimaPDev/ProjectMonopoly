@@ -3,7 +3,7 @@ from .celery_app import app
 from socialmedia.instagram_post import upload_instagram_media
 from .db import update_job_status  # keeps your existing upload status updates
 from worker.config import UPLOADS_DIR  # e.g., "/data/uploads"
-import os
+import os 
 import logging
 import hashlib
 
