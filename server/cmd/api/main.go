@@ -107,6 +107,9 @@ func main() {
 			// AI Chat (Protected)
 			protected.POST("/ai/chat", wrap(handlers.DeepSeekHandler))
 
+			// Marketing AI Generation (Optimized Pipeline)
+			protected.POST("/marketing/generate", handlers.GenerateMarketingStrategyHandler(queries))
+
 			// Test LLM
 			protected.POST("/test/llm", handlers.TestLLMHandler)
 		}

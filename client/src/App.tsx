@@ -19,6 +19,7 @@ import Settings from "./app/settings/page";
 import GameContextPage from "./app/gamecontext/page.tsx";
 import LLMTestPage from "./app/llmTest/page.tsx";
 import SocialMedia from "./app/settings/socialMedia/page.tsx";
+import MarketingGeneratorPage from "./app/marketing/page.tsx";
 
 import { GroupProvider } from "./components/groupContext.tsx";
 import { Toaster } from "@/components/ui/toaster";
@@ -69,6 +70,7 @@ function App() {
               element={<GameContextPage />}
             />
             <Route path="/dashboard/llmTest" element={<LLMTestPage />} />
+            <Route path="/dashboard/marketing" element={<MarketingGeneratorPage />} />
           </Route>
 
           {/* 🔹 Catch-all Route for 404s */}

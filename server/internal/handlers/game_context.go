@@ -54,6 +54,22 @@ func toNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 
+// truncateString truncates a string to maxLen characters to prevent VARCHAR overflow
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen]
+}
+
+// toNullStringTruncated converts string to NullString with truncation to prevent VARCHAR overflow
+func toNullStringTruncated(s string, maxLen int) sql.NullString {
+	if strings.TrimSpace(s) == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: truncateString(s, maxLen), Valid: true}
+}
+
 // ---------------- DeepSeek API types ----------------
 
 type deepseekChatRequest struct {
@@ -139,27 +155,27 @@ func SaveGameContext(c *gin.Context, queries *db.Queries) {
 	response, err := queries.CreateGameContext(c.Request.Context(), db.CreateGameContextParams{
 		UserID:              int32(userID),
 		GroupID:             groupID,
-		GameTitle:           req.GameTitle,
-		StudioName:          toNullString(req.StudioName),
-		GameSummary:         toNullString(req.GameSummary),
-		Platforms:           req.Platforms,
-		EngineTech:          toNullString(req.EngineTech),
-		PrimaryGenre:        toNullString(req.PrimaryGenre),
-		Subgenre:            toNullString(req.Subgenre),
-		KeyMechanics:        toNullString(req.KeyMechanics),
-		PlaytimeLength:      toNullString(req.PlaytimeLength),
-		ArtStyle:            toNullString(req.ArtStyle),
-		Tone:                toNullString(req.Tone),
-		IntendedAudience:    toNullString(req.IntendedAudience),
-		AgeRange:            toNullString(req.AgeRange),
-		PlayerMotivation:    toNullString(req.PlayerMotivation),
-		ComparableGames:     toNullString(req.ComparableGames),
-		MarketingObjective:  toNullString(req.MarketingObjective),
-		KeyEventsDates:      toNullString(req.KeyEventsDates),
-		CallToAction:        toNullString(req.CallToAction),
-		ContentRestrictions: toNullString(req.ContentRestrictions),
-		CompetitorsToAvoid:  toNullString(req.CompetitorsToAvoid),
-		AdditionalInfo:      toNullString(req.AdditionalInfo),
+		GameTitle:           truncateString(req.GameTitle, 255),                 // VARCHAR(255)
+		StudioName:          toNullStringTruncated(req.StudioName, 255),         // VARCHAR(255)
+		GameSummary:         toNullString(req.GameSummary),                      // TEXT - no limit
+		Platforms:           req.Platforms,                                      // TEXT[]
+		EngineTech:          toNullStringTruncated(req.EngineTech, 255),         // VARCHAR(255)
+		PrimaryGenre:        toNullStringTruncated(req.PrimaryGenre, 100),       // VARCHAR(100)
+		Subgenre:            toNullStringTruncated(req.Subgenre, 100),           // VARCHAR(100)
+		KeyMechanics:        toNullString(req.KeyMechanics),                     // TEXT
+		PlaytimeLength:      toNullStringTruncated(req.PlaytimeLength, 100),     // VARCHAR(100)
+		ArtStyle:            toNullStringTruncated(req.ArtStyle, 100),           // VARCHAR(100)
+		Tone:                toNullStringTruncated(req.Tone, 100),               // VARCHAR(100)
+		IntendedAudience:    toNullString(req.IntendedAudience),                 // TEXT
+		AgeRange:            toNullStringTruncated(req.AgeRange, 100),           // VARCHAR(100)
+		PlayerMotivation:    toNullString(req.PlayerMotivation),                 // TEXT
+		ComparableGames:     toNullString(req.ComparableGames),                  // TEXT
+		MarketingObjective:  toNullStringTruncated(req.MarketingObjective, 255), // VARCHAR(255)
+		KeyEventsDates:      toNullString(req.KeyEventsDates),                   // TEXT
+		CallToAction:        toNullStringTruncated(req.CallToAction, 255),       // VARCHAR(255)
+		ContentRestrictions: toNullString(req.ContentRestrictions),              // TEXT
+		CompetitorsToAvoid:  toNullString(req.CompetitorsToAvoid),               // TEXT
+		AdditionalInfo:      toNullString(req.AdditionalInfo),                   // TEXT
 	})
 	if err != nil {
 		fmt.Printf("CreateGameContext ERROR: %v\n", err)
@@ -174,7 +190,7 @@ func ExtractGameContext(c *gin.Context, queries *db.Queries) {
 	// Method check handled by Gin
 	// setCORSHeaders removed (handled by middleware)
 
-	apiKey := "sk-"
+	apiKey := "sk-2a0bb6456b094dddaca045fb70557ca2"
 	if apiKey == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "DEEPSEEK_API_KEY not configured"})
 		return

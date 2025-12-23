@@ -20,7 +20,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       icon: BotIcon,
       items: [
         { title: "AI Assistant", url: "/dashboard/ai" },
-        { title: "Game Context", url: "/dashboard/gamecontext" }
+        { title: "Game Context", url: "/dashboard/gamecontext" },
+        { title: "Marketing Generator", url: "/dashboard/marketing" }
       ]
     },
     { title: "Posts", url: "/dashboard/posts", icon: MessageCircle },

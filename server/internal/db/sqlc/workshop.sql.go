@@ -153,6 +153,7 @@ type GetDefaultChunksRow struct {
 	Rank       float32       `json:"rank"`
 }
 
+// Fallback: return first N chunks from any document in the group (sorted to get overview/intro first)
 func (q *Queries) GetDefaultChunks(ctx context.Context, arg GetDefaultChunksParams) ([]GetDefaultChunksRow, error) {
 	rows, err := q.db.QueryContext(ctx, getDefaultChunks, arg.GroupID, arg.Limit)
 	if err != nil {

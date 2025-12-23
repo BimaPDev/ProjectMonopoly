@@ -21,15 +21,16 @@ export default function AuthenticatedLayout() {
   // Generate breadcrumbs based on current path
   const getBreadcrumbs = () => {
     const pathSegments = location.pathname.split('/').filter(segment => segment !== '');
-    
+
     const breadcrumbMap: { [key: string]: string } = {
       dashboard: 'Dashboard',
       posts: 'Posts',
       competitors: 'Competitors',
       live: 'Live Feed',
       ai: 'AI Assistant',
+      settings: 'Settings',
       gamecontext: 'Game Context',
-      settings: 'Settings'
+      marketing: 'Marketing Generator'
     };
 
     const breadcrumbs: React.ReactElement[] = [];
