@@ -552,9 +552,9 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 			}
 		}
 
-		// Model + host
-		model := orDefault(ar.Model, envOr("OLLAMA_MODEL", "gemma3:latest"))
-		host := envOr("OLLAMA_HOST", "http://localhost:11434")
+		// Get LLM provider (Ollama or Gemini based on LLM_PROVIDER env var)
+		provider := GetLLMProvider()
+		fmt.Printf("Using LLM provider: %s\n", provider.Name())
 
 		// Modes
 		mode := strings.ToLower(strings.TrimSpace(ar.Mode))
@@ -617,12 +617,12 @@ func WorkshopAskHandler(q *db.Queries) gin.HandlerFunc {
 		}
 
 		// DEBUG: Log the prompts being sent to the model
-		fmt.Printf("=== DEBUG OLLAMA PROMPT ===\n")
+		fmt.Printf("=== DEBUG LLM PROMPT ===\n")
 		fmt.Printf("SYSTEM: %s\n", sys)
 		fmt.Printf("USER (length %d chars): %s\n", len(user), user)
 		fmt.Printf("=== END DEBUG ===\n")
 
-		ans, err := callOllamaWithOptions(ctx, host, model, sys, user, map[string]any{
+		ans, err := provider.Call(ctx, sys, user, map[string]any{
 			"temperature":    temp,
 			"num_ctx":        8192,
 			"repeat_penalty": 1.1,

@@ -44,6 +44,7 @@ export default function GameContextPage() {
     const [loading, setLoading] = useState(false);
     const { activeGroup } = useGroup();
     const [extractedData, setExtractedData] = useState<GameContextData | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
     const [formData, setFormData] = useState<GameContextData>({
         game_title: "",
         studio_name: "",
@@ -136,25 +137,38 @@ export default function GameContextPage() {
 
     const validateGameContext = () => {
         const errors = [];
+        const fieldErrors: Record<string, string> = {};
 
         // Required fields
-        if (!formData.game_title?.trim()) errors.push("Game title is required");
-        if (!formData.studio_name?.trim()) errors.push("Studio name is required");
-        if (!formData.game_summary?.trim()) errors.push("Game summary is required");
+        if (!formData.game_title?.trim()) {
+            errors.push("Game title is required.")
+            fieldErrors.game_title = "Game title is required."
+        };
+        if (!formData.studio_name?.trim()) {
+            errors.push("Studio name is required.")
+            fieldErrors.studio_name = "Studio/ Developer name is required."
+        };
+        if (!formData.game_summary?.trim()) {
+            errors.push("Game summary is required.")
+            fieldErrors.game_summary = "Game summary is required."
+        };
 
         // Array field validation
         if (!formData.platforms || formData.platforms.length === 0) {
-            errors.push("At least one platform must be specified");
+            errors.push("At least one platform must be specified.");
+            fieldErrors.platforms = "At least one platform must be specified."
         }
 
         // Marketing objective validation (radio button)
         if (!formData.marketing_objective?.trim()) {
-            errors.push("Please select a marketing objective");
+            errors.push("Please select a marketing objective.");
+            fieldErrors.marketing_objective = "Please select a marketing objective."
         }
 
         return {
             isValid: errors.length === 0,
-            errors
+            errors,
+            fieldErrors
         };
     }
 
@@ -189,12 +203,13 @@ export default function GameContextPage() {
 
     const handleInputChange = (field: keyof GameContextData, value: string | string[]) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+        setFieldErrors((prev) => ({ ...prev, [field]: "" }))
     };
 
     const handleSubmit = async () => {
-        // TODO: Implement save to database
         const validation = validateGameContext();
         if (!validation.isValid) {
+            setFieldErrors(validation.fieldErrors);
             toast({
                 title: "Validation Error",
                 description: validation.errors.join('\n'),
@@ -317,7 +332,7 @@ export default function GameContextPage() {
                                     Click to upload files
                                 </p>
                                 <p className="text-sm text-gray-400">
-                                    Supports PNG and TXT (max. 10MB)
+                                    Supports PNG or TXT (max. 10MB)
                                 </p>
                             </div>
 
@@ -380,7 +395,7 @@ export default function GameContextPage() {
                             </div> :
                             <div>
                                 <h1 className="text-2xl font-bold">Enter game context</h1>
-                                <h2 className="text-slate-500"> Provide details about your game</h2>
+                                <h2 className="text-slate-500"> Provide details about your game <span className="text-red-500">*</span> = Required field</h2>
                             </div>
                         }
                     </div>
@@ -392,7 +407,7 @@ export default function GameContextPage() {
                             }}
                             className="text-gray-400 hover:text-white"
                         >
-                            Go Back
+                            ← Go Back
                         </Button>
                         <Button
                             variant="ghost"
@@ -418,7 +433,7 @@ export default function GameContextPage() {
                         <p className="text-sm text-slate-500">The core details about the game</p>
 
                         <div className="flex flex-col">
-                            <div className="flex items-baseline w-full gap-5 mt-2">
+                            <div className="flex items-baseline w-full gap-4 mt-4">
                                 <FormField
                                     label="Title"
                                     placeholder="Enter title of game"
@@ -426,31 +441,41 @@ export default function GameContextPage() {
                                     value={formData.game_title}
                                     onChange={(value) => handleInputChange("game_title", value.target.value)}
                                     required
+                                    error={fieldErrors.game_title}
                                     className="w-[50%]"
                                 />
                                 <FormField
                                     label="Studio / Developer Name"
-                                    placeholder="Dogwood"
+                                    placeholder="Your Company"
                                     id="studio_name"
                                     value={formData.studio_name}
+                                    required
+                                    error={fieldErrors.studio_name}
                                     onChange={(value) => handleInputChange("studio_name", value.target.value)}
                                     className="w-[50%]"
                                 />
                             </div>
-                            <div className="mt-2">
-                                <Label htmlFor="game_summary">Summary/Description</Label>
+                            <div className="mt-4">
+                                <Label htmlFor="game_summary">Summary/Description <span className="text-red-500">*</span></Label>
                                 <Textarea
                                     id="game_summary"
                                     value={formData.game_summary}
+                                    required
                                     onChange={(value) => { handleInputChange("game_summary", value.target.value) }}
                                     placeholder="Summary"
+                                    className={fieldErrors.game_summary ? "p-2 !border-red-500 focus-visible:ring-red-500" : "p-2"}
                                 />
+                                {fieldErrors.game_summary &&
+                                    <p className="mt-1 text-sm text-red-500">{fieldErrors.game_summary}</p>
+                                }
                             </div>
-                            <div className="grid gap-4 mt-2 md:grid-cols-2">
+                            <div className="grid gap-4 mt-4 md:grid-cols-2">
                                 <FormField
                                     label="Platforms"
                                     placeholder="PC, Console, Mobile, VR"
                                     id="platforms"
+                                    required
+                                    error={fieldErrors.platforms}
                                     value={Array.isArray(formData.platforms) ? formData.platforms.join(", ") : formData.platforms}
                                     onChange={(value) => handleInputChange("platforms", value.target.value.split(",").map(p => p.trim()))}
                                 />
@@ -462,13 +487,13 @@ export default function GameContextPage() {
                                     onChange={(value) => handleInputChange("engine_tech", value.target.value)}
                                 />
                             </div>
-                            <div className="w-full mt-5 border border-slate-500/60"></div>
+                            <div className="w-full mt-6 border border-slate-500/60"></div>
                             {/* section 2 */}
-                            <div className="mt-2">
+                            <div className="mt-6">
                                 <h1 className="text-xl font-bold">2. Game's Identity</h1>
                                 <p className="text-sm text-slate-500">Game's genre and style</p>
                                 <div className="flex flex-col">
-                                    <div className="flex items-baseline w-full gap-5 mt-2">
+                                    <div className="flex items-baseline w-full gap-4 mt-4">
                                         <FormField
                                             label="Primary Genre"
                                             placeholder="e.g. Racing, Simulation, Action"
@@ -479,7 +504,7 @@ export default function GameContextPage() {
                                         />
                                         <FormField
                                             label="Subgenre"
-                                            placeholder="e.g. rougelike, sandbox"
+                                            placeholder="e.g. Roguelike, sandbox"
                                             id="subgenre"
                                             value={formData.subgenre}
                                             onChange={(value) => handleInputChange("subgenre", value.target.value)}
@@ -487,20 +512,17 @@ export default function GameContextPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="flex w-full gap-10">
-                                    <div className="w-full mt-2">
-                                        <Label htmlFor="key_mechanics">Key mechanics / Features</Label>
-                                        <Textarea
-                                            id="key_mechanics"
-                                            value={formData.key_mechanics}
-                                            onChange={(value) => { handleInputChange("key_mechanics", value.target.value) }}
-                                            placeholder="e.g. Customizable Cars, Procedural Levels"
-                                        />
-
-                                    </div>
-
+                                <div className="w-full mt-4">
+                                    <Label htmlFor="key_mechanics">Key mechanics / Features</Label>
+                                    <Textarea
+                                        id="key_mechanics"
+                                        value={formData.key_mechanics}
+                                        onChange={(value) => { handleInputChange("key_mechanics", value.target.value) }}
+                                        placeholder="e.g. Customizable Cars, Procedural Levels"
+                                        className="p-2"
+                                    />
                                 </div>
-                                <div className="flex gap-5 mt-2">
+                                <div className="flex gap-4 mt-4">
                                     <FormField
                                         label="Estimated Playtime Length"
                                         placeholder="eg. 10-15 hours"
@@ -519,14 +541,14 @@ export default function GameContextPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="w-full mt-5 border border-slate-500/60"></div>
+                            <div className="w-full mt-6 border border-slate-500/60"></div>
                             {/* section 3 */}
-                            <div className="mt-2">
+                            <div className="mt-6">
                                 <h1 className="text-xl font-bold">3. Target Audience</h1>
-                                <p className="text-sm text-slate-500">who will want to play the game?</p>
+                                <p className="text-sm text-slate-500">Who will want to play the game?</p>
 
                                 <div className="flex flex-col">
-                                    <div className="flex items-baseline w-full gap-5 mt-2">
+                                    <div className="flex items-baseline w-full gap-4 mt-4">
                                         <FormField
                                             label="Intended Audience"
                                             placeholder="e.g. Casual Games, History Buffs"
@@ -544,46 +566,47 @@ export default function GameContextPage() {
                                             className="w-[50%]"
                                         />
                                     </div>
-                                    <div className="flex flex-col items-baseline w-full gap-2">
+                                    <div className="w-full mt-4">
                                         <Label htmlFor="Player Motivation">Player Motivation</Label>
                                         <Textarea
                                             id="player_motivation"
                                             value={formData.player_motivation}
                                             onChange={(value) => { handleInputChange("player_motivation", value.target.value) }}
-                                            placeholder="What do players get out of this? Fun, relaxation, mastery, creativity, competition, etc"
+                                            placeholder="What do players get out of this? Fun, relaxation, mastery, creativity, competition, etc."
+                                            className="p-2"
                                         />
-
                                     </div>
 
-                                    <div className="flex items-baseline w-full gap-5 mt-2">
+                                    <div className="flex items-baseline w-full gap-4 mt-4">
                                         <FormField
                                             label="Comparable Games"
                                             placeholder="e.g. Inspired by Stardew Valley and Animal Crossing."
                                             id="comparable_games"
                                             value={formData.comparable_games}
                                             onChange={(value) => handleInputChange("comparable_games", value.target.value)}
-                                            className="w-[75%]"
+                                            className="w-full"
                                         />
 
                                     </div>
                                 </div>
                             </div>
-                            <div className="w-full mt-5 border border-slate-500/60"></div>
+                            <div className="w-full mt-6 border border-slate-500/60"></div>
 
                             {/* section 4 */}
-                            <div className="mt-2">
+                            <div className="mt-6">
                                 <h1 className="text-xl font-bold">4. Marketing Goals</h1>
                                 <p className="text-sm text-slate-500">What success looks like for your campaign</p>
                                 <div className="flex flex-col">
-                                    <div className="flex flex-wrap gap-3 p-2">
+                                    <div className="flex flex-wrap justify-between gap-5 mt-4">
                                         {radioButtons.map((option) => {
                                             return (
-                                                <div className="p-2 border border-gray-50/20">
+                                                <div className={`p-2 border ${fieldErrors.marketing_objective ? "border-red-500" : "border-gray-50/20"}`}>
                                                     <label key={option.value} className="flex items-center gap-2">
                                                         <input
                                                             type="radio"
                                                             name="marketing_objective"
                                                             value={option.value}
+                                                            required
                                                             onChange={() => handleInputChange("marketing_objective", option.value)}
                                                         />
                                                         <span>{option.label}</span>
@@ -592,20 +615,24 @@ export default function GameContextPage() {
                                             );
                                         })}
                                     </div>
-
+                                    {fieldErrors.marketing_objective && (
+                                        <p className="mt-1 text-sm text-red-500">{fieldErrors.marketing_objective}</p>
+                                    )}
                                 </div>
-                                <div className="flex items-baseline w-full gap-5 mt-2">
-                                    <FormField
-                                        label="Key Events or Dates"
-                                        placeholder="e.g., demo release, festival submission, convention appearance"
-                                        id="key_events_dates"
-                                        value={formData.key_events_dates}
-                                        onChange={(value) => handleInputChange("key_events_dates", value.target.value)}
-                                        className="w-[50%]"
-                                    />
+                                <div className="flex items-baseline w-full gap-4 mt-4">
+                                    <div className="flex flex-col w-full">
+                                        <Label htmlFor="Key Events">Key Events</Label>
+                                        <Textarea
+                                            placeholder="e.g., demo release, festival submission, convention appearance"
+                                            id="key_events_dates"
+                                            value={formData.key_events_dates}
+                                            onChange={(value) => handleInputChange("key_events_dates", value.target.value)}
+                                            className="w-full p-2 mt-2 border-zinc-200"
+                                        />
+                                    </div>
                                     <FormField
                                         label="Call To Action"
-                                        placeholder="e.g. Add to Wishlist, Play the Demo"
+                                        placeholder="e.g Add to Wishlist, Play the Demo"
                                         id="call_to_action"
                                         value={formData.call_to_action}
                                         onChange={(value) => handleInputChange("call_to_action", value.target.value)}
@@ -613,44 +640,50 @@ export default function GameContextPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="w-full mt-5 border border-slate-500/60"></div>
+                            <div className="w-full mt-6 border border-slate-500/60"></div>
                             {/* stage 5 */}
-                            <div className="mt-2">
-                                <h1 className="text-xl font-bold">Restrictions / Boundaries</h1>
+                            <div className="mt-6">
+                                <h1 className="text-xl font-bold">5. Restrictions / Boundaries</h1>
                                 <p className="text-sm text-slate-500">Helps avoid bad or off-brand outputs.</p>
                                 <div className="flex flex-col">
-                                    <div className="flex items-baseline w-full gap-5 mt-2">
-                                        <FormField
-                                            label="Content Restrictions"
-                                            placeholder="e.g. “No mention of gambling with real money,” “Avoid dark humor."
-                                            id="content_restrictions"
-                                            value={formData.content_restrictions}
-                                            onChange={(value) => handleInputChange("content_restrictions", value.target.value)}
-                                            className="w-[50%]"
-                                        />
-                                        <FormField
-                                            label="Competitors / Topics to Avoid"
-                                            placeholder="Optional —e.g. “Don't reference real-world casinos or violence."
-                                            id="competitors_to_avoid"
-                                            value={formData.competitors_to_avoid}
-                                            onChange={(value) => handleInputChange("competitors_to_avoid", value.target.value)}
-                                            className="w-[50%]"
-                                        />
+                                    <div className="flex items-baseline w-full gap-4 mt-4">
+                                        <div className="flex flex-col w-full">
+                                            <Label htmlFor="Content Restrictions">Content Restrictions</Label>
+                                            <Textarea
+                                                placeholder="e.g. “No mention of gambling with real money”, “Avoid dark humor"
+                                                id="content_restrictions"
+                                                value={formData.content_restrictions}
+                                                onChange={(value) => handleInputChange("content_restrictions", value.target.value)}
+                                                className="w-full p-2 mt-2"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col w-full">
+                                            <Label htmlFor="Competitors">Competitors</Label>
+                                            <Textarea
+                                                placeholder="e.g. Don't reference real-world casinos or violence."
+                                                id="competitors_to_avoid"
+                                                value={formData.competitors_to_avoid}
+                                                onChange={(value) => handleInputChange("competitors_to_avoid", value.target.value)}
+                                                className="w-full mt-2 border-zinc-200"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                                <FormField
-                                    label="Additional Info"
-                                    placeholder="Enter in any additional info about your product"
-                                    id="additional_info"
-                                    value={formData.additional_info}
-                                    onChange={(value) => handleInputChange("additional_info", value.target.value)}
-                                    className="mt-2"
-                                />
+                                <div className="flex flex-col mt-4">
+                                    <Label htmlFor="Additional Info">Aditional Info</Label>
+                                    <Textarea
+                                        placeholder="Enter in any additional info about your product"
+                                        id="additional_info"
+                                        value={formData.additional_info}
+                                        onChange={(value) => handleInputChange("additional_info", value.target.value)}
+                                        className="p-2 mt-2 border-zinc-200"
+                                    />
+                                </div>
                             </div>
-                            <Separator className="bg-gray-800" />
+                            <Separator className="mt-6 bg-gray-800" />
 
                             {/* Submit Button */}
-                            <div className="flex justify-end gap-4 mt-2">
+                            <div className="flex justify-end gap-4 mt-6">
                                 <Button
                                     variant="outline"
                                     onClick={() => {

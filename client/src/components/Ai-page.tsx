@@ -29,9 +29,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 
 const models = [
-  { id: "DeepSeek", name: "DeepSeek", icon: "✨" },
-  { id: "GPT-4", name: "GPT-4", icon: "🧠" },
-  { id: "Claude", name: "Claude", icon: "🌟" },
+  { id: "Gemini", name: "Gemini" },
 ];
 
 const thinkingMessages = [
@@ -57,7 +55,7 @@ interface Message {
 export function AIPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [model, setModel] = useState("DeepSeek");
+  const [model, setModel] = useState("Gemini");
   const [isLoading, setIsLoading] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -65,10 +63,10 @@ export function AIPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [thinkingMessage, setThinkingMessage] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [token, setToken] = useState(localStorage.getItem("token"))
   const { activeGroup } = useGroup()
-
+  const [health, setHealth] = useState(true);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -80,8 +78,20 @@ export function AIPage() {
   useEffect(() => {
     // Set focus to input when page loads
     inputRef.current?.focus();
+    fetchHealth();
   }, []);
-
+  async function fetchHealth() {
+    try {
+      const res = await fetch('/health', {
+        method: "GET"
+      });
+      if (!res.ok) {
+        setHealth(false);
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
@@ -219,7 +229,7 @@ export function AIPage() {
         <div className="flex flex-col items-start justify-between gap-4 mb-4 md:flex-row md:items-center">
           <h2 className="flex items-center text-2xl font-bold tracking-tight md:text-3xl">
             <Sparkles className="w-6 h-6 mr-2 text-primary animate-pulse" />
-            DogWood AI Studio
+            Dogwood AI Marketing Assistant
           </h2>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -247,7 +257,6 @@ export function AIPage() {
                 {models.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
                     <div className="flex items-center">
-                      <span className="mr-2">{m.icon}</span>
                       <div>
                         <div>{m.name}</div>
 
@@ -266,16 +275,13 @@ export function AIPage() {
               <div>
                 <CardTitle className="flex items-center text-lg md:text-xl">
                   <Bot className="w-5 h-5 mr-2 text-primary" />
-                  Chat with {models.find((m) => m.id === model)?.name} {models.find((m) => m.id === model)?.icon}
+                  Chat with {models.find((m) => m.id === model)?.name}
                 </CardTitle>
-                <CardDescription>
-                  Powered by DogWood Gaming's AI Marketing Suite
-                </CardDescription>
               </div>
               <div className="hidden md:block">
                 <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-100">
-                  <span className="mr-1 h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                  Online
+                  <span className={`mr-1 h-1.5 w-1.5 rounded-full ${health ? "bg-green-500" : "bg-red-500"}`}></span>
+                  {health === true ? "Online" : "Offline"}
                 </span>
               </div>
             </div>
@@ -290,7 +296,7 @@ export function AIPage() {
                   transition={{ duration: 0.5 }}
                 >
                   <Sparkles className="w-12 h-12 mx-auto mb-4 text-primary" />
-                  <h3 className="mb-2 text-2xl font-bold md:text-3xl">DogWood Gaming's AI Marketing Tool</h3>
+                  <h3 className="mb-2 text-2xl font-bold md:text-3xl">Dogwood Gaming's AI Marketing Assistant</h3>
                   <p className="mb-6 text-muted-foreground">
                     Your AI assistant for marketing strategy, content creation, and customer engagement
                   </p>
@@ -301,14 +307,6 @@ export function AIPage() {
                         <li>• Marketing strategy for a game launch</li>
                         <li>• Content calendar ideas for social media</li>
                         <li>• Audience targeting recommendations</li>
-                      </ul>
-                    </div>
-                    <div className="p-3 border rounded-lg bg-secondary/10">
-                      <p className="mb-1 font-medium">Upload files like:</p>
-                      <ul className="space-y-1 text-sm text-muted-foreground">
-                        <li>• Market research documents</li>
-                        <li>• Campaign performance data</li>
-                        <li>• Competitor analysis reports</li>
                       </ul>
                     </div>
                   </div>
@@ -348,7 +346,7 @@ export function AIPage() {
                       </div>
                       <div>
                         <div className="flex items-center mb-1">
-                          <span className={`text-xs font-medium ${message.role === "assistant" ? "text-primary" : "text-secondary"
+                          <span className={`text-xs font-medium ${message.role === "assistant" ? "text-primary" : "text-primary"
                             }`}>
                             {message.role === "assistant" ? models.find(m => m.id === model)?.name : "You"}
                           </span>
@@ -430,7 +428,7 @@ export function AIPage() {
                 "flex gap-2 transition-all border-2 rounded-lg p-1",
                 inputFocused ? "border-primary/50 ring-2 ring-primary/20" : "border-input"
               )}>
-                <Input
+                <textarea
                   placeholder="Type your message..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -460,13 +458,13 @@ export function AIPage() {
                   <span>Send</span>
                 </Button>
               </div>
-              <input
+              {/* <input
                 type="file"
                 multiple
                 className="hidden"
                 onChange={handleFileChange}
                 ref={fileInputRef}
-              />
+              /> */}
               <AnimatePresence>
                 {files.length > 0 && (
                   <motion.div
@@ -504,10 +502,7 @@ export function AIPage() {
         </Card>
         <div className="flex items-center justify-between mt-2">
           <div className="text-xs font-medium text-muted-foreground">
-            DogWood AI can make mistakes. Always verify important information.
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Powered by {model} {models.find(m => m.id === model)?.icon}
+            AI can make mistakes; Please check and verify any information and results before use.
           </div>
         </div>
       </div>

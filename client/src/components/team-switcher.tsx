@@ -14,6 +14,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useGroup } from './groupContext.tsx';
 
@@ -25,13 +26,14 @@ interface Group {
 
 export function TeamSwitcher() {
   const { activeGroup, setActiveGroup } = useGroup();
+  const { state } = useSidebar();
   const [groups, setGroups] = React.useState<Group[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [userID, setUserID] = React.useState<number | null>(null);
   const [isOpen, setIsOpen] = React.useState(false);
   const [hasFetched, setHasFetched] = React.useState(false);
-
+  const MAX_LENGTH = 15;
 
   React.useEffect(() => {
     try {
@@ -106,11 +108,13 @@ export function TeamSwitcher() {
       return;
     }
 
-    const name = window.prompt("New group name:")?.trim();
+    let name = window.prompt("New group name (max 50 characters):")?.trim();
     if (!name) return;
-
-    const description = window.prompt("Description (optional):")?.trim() || "";
-
+    name.substring(0, MAX_LENGTH);
+    let description = window.prompt("Description (optional, max 50 characters):")?.trim() || "";
+    if (description) {
+      description.substring(0, MAX_LENGTH);
+    }
     try {
       const res = await fetch(`/api/groups`, {
         method: "POST",
@@ -140,7 +144,13 @@ export function TeamSwitcher() {
           }}>
             <SidebarMenuButton size="lg">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
-                <Users className="w-4 h-4" />
+                {state === "collapsed" && activeGroup?.name ? (
+                  <span className="p-2 font-bold text-md">
+                    {activeGroup.name.charAt(0).toUpperCase()}
+                  </span>
+                ) : (
+                  <Users className="w-4 h-4" />
+                )}
               </div>
               <div className="flex-1 text-sm leading-tight text-left">
                 <span className="font-semibold">
