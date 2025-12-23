@@ -35,8 +35,10 @@ import { Badge } from "@/components/ui/badge";
 
 interface MarketingResponse {
     content: string;
-    best_posting_hour: number;
+    best_posting_day: string;
+    posts_per_week: number;
     top_hook: string;
+    top_hashtags: string[];
     tokens_used_estimate: number;
     data_source: string;
 }
@@ -117,11 +119,11 @@ export default function MarketingGeneratorPage() {
         });
     };
 
-    const formatHour = (hour: number) => {
-        const suffix = hour >= 12 ? "PM" : "AM";
-        const displayHour = hour % 12 || 12;
-        return `${displayHour}:00 ${suffix}`;
-    };
+    // const formatHour = (hour: number) => {
+    //     const suffix = hour >= 12 ? "PM" : "AM";
+    //     const displayHour = hour % 12 || 12;
+    //     return `${displayHour}:00 ${suffix}`;
+    // };
 
     return (
         <div className="container mx-auto py-6 space-y-6 max-w-4xl">
@@ -286,17 +288,17 @@ export default function MarketingGeneratorPage() {
                                     </Badge>
                                 </div>
 
-                                {/* Best Posting Hour */}
+                                {/* Best Posting Day */}
                                 <div className="rounded-lg border p-4 space-y-2">
                                     <div className="flex items-center gap-2 text-sm font-medium">
                                         <Clock className="h-4 w-4 text-blue-500" />
-                                        Optimal Posting Time
+                                        Optimal Posting Day
                                     </div>
                                     <p className="text-2xl font-bold">
-                                        {formatHour(response.best_posting_hour)}
+                                        {response.best_posting_day}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        Based on competitor engagement data
+                                        Competitors post {response.posts_per_week.toFixed(1)} times/week
                                     </p>
                                 </div>
 
@@ -308,6 +310,23 @@ export default function MarketingGeneratorPage() {
                                             Top Competitor Hook
                                         </div>
                                         <p className="text-sm italic">"{response.top_hook}"</p>
+                                    </div>
+                                )}
+
+                                {/* Top Hashtags */}
+                                {response.top_hashtags && response.top_hashtags.length > 0 && (
+                                    <div className="rounded-lg border p-4 space-y-2">
+                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                            <TrendingUp className="h-4 w-4 text-purple-500" />
+                                            Top Hashtags
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {response.top_hashtags.map((tag, i) => (
+                                                <Badge key={i} variant="secondary" className="text-xs">
+                                                    #{tag}
+                                                </Badge>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 

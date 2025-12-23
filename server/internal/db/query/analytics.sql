@@ -138,3 +138,22 @@ JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
   AND cp.posted_at >= NOW() - INTERVAL '28 days';
+
+-- name: GetTopCompetitorHashtags :many
+-- Returns top 5 used hashtags by competitors in last 28 days
+SELECT
+  hashtag,
+  COUNT(*)::bigint as frequency
+FROM (
+  SELECT UNNEST(hashtags) as hashtag
+  FROM competitor_posts cp
+  JOIN competitors c ON c.id = cp.competitor_id
+  JOIN user_competitors uc ON uc.competitor_id = c.id
+  WHERE uc.user_id = $1
+    AND (uc.group_id = $2 OR uc.group_id IS NULL)
+    AND cp.posted_at >= NOW() - INTERVAL '28 days'
+) as tags
+WHERE LENGTH(hashtag) > 2
+GROUP BY hashtag
+ORDER BY frequency DESC
+LIMIT 5;

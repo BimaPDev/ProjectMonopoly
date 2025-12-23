@@ -779,8 +779,13 @@ func callOllamaWithOptions(ctx context.Context, host, model, sys, user string, o
 				Message struct {
 					Content string `json:"content"`
 				} `json:"message"`
+				PromptEvalCount int `json:"prompt_eval_count"`
+				EvalCount       int `json:"eval_count"`
 			}
 			if json.Unmarshal(bodyBytes, &out) == nil {
+				// Log token usage
+				fmt.Printf("TOKEN COUNTER: Prompt:%d, Completion:%d, Total:%d\n",
+					out.PromptEvalCount, out.EvalCount, out.PromptEvalCount+out.EvalCount)
 				return strings.TrimSpace(out.Message.Content), nil
 			}
 		} else {

@@ -191,12 +191,23 @@ func callGemini(ctx context.Context, apiKey, model, system, user string, opts ma
 				Message string `json:"message"`
 				Status  string `json:"status"`
 			} `json:"error"`
+			UsageMetadata struct {
+				PromptTokenCount     int `json:"promptTokenCount"`
+				CandidatesTokenCount int `json:"candidatesTokenCount"`
+				TotalTokenCount      int `json:"totalTokenCount"`
+			} `json:"usageMetadata"`
 		}
 
 		if err := json.Unmarshal(bodyBytes, &geminiResp); err != nil {
 			fmt.Printf("DEBUG: Failed to parse Gemini response: %v\nBody: %s\n", err, string(bodyBytes))
 			return "", fmt.Errorf("failed to parse Gemini response: %w", err)
 		}
+
+		// Log token usage
+		fmt.Printf("TOKEN COUNTER: Prompt:%d, Completion:%d, Total:%d\n",
+			geminiResp.UsageMetadata.PromptTokenCount,
+			geminiResp.UsageMetadata.CandidatesTokenCount,
+			geminiResp.UsageMetadata.TotalTokenCount)
 
 		// Check for error in response body
 		if geminiResp.Error.Message != "" {

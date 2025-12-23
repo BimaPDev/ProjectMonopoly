@@ -24,12 +24,13 @@ type MarketingStrategyRequest struct {
 
 // MarketingStrategyResponse is the API response
 type MarketingStrategyResponse struct {
-	Content        string  `json:"content"`
-	BestPostingDay string  `json:"best_posting_day"` // Day name (e.g., "Wednesday")
-	PostsPerWeek   float64 `json:"posts_per_week"`   // Competitor cadence
-	TopHook        string  `json:"top_hook,omitempty"`
-	TokensUsed     int     `json:"tokens_used_estimate"`
-	DataSource     string  `json:"data_source"` // "28_day_window" or "fallback"
+	Content        string   `json:"content"`
+	BestPostingDay string   `json:"best_posting_day"` // Day name (e.g., "Wednesday")
+	PostsPerWeek   float64  `json:"posts_per_week"`   // Competitor cadence
+	TopHook        string   `json:"top_hook,omitempty"`
+	TopHashtags    []string `json:"top_hashtags,omitempty"` // New field
+	TokensUsed     int      `json:"tokens_used_estimate"`
+	DataSource     string   `json:"data_source"` // "28_day_window" or "fallback"
 }
 
 // CompetitorInsights holds the processed analytics data
@@ -38,6 +39,7 @@ type CompetitorInsights struct {
 	BestDayName   string  // "Monday", "Tuesday", etc.
 	PostsPerWeek  float64 // Competitor posting cadence
 	TopHook       string
+	TopHashtags   []string // New field
 	AvgLikes      float64
 	SampleSize    int64
 	HasData       bool
@@ -139,6 +141,7 @@ func GenerateMarketingStrategyHandler(q *db.Queries) gin.HandlerFunc {
 			BestPostingDay: insights.BestDayName,
 			PostsPerWeek:   insights.PostsPerWeek,
 			TopHook:        insights.TopHook,
+			TopHashtags:    insights.TopHashtags,
 			TokensUsed:     tokenEstimate,
 			DataSource:     dataSource,
 		})
@@ -153,6 +156,7 @@ func fetchCompetitorInsights(ctx context.Context, q *db.Queries, userID, groupID
 		BestDayName:   "Wednesday",                        // Default day name
 		TimeHeuristic: getPlatformTimeHeuristic(platform), // Platform-specific advice
 		HasData:       false,
+		TopHashtags:   []string{}, // Initialize empty
 	}
 
 	// Get posting frequency (28-day window)
@@ -194,6 +198,18 @@ func fetchCompetitorInsights(ctx context.Context, q *db.Queries, userID, groupID
 			insights.TopHook = TruncateHook(hook, 200)
 			fmt.Printf("Top hook from @%s: %s\n", topHooks[0].CompetitorHandle, insights.TopHook)
 		}
+	}
+
+	// Get top hashtags (28-day window)
+	tags, err := q.GetTopCompetitorHashtags(ctx, db.GetTopCompetitorHashtagsParams{
+		UserID:  userID,
+		GroupID: sql.NullInt32{Int32: groupID, Valid: true},
+	})
+	if err == nil && len(tags) > 0 {
+		for _, t := range tags {
+			insights.TopHashtags = append(insights.TopHashtags, t.Hashtag)
+		}
+		fmt.Printf("Top hashtags: %v\n", insights.TopHashtags)
 	}
 
 	return insights
@@ -249,6 +265,13 @@ func buildStrategyContext(gameCtx db.GameContext, insights CompetitorInsights, r
 		b.WriteString(fmt.Sprintf("- Competitor Cadence: %.1f posts/week\n", insights.PostsPerWeek))
 		if insights.TopHook != "" {
 			b.WriteString(fmt.Sprintf("- Top Performing Hook: \"%s\"\n", insights.TopHook))
+		}
+		if len(insights.TopHashtags) > 0 {
+			b.WriteString("- Top Hashtags: ")
+			for _, tag := range insights.TopHashtags {
+				b.WriteString(fmt.Sprintf("#%s ", tag))
+			}
+			b.WriteString("\n")
 		}
 		b.WriteString(fmt.Sprintf("- Data Sample Size: %d posts analyzed\n\n", insights.SampleSize))
 

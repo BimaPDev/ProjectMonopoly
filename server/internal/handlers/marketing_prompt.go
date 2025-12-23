@@ -16,6 +16,7 @@ type MarketingPromptData struct {
 	PostsPerWeek         float64 // Competitor cadence
 	TimeHeuristic        string  // Platform-specific time advice
 	TopCompetitorCaption string
+	TopHashtags          []string // New field
 	CampaignType         string
 	Tone                 string
 	Platform             string
@@ -56,6 +57,7 @@ HARD DATA (Last 28 Days):
 - Peak Engagement Day: {{.BestDay}}
 - Competitor Cadence: {{printf "%.1f" .PostsPerWeek}} posts/week
 {{if .TopCompetitorCaption}}- Top Performing Hook: "{{.TopCompetitorCaption}}"{{end}}
+{{if .TopHashtags}}- Top Hashtags: {{range .TopHashtags}}#{{.}} {{end}}{{end}}
 {{else -}}
 HARD DATA: No competitor data available for the past 28 days.
 {{end}}
