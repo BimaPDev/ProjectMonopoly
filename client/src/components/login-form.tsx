@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { GoogleLogin } from "@react-oauth/google"; // Import Google Login
 const isDev = location.protocol === "http:";
 
@@ -12,13 +8,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // ✅ Initialize React Router Navigation
+  const navigate = useNavigate();
 
   // Handle regular login (email + password)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
     try {
       const response = await fetch(`/api/login`, {
         method: "POST",
@@ -33,11 +28,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       const data = await response.json();
       const token = data.token;
 
-      // ✅ Decode JWT to extract userID and email
+      // Decode JWT to extract userID and email
       const payloadBase64 = token.split('.')[1];
       const decodedPayload = JSON.parse(atob(payloadBase64));
 
-      // ✅ Save token and user data to localStorage and cookies
+      // Save token and user data to localStorage and cookies
       localStorage.setItem("token", token);
       localStorage.setItem("userID", decodedPayload.userID);
       localStorage.setItem("email", decodedPayload.email);
@@ -146,7 +141,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                         type="email"
                         id="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => setEmail(e.target.value.toLowerCase())}
                         className="w-full py-3 pl-10 pr-4 transition duration-200 bg-black border border-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         placeholder="you@example.com"
                         required

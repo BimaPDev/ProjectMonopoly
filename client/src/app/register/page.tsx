@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { GoogleLogin } from "@react-oauth/google";
-import { useRouter } from "next/navigation";
+import { useNavigate } from 'react-router-dom';
 export default function RegisterPage() {
 
   const [formData, setFormData] = useState({
@@ -10,16 +10,11 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: ''
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState({ type: "", message: "" });
   const [loading, setLoading] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [signSuccess, setSuccess] = useState(false);
-  interface FormData {
-    username: string;
-    email: string;
-    password: string;
-    confirmPassword: string;
-  }
+  const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -28,24 +23,24 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
+    setError({ type: "", message: '' });
     setLoading(true);
 
     // Basic validation
-    if (!formData.email || !formData.password) {
-      setError('Email and password are required');
+    if (!formData.email || !formData.password || !formData.email.includes("@")) {
+      setError({ type: "error", message: 'Email and password are required' });
       setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError({ type: "error", message: 'Passwords do not match' });
       setLoading(false);
       return;
     }
 
     if (!agreeToTerms) {
-      setError('You must agree to the terms and conditions');
+      setError({ type: "error", message: 'You must agree to the terms and conditions' });
       setLoading(false);
       return;
     }
@@ -84,7 +79,7 @@ export default function RegisterPage() {
           errorMessage = "Registration failed";
         }
 
-        setError(errorMessage);
+        setError({ type: "error", message: errorMessage });
         throw new Error(errorMessage);
       }
 
@@ -95,12 +90,13 @@ export default function RegisterPage() {
       localStorage.setItem("email", formData.email);
 
       setSuccess(true);
-      setError("Account created please log in");
+      setError({ type: "success", message: "Account created. Please log in. You will be redirected soon." });
+      setTimeout(() => navigate("/login"), 3000);
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError({ type: "error", message: err.message });
       } else {
-        setError("An unexpected error occurred.");
+        setError({ type: "error", message: "An unexpected error occurred." });
       }
     } finally {
       setLoading(false);
@@ -136,7 +132,7 @@ export default function RegisterPage() {
       const data: RegisterResponse = await response.json();
 
       if (!response.ok) {
-        setError(data.message ?? "Registration failed");
+        setError({ type: "error", message: data.message ?? "Registration failed" });
         return;
       }
 
@@ -146,9 +142,9 @@ export default function RegisterPage() {
       alert("User registered successfully!");
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError({ type: "error", message: err.message });
       } else {
-        setError("An unexpected error occurred.");
+        setError({ type: "error", message: "An unexpected error occurred." });
       }
     }
   };
@@ -156,7 +152,7 @@ export default function RegisterPage() {
   // Handle Google sign-in error
   const handleGoogleSignInError = () => {
     console.log("Google Sign-In Failed");
-    setError("Google Sign-In failed. Please try again or use email registration.");
+    setError({ type: "error", message: "Google Sign-In failed. Please try again or use email registration." });
   };
 
   return (
@@ -184,13 +180,13 @@ export default function RegisterPage() {
 
 
         <div className="relative z-10 p-8 ">
-          {error && (
-            <div className="p-4 mb-6 text-sm text-white bg-red-900 border-l-4 border-red-500 rounded bg-opacity-70 animate-pulse">
+          {error && error.message != "" && (
+            <div className={`p-4 mb-6 text-sm text-white ${error.type === "error" ? "bg-red-900 border-red-500" : error.type === "success" ? "bg-green-900 border-green-500" : ''} border-l-4  rounded bg-opacity-70 animate-pulse`}>
               <div className="flex items-center">
-                <svg className="w-5 h-5 mr-2 text-red-300" fill="currentColor" viewBox="0 0 20 20">
+                <svg className={`w-5 h-5 mr-2 ${error.type === "error" ? "text-red-300" : error.type === "success" ? "text-green-300" : ""} `} fill="currentColor" viewBox="0 0 20 20" >
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                {error}
+                {error.message}
               </div>
             </div>
           )}
@@ -367,6 +363,6 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

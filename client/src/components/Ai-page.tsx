@@ -68,7 +68,7 @@ export function AIPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [token, setToken] = useState(localStorage.getItem("token"))
   const { activeGroup } = useGroup()
-
+  const [health, setHealth] = useState(true);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -80,8 +80,20 @@ export function AIPage() {
   useEffect(() => {
     // Set focus to input when page loads
     inputRef.current?.focus();
+    fetchHealth();
   }, []);
-
+  async function fetchHealth() {
+    try {
+      const res = await fetch('/health', {
+        method: "GET"
+      });
+      if (!res.ok) {
+        setHealth(false);
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
@@ -219,7 +231,7 @@ export function AIPage() {
         <div className="flex flex-col items-start justify-between gap-4 mb-4 md:flex-row md:items-center">
           <h2 className="flex items-center text-2xl font-bold tracking-tight md:text-3xl">
             <Sparkles className="w-6 h-6 mr-2 text-primary animate-pulse" />
-            DogWood AI Studio
+            Dogwood AI Marketing Assistant
           </h2>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -268,15 +280,12 @@ export function AIPage() {
                   <Bot className="w-5 h-5 mr-2 text-primary" />
                   Chat with {models.find((m) => m.id === model)?.name} {models.find((m) => m.id === model)?.icon}
                 </CardTitle>
-                <CardDescription>
-                  Powered by DogWood Gaming's AI Marketing Suite
-                </CardDescription>
               </div>
               <div className="hidden md:block">
                 <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-100">
-                  <span className="mr-1 h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                  Online
-                </span>
+                      <span className={`mr-1 h-1.5 w-1.5 rounded-full ${health? "bg-green-500" : "bg-red-500"}`}></span>
+                      {health === true ? "Online" : "Offline"}
+                    </span>
               </div>
             </div>
           </CardHeader>
