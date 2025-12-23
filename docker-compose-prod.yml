@@ -1,0 +1,152 @@
+services:
+  frontend:
+    build: ./client
+    ports: [ "80:80", "443:443" ]
+    depends_on: [ backend ]
+    restart: always
+    # Uncomment below for SSL with Traefik
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.frontend.rule=Host(`yourdomain.com`)"
+    #   - "traefik.http.routers.frontend.entrypoints=websecure"
+    #   - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+
+  backend:
+    build:
+      context: ./server
+    ports: [ "8080:8080" ]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      DOCS_DIR: /data/docs
+      OLLAMA_URL: http://ollama:11434/v1/chat/completions
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - docs_data:/data/docs
+      - docs_data:/app/uploads/docs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  python:
+    build: ./server/python
+    shm_size: '2gb'
+    environment:
+      DOCS_DIR: /data/docs
+      INSTAGRAM_USERNAME: ${INSTAGRAM_USERNAME}
+      INSTAGRAM_PASSWORD: ${INSTAGRAM_PASSWORD}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CELERY_BROKER_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: rpc://
+    volumes:
+      - docs_data:/data/docs
+      - docs_data:/app/uploads/docs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/internal/db/migration:/migration
+      # Auto-run migrations on first startup
+      - ./server/internal/db/migration/000001_init_schema.up.sql:/docker-entrypoint-initdb.d/000001_init_schema.up.sql
+    # No external ports exposed in production for security
+    # ports: ["5434:5432"]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: always
+    # No external ports exposed in production
+    # ports: ["11434:11434"]
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=*
+      - OLLAMA_KEEP_ALIVE=10m
+      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-4}
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-4096}
+    deploy:
+      resources:
+        limits:
+          cpus: "${OLLAMA_CPUS:-4}"
+          memory: ${OLLAMA_MEMORY:-16g}
+    entrypoint: [ "ollama", "serve" ]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    restart: "no"
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        echo "Waiting for Ollama to be ready..."
+        sleep 10
+        echo "Pulling ${OLLAMA_MODEL:-qwen2.5:3b-instruct} model..."
+        ollama pull ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
+        echo "Model downloaded successfully!"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:3b-instruct}
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    # Only expose ports internally, not to host
+    # ports:
+    #   - "5672:5672"
+    #   - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  postgres_data:
+  ollama_data:
+  docs_data:
