@@ -136,11 +136,11 @@ export function UploadContext({ token, groupID }: uploadContextProps) {
           </div>
           {/*upload part actual */}
           <div className="relative justify-center w-full max-w-md p-6 mx-4 bg-black rounded-lg">
-            <div className="flex items-center justify-center ">
+            <div className="flex flex-col items-center justify-center ">
               <h1 className="text-xl font-semibold text-white"> Upload Context</h1>
-
+              <p className="mt-3 mb-3 text-sm text-white"> Upload any relevant information you want the AI to know.</p>
             </div>
-            <p className="mt-3 mb-3 text-sm text-white"> Upload any relevant information you want the AI to know</p>
+
             {!activeGroup &&
               <div className="flex gap-2 p-2 border border-red-500 border-dashed">
                 <div className=" w-[30px] h-[30px] flex justify-center items-center rounded-lg">

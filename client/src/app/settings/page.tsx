@@ -405,7 +405,7 @@ export default function Settings() {
                   Report a Bug
                 </a>
                 <Separator className="my-3 bg-gray-800" />
-                <p className="text-gray-500">Version 2.0.1</p>
+                <p className="text-gray-500">Version 2.0.2</p>
               </CardContent>
             </Card>
           </div>

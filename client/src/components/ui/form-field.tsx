@@ -12,9 +12,10 @@ interface FormProps {
     id?: string;
     required?: boolean;
     className?: string;
+    error?: string;
 }
 
-export default function FormField({ label, placeholder, value, onChange, id, required, className }: FormProps) {
+export default function FormField({ label, placeholder, value, onChange, id, required, className, error }: FormProps) {
     return (
         <div className={cn("flex flex-col", className)}>
             <Label htmlFor={id}>
@@ -26,8 +27,11 @@ export default function FormField({ label, placeholder, value, onChange, id, req
                 placeholder={placeholder}
                 value={value}
                 onChange={onChange}
-                className="mt-1"
+                className={cn("mt-1", error && "!border-red-500 focus-visible:ring-red-500")}
             />
+            {error &&
+                <p className="mt-1 text-sm text-red-500">{error}</p>
+            }
         </div>
     );
 }

@@ -33,7 +33,7 @@ export function TeamSwitcher() {
   const [userID, setUserID] = React.useState<number | null>(null);
   const [isOpen, setIsOpen] = React.useState(false);
   const [hasFetched, setHasFetched] = React.useState(false);
-  const MAX_LENGTH = 50;
+  const MAX_LENGTH = 15;
 
   React.useEffect(() => {
     try {
