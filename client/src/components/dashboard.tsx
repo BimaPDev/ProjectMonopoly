@@ -137,7 +137,7 @@ export function Dashboard() {
   async function fetchPosts() {
     try {
       const res = await fetch(
-        `/api/UploadItemsByGroupID?groupID=${activeGroup.ID}`
+        `/api/UploadItemsByGroupID?groupID=${activeGroup.ID}`,{"Authorization": `Bearer ${localStorage.getItem("token")}` }
       );
 
       if (!res.ok) {
