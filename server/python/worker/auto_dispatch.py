@@ -99,8 +99,31 @@ def dispatch_loop():
                     logging.info("doc job queued job_id=%s doc_id=%s task_id=%s", doc_job_id, document_id, res.id)
                     did_work = True
 
-                # Cookie preparation job
-                cur.execute(SQL_NEXT_COOKIE_PREP)
+                # Check if cookie_created_at column exists before using it in query
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='group_items' AND column_name='cookie_created_at'
+                """)
+                has_cookie_column = cur.fetchone() is not None
+                
+                if has_cookie_column:
+                    # Use query with cookie_created_at column
+                    cur.execute(SQL_NEXT_COOKIE_PREP)
+                else:
+                    # Use alternative query that checks for missing sessionid instead
+                    cur.execute("""
+                        SELECT id, platform, data->>'email' AS email, data->>'password' AS password
+                        FROM group_items
+                        WHERE (data->>'sessionid' IS NULL OR data->>'sessionid' = '')
+                          AND data ? 'email' AND data ? 'password'
+                          AND COALESCE(data->>'email', '') <> ''
+                          AND COALESCE(data->>'password', '') <> ''
+                        ORDER BY created_at
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                    """)
+                
                 row = cur.fetchone()
                 if row:
                     group_item_id, platform, email, password = row

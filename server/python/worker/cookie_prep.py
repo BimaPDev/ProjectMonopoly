@@ -131,17 +131,36 @@ def prepare_cookies(group_item_id: int, platform: str, email: str, password: str
                     # Update data with sessionid (preserve email/password)
                     current_data["sessionid"] = sessionid
                     
+                    # Check if cookie_created_at column exists before updating
+                    cur.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name='group_items' AND column_name='cookie_created_at'
+                    """)
+                    has_column = cur.fetchone() is not None
+                    
                     # Update database
-                    cur.execute(
-                        """
-                        UPDATE group_items 
-                        SET data = %s::jsonb, 
-                            cookie_created_at = NOW(),
-                            updated_at = NOW()
-                        WHERE id = %s
-                        """,
-                        (json.dumps(current_data), group_item_id)
-                    )
+                    if has_column:
+                        cur.execute(
+                            """
+                            UPDATE group_items 
+                            SET data = %s::jsonb, 
+                                cookie_created_at = NOW(),
+                                updated_at = NOW()
+                            WHERE id = %s
+                            """,
+                            (json.dumps(current_data), group_item_id)
+                        )
+                    else:
+                        cur.execute(
+                            """
+                            UPDATE group_items 
+                            SET data = %s::jsonb, 
+                                updated_at = NOW()
+                            WHERE id = %s
+                            """,
+                            (json.dumps(current_data), group_item_id)
+                        )
             
             log.info("Cookie preparation completed successfully for group_item_id=%s", group_item_id)
             return {"status": "success", "group_item_id": group_item_id, "platform": platform}
