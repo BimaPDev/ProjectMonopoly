@@ -6,6 +6,7 @@ from worker.config import UPLOADS_DIR  # e.g., "/data/uploads"
 import os 
 import logging
 import hashlib
+from .cookie_prep import prepare_cookies # preparing cookies for instagram 
 
 # --- RAG deps ---
 import psycopg
@@ -305,7 +306,7 @@ def scrape_hashtag_trends():
     """
     Task to scrape trending hashtags from TikTok creative center.
     """
-    log.info("📊 Starting hashtag trends scraping task")
+    log.info("Starting hashtag trends scraping task")
     
     try:
         import sys
@@ -317,11 +318,13 @@ def scrape_hashtag_trends():
         
         trends = scrape_hashtags()
         
-        log.info(f"✅ Hashtag trends scraping completed: {len(trends) if trends else 0} trends found")
+        log.info(f"Hashtag trends scraping completed: {len(trends) if trends else 0} trends found")
         return {"status": "success", "trends": trends}
         
     except Exception as e:
         log.exception("Hashtag trends scraping task failed")
         return {"status": "failed", "error": str(e)}
+
+
 
 

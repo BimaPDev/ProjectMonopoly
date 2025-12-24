@@ -49,6 +49,18 @@ WHERE j.id = next.id
 RETURNING next.id, next.document_id;
 """
 
+SQL_NEXT_COOKIE_PREP = """
+SELECT id, platform, data->>'email' AS email, data->>'password' AS password
+FROM group_items
+WHERE cookie_created_at IS NULL
+  AND data ? 'email' AND data ? 'password'
+  AND COALESCE(data->>'email', '') <> ''
+  AND COALESCE(data->>'password', '') <> ''
+ORDER BY created_at
+FOR UPDATE SKIP LOCKED
+LIMIT 1
+"""
+
 def dispatch_loop():
     while True:
         did_work = False
@@ -86,6 +98,26 @@ def dispatch_loop():
                     )
                     logging.info("doc job queued job_id=%s doc_id=%s task_id=%s", doc_job_id, document_id, res.id)
                     did_work = True
+
+                # Cookie preparation job
+                cur.execute(SQL_NEXT_COOKIE_PREP)
+                row = cur.fetchone()
+                if row:
+                    group_item_id, platform, email, password = row
+                    if email and password:
+                        res = app.send_task(
+                            "worker.tasks.prepare_cookies",
+                            kwargs={
+                                "group_item_id": group_item_id,
+                                "platform": platform,
+                                "email": email,
+                                "password": password
+                            },
+                            queue="celery",
+                        )
+                        logging.info("cookie prep queued group_item_id=%s platform=%s task_id=%s", 
+                                   group_item_id, platform, res.id)
+                        did_work = True
 
         except Exception as e:
             logging.info("NOTE: error with upload_jobs not exist but the db table is created but is empty is: EXPECTED BEHAVIOR")
