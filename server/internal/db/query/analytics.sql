@@ -115,7 +115,7 @@ JOIN competitors c ON c.id = cp.competitor_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
-  AND cp.posted_at >= NOW() - INTERVAL '28 days'
+  AND cp.posted_at >= NOW() - INTERVAL '14 days'
   AND cp.posted_at IS NOT NULL
   AND NOT (
     cp.content ILIKE '%Patch Notes%' OR
@@ -131,13 +131,13 @@ LIMIT 1;
 -- Returns total posts and posts per week over 28 days for competitor cadence analysis
 SELECT
   COUNT(*)::bigint as total_posts,
-  (COUNT(*) / 4.0)::float8 as posts_per_week
+  (COUNT(*) / 2.0)::float8 as posts_per_week
 FROM competitor_posts cp
 JOIN competitors c ON c.id = cp.competitor_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
-  AND cp.posted_at >= NOW() - INTERVAL '28 days';
+  AND cp.posted_at >= NOW() - INTERVAL '14 days';
 
 -- name: GetTopCompetitorHashtags :many
 -- Returns top 5 used hashtags by competitors in last 28 days
@@ -151,9 +151,26 @@ FROM (
   JOIN user_competitors uc ON uc.competitor_id = c.id
   WHERE uc.user_id = $1
     AND (uc.group_id = $2 OR uc.group_id IS NULL)
-    AND cp.posted_at >= NOW() - INTERVAL '28 days'
+    AND cp.posted_at >= NOW() - INTERVAL '14 days'
 ) as tags
 WHERE LENGTH(hashtag) > 2
 GROUP BY hashtag
 ORDER BY frequency DESC
 LIMIT 5;
+
+-- name: GetCompetitorHandles :many
+-- Returns all competitor handles for a user/group to filter out competitor-branded hashtags
+SELECT DISTINCT LOWER(cpr.handle) as handle
+FROM competitor_profiles cpr
+JOIN competitors c ON c.id = cpr.competitor_id
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL);
+
+-- name: GetCompetitorCount :one
+-- Returns the count of unique competitors for a user/group
+SELECT COUNT(DISTINCT c.id)::int as competitor_count
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL);

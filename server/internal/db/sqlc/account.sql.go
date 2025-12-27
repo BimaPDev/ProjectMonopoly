@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
-	"github.com/sqlc-dev/pqtype"
 )
 
 const checkEmailExists = `-- name: CheckEmailExists :one
@@ -709,15 +708,24 @@ FROM group_items
 WHERE group_id = $1
 `
 
-func (q *Queries) GetGroupItemByGroupID(ctx context.Context, groupID int32) ([]GroupItem, error) {
+type GetGroupItemByGroupIDRow struct {
+	ID        int32           `json:"id"`
+	GroupID   int32           `json:"group_id"`
+	Platform  string          `json:"platform"`
+	Data      json.RawMessage `json:"data"`
+	CreatedAt sql.NullTime    `json:"created_at"`
+	UpdatedAt sql.NullTime    `json:"updated_at"`
+}
+
+func (q *Queries) GetGroupItemByGroupID(ctx context.Context, groupID int32) ([]GetGroupItemByGroupIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getGroupItemByGroupID, groupID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GroupItem
+	var items []GetGroupItemByGroupIDRow
 	for rows.Next() {
-		var i GroupItem
+		var i GetGroupItemByGroupIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.GroupID,
@@ -973,9 +981,9 @@ ON CONFLICT (group_id, platform) DO NOTHING
 `
 
 type InsertGroupItemIfNotExistsParams struct {
-	GroupID  int32                 `json:"group_id"`
-	Platform string                `json:"platform"`
-	Data     pqtype.NullRawMessage `json:"data"`
+	GroupID  int32           `json:"group_id"`
+	Platform string          `json:"platform"`
+	Data     json.RawMessage `json:"data"`
 }
 
 func (q *Queries) InsertGroupItemIfNotExists(ctx context.Context, arg InsertGroupItemIfNotExistsParams) (int64, error) {

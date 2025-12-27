@@ -2,19 +2,26 @@ package auth
 
 import (
 	"errors"
+	"log"
 	"os"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
-var jwtKey = []byte(getJWTSecret())
+var jwtKey []byte
 
-func getJWTSecret() string {
+func init() {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		return "my_secret_key"
+		// In production, JWT_SECRET must be set - fail fast
+		if os.Getenv("GO_ENV") == "production" || os.Getenv("GIN_MODE") == "release" {
+			log.Fatal("FATAL: JWT_SECRET environment variable is required in production")
+		}
+		// Development fallback with warning
+		log.Println("WARNING: JWT_SECRET not set, using insecure development key")
+		secret = "dev_only_insecure_key_do_not_use_in_production"
 	}
-	return secret
+	jwtKey = []byte(secret)
 }
 
 type Claims struct {

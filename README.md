@@ -273,7 +273,80 @@ npm run dev
 
 ---
 
+## 🎯 Campaign Workflow (NEW)
 
+The Campaign Workflow feature makes marketing "usable by non-marketers" through a guided wizard, structured AI outputs, and a feedback loop.
+
+### 📋 How It Works
+
+1. **Campaign Wizard** (5 Steps)
+   - **Step 1: Goal** - Choose your objective (wishlist, discord, demo, trailer, awareness, launch)
+   - **Step 2: Audience** - Select from preset audience archetypes (Core Gamer, Casual Player, Content Creator, etc.)
+   - **Step 3: Content Pillars** - Pick 1-5 content themes (Behind the Scenes, Gameplay Highlights, etc.)
+   - **Step 4: Assets** - Upload media files with tags (optional)
+   - **Step 5: Cadence** - Select platforms and posting frequency
+
+2. **AI Generation**
+   - Campaign creation triggers automatic generation of structured post drafts
+   - Each draft includes: platform, post type, hook, caption, hashtags, CTA, recommended time window, confidence score
+   - Strict JSON schema ensures consistent, actionable output
+
+3. **Feedback Loop**
+   - Ingest post metrics via `/api/metrics/ingest`
+   - View insights at `/dashboard/campaigns/:id/insights`
+   - AI analyzes last 28 days of data to recommend:
+     - Best posting windows (day + hour)
+     - Top-performing hook patterns
+     - Actionable improvement suggestions
+
+### 🚀 Running Locally with Docker Compose
+
+```bash
+# 1. Set required environment variables
+export JWT_SECRET="your-secure-secret-here"
+
+# 2. Start all services
+docker-compose up --build
+
+# 3. Run database migrations
+docker-compose exec backend go run ./cmd/migrate up
+
+# 4. Access the app
+open http://localhost
+
+# 5. Navigate to Campaigns
+# Go to Dashboard -> Campaigns -> New Campaign
+```
+
+### 📡 Campaign API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/campaigns/wizard` | Get wizard preset options |
+| POST | `/api/campaigns` | Create campaign from wizard |
+| GET | `/api/campaigns` | List user's campaigns |
+| GET | `/api/campaigns/:id` | Get campaign details |
+| POST | `/api/campaigns/:id/assets` | Upload campaign assets |
+| POST | `/api/campaigns/:id/generate` | Generate AI drafts |
+| GET | `/api/campaigns/:id/drafts` | List campaign drafts |
+| GET | `/api/campaigns/:id/insights` | Get KPI summary + recommendations |
+| POST | `/api/metrics/ingest` | Store post performance metrics |
+
+### 🔧 Environment Variables
+
+```bash
+# Required in production
+JWT_SECRET=your-secure-jwt-secret
+
+# Database (defaults work for docker-compose)
+DATABASE_URL=postgresql://root:secret@db:5432/project_monopoly?sslmode=disable
+
+# Python Worker (auto-configured for docker-compose)
+DB_HOST=db
+CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+```
+
+---
 
 *Transforming social media marketing, one post at a time*
 

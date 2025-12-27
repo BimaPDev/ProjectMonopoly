@@ -23,7 +23,7 @@ JOIN competitors c ON c.id = cp.competitor_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
-  AND cp.posted_at >= NOW() - INTERVAL '28 days'
+  AND cp.posted_at >= NOW() - INTERVAL '14 days'
   AND cp.posted_at IS NOT NULL
   AND NOT (
     cp.content ILIKE '%Patch Notes%' OR
@@ -103,6 +103,65 @@ func (q *Queries) GetBestPostingHour(ctx context.Context, arg GetBestPostingHour
 	return i, err
 }
 
+const getCompetitorCount = `-- name: GetCompetitorCount :one
+SELECT COUNT(DISTINCT c.id)::int as competitor_count
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL)
+`
+
+type GetCompetitorCountParams struct {
+	UserID  int32         `json:"user_id"`
+	GroupID sql.NullInt32 `json:"group_id"`
+}
+
+// Returns the count of unique competitors for a user/group
+func (q *Queries) GetCompetitorCount(ctx context.Context, arg GetCompetitorCountParams) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getCompetitorCount, arg.UserID, arg.GroupID)
+	var competitor_count int32
+	err := row.Scan(&competitor_count)
+	return competitor_count, err
+}
+
+const getCompetitorHandles = `-- name: GetCompetitorHandles :many
+SELECT DISTINCT LOWER(cpr.handle) as handle
+FROM competitor_profiles cpr
+JOIN competitors c ON c.id = cpr.competitor_id
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL)
+`
+
+type GetCompetitorHandlesParams struct {
+	UserID  int32         `json:"user_id"`
+	GroupID sql.NullInt32 `json:"group_id"`
+}
+
+// Returns all competitor handles for a user/group to filter out competitor-branded hashtags
+func (q *Queries) GetCompetitorHandles(ctx context.Context, arg GetCompetitorHandlesParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getCompetitorHandles, arg.UserID, arg.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var handle string
+		if err := rows.Scan(&handle); err != nil {
+			return nil, err
+		}
+		items = append(items, handle)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCompetitorPostCount14Days = `-- name: GetCompetitorPostCount14Days :one
 SELECT COUNT(*)::bigint as post_count
 FROM competitor_posts cp
@@ -129,13 +188,13 @@ func (q *Queries) GetCompetitorPostCount14Days(ctx context.Context, arg GetCompe
 const getPostingFrequency28Days = `-- name: GetPostingFrequency28Days :one
 SELECT
   COUNT(*)::bigint as total_posts,
-  (COUNT(*) / 4.0)::float8 as posts_per_week
+  (COUNT(*) / 2.0)::float8 as posts_per_week
 FROM competitor_posts cp
 JOIN competitors c ON c.id = cp.competitor_id
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL)
-  AND cp.posted_at >= NOW() - INTERVAL '28 days'
+  AND cp.posted_at >= NOW() - INTERVAL '14 days'
 `
 
 type GetPostingFrequency28DaysParams struct {
@@ -248,6 +307,59 @@ func (q *Queries) GetTimeBoxedCompetitorInsights(ctx context.Context, arg GetTim
 	return items, nil
 }
 
+const getTopCompetitorHashtags = `-- name: GetTopCompetitorHashtags :many
+SELECT
+  hashtag,
+  COUNT(*)::bigint as frequency
+FROM (
+  SELECT UNNEST(hashtags) as hashtag
+  FROM competitor_posts cp
+  JOIN competitors c ON c.id = cp.competitor_id
+  JOIN user_competitors uc ON uc.competitor_id = c.id
+  WHERE uc.user_id = $1
+    AND (uc.group_id = $2 OR uc.group_id IS NULL)
+    AND cp.posted_at >= NOW() - INTERVAL '14 days'
+) as tags
+WHERE LENGTH(hashtag) > 2
+GROUP BY hashtag
+ORDER BY frequency DESC
+LIMIT 5
+`
+
+type GetTopCompetitorHashtagsParams struct {
+	UserID  int32         `json:"user_id"`
+	GroupID sql.NullInt32 `json:"group_id"`
+}
+
+type GetTopCompetitorHashtagsRow struct {
+	Hashtag   interface{} `json:"hashtag"`
+	Frequency int64       `json:"frequency"`
+}
+
+// Returns top 5 used hashtags by competitors in last 28 days
+func (q *Queries) GetTopCompetitorHashtags(ctx context.Context, arg GetTopCompetitorHashtagsParams) ([]GetTopCompetitorHashtagsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopCompetitorHashtags, arg.UserID, arg.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopCompetitorHashtagsRow
+	for rows.Next() {
+		var i GetTopCompetitorHashtagsRow
+		if err := rows.Scan(&i.Hashtag, &i.Frequency); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTopCompetitorHooks = `-- name: GetTopCompetitorHooks :many
 SELECT
   cp.id,
@@ -312,58 +424,6 @@ func (q *Queries) GetTopCompetitorHooks(ctx context.Context, arg GetTopCompetito
 			&i.PostedAt,
 			&i.TotalEngagement,
 		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getTopCompetitorHashtags = `-- name: GetTopCompetitorHashtags :many
-SELECT
-  hashtag,
-  COUNT(*)::bigint as frequency
-FROM (
-  SELECT UNNEST(hashtags) as hashtag
-  FROM competitor_posts cp
-  JOIN competitors c ON c.id = cp.competitor_id
-  JOIN user_competitors uc ON uc.competitor_id = c.id
-  WHERE uc.user_id = $1
-    AND (uc.group_id = $2 OR uc.group_id IS NULL)
-    AND cp.posted_at >= NOW() - INTERVAL '28 days'
-) as tags
-WHERE LENGTH(hashtag) > 2
-GROUP BY hashtag
-ORDER BY frequency DESC
-LIMIT 5
-`
-
-type GetTopCompetitorHashtagsParams struct {
-	UserID  int32         `json:"user_id"`
-	GroupID sql.NullInt32 `json:"group_id"`
-}
-
-type GetTopCompetitorHashtagsRow struct {
-	Hashtag   string `json:"hashtag"`
-	Frequency int64  `json:"frequency"`
-}
-
-func (q *Queries) GetTopCompetitorHashtags(ctx context.Context, arg GetTopCompetitorHashtagsParams) ([]GetTopCompetitorHashtagsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTopCompetitorHashtags, arg.UserID, arg.GroupID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetTopCompetitorHashtagsRow
-	for rows.Next() {
-		var i GetTopCompetitorHashtagsRow
-		if err := rows.Scan(&i.Hashtag, &i.Frequency); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

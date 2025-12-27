@@ -281,16 +281,15 @@ def ai_web_scrape():
         import os
         sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
         
-        # Note: ai_scraper.main() may not return results, so we'll just execute it
-        # and handle any results via file output or logging
+        # Note: Module is named 'AiScraper.py' (PascalCase), not 'ai_scraper.py'
         import importlib
-        scraper_module = importlib.import_module('ai_web.ai_scraper')
+        scraper_module = importlib.import_module('ai_web.AiScraper')
         
         # Execute the main function if it exists
         if hasattr(scraper_module, 'main'):
             result = scraper_module.main()
         else:
-            log.warning("ai_scraper module doesn't have a main() function")
+            log.warning("AiScraper module doesn't have a main() function")
             result = None
         
         log.info("AI web scraping completed successfully")
@@ -313,8 +312,8 @@ def scrape_hashtag_trends():
         import os
         sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
         
-        # Note: This needs to be updated to return results instead of just printing
-        from trends.hashtag import scrape_hashtags
+        # Note: File is named 'hastag.py' (typo in original), not 'hashtag.py'
+        from trends.hastag import scrape_hashtags
         
         trends = scrape_hashtags()
         
