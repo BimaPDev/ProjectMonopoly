@@ -1,12 +1,9 @@
-import undetected_chromedriver as uc
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException, WebDriverException
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.keys import Keys
-# from selenium.webdriver.chrome.service import Service # Not needed for uc
 import time
 import json
 import os
@@ -15,6 +12,12 @@ import re
 from datetime import datetime
 import subprocess
 import sys
+import logging
+
+# Import the new driver factory
+from .drivers import get_driver, switch_to_fallback, BotDetectedError
+
+log = logging.getLogger(__name__)
 
 
 def parse_shorthand(value: str) -> str:
@@ -48,58 +51,55 @@ class InstagramScraper:
         self.password = password
         self.cookies_path = cookies_path
         self.driver = None
+        self.driver_type = None  # 'seleniumbase' or 'playwright'
+        self._raw_driver = None  # The underlying driver object for direct access
         self.setup_driver()
 
     def setup_driver(self):
-        print("Setting up undetected-chromedriver...")
-        options = uc.ChromeOptions()
-    
-        # REQUIRED for Docker/headless environments
-        options.add_argument("--headless=new") # uc supports this now
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--remote-debugging-port=9222") # Valid port for debugging
-    
-        # Stability improvements
-    
-        # Stability improvements
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--disable-dev-tools")
-        options.add_argument("--no-zygote")
-        options.add_argument("--disable-setuid-sandbox")
-        
-        # Additional options that help with detection
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--disable-notifications")
-        options.add_argument("--lang=en-US")
+        """Initialize scraper using SeleniumBase (primary) with Playwright fallback."""
+        print("Setting up scraper driver (SeleniumBase with Playwright fallback)...")
         
         try:
-            # uc.Chrome automatically handles driver download
-            # use_subprocess=True is often recommended for stability
-            self.driver = uc.Chrome(
-                options=options,
-                use_subprocess=True,
-                version_main=None # Auto-detect installed chrome version
-            )
+            self._raw_driver, self.driver_type = get_driver(headless=True)
             
-            # Set page load timeout
-            self.driver.set_page_load_timeout(60)
-            print("Undetected ChromeDriver initialized successfully")
+            # For compatibility with existing code, expose the underlying Selenium driver
+            # SeleniumBase exposes .driver, Playwright uses .page
+            if self.driver_type == 'seleniumbase':
+                self.driver = self._raw_driver.driver
+            else:
+                # For Playwright, we use the wrapper itself
+                self.driver = self._raw_driver
+            
+            self._raw_driver.set_page_load_timeout(60)
+            print(f"Driver initialized successfully (using: {self.driver_type})")
             
         except Exception as e:
-            print(f"Failed to initialize undetected-chromedriver: {e}")
-            print("Falling back to standard selenium (likely to fail anti-bot checks)...")
-            # Fallback (mostly for local testing if uc fails completely)
-            try:
-                from selenium.webdriver.chrome.options import Options
-                chrome_options = Options()
-                chrome_options.add_argument("--headless=new")
-                chrome_options.add_argument("--no-sandbox")
-                self.driver = webdriver.Chrome(options=chrome_options)
-            except Exception as e2:
-                print(f"Fallback failed: {e2}")
-                raise e    
+            print(f"Failed to initialize driver: {e}")
+            raise
+    
+    def _switch_to_fallback(self):
+        """Switch to Playwright fallback if bot detection is triggered."""
+        print("Bot detection suspected. Switching to Playwright fallback...")
+        
+        try:
+            self._raw_driver, self.driver_type = switch_to_fallback(self._raw_driver, headless=True)
+            
+            if self.driver_type == 'seleniumbase':
+                self.driver = self._raw_driver.driver
+            else:
+                self.driver = self._raw_driver
+            
+            self._raw_driver.set_page_load_timeout(60)
+            print(f"Switched to fallback driver: {self.driver_type}")
+            return True
+        except Exception as e:
+            print(f"Failed to switch to fallback: {e}")
+            return False
+    
+    def _check_bot_detection(self) -> bool:
+        """Check if bot detection has been triggered."""
+        return self._raw_driver.is_bot_detected()
+    
     
     def save_cookies(self):
         os.makedirs(os.path.dirname(self.cookies_path) or '.', exist_ok=True)
@@ -726,8 +726,10 @@ class InstagramScraper:
                 return None
     
     def close(self):
-        if self.driver:
-            self.driver.quit()
+        if self._raw_driver:
+            self._raw_driver.quit()
+            self._raw_driver = None
+            self.driver = None
 
 
 

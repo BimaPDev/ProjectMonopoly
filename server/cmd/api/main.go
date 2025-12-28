@@ -139,6 +139,9 @@ func main() {
 
 			// Metrics ingestion (can be called by external systems)
 			protected.POST("/metrics/ingest", handlers.IngestMetricsHandler(queries))
+
+			// Dashboard Analytics
+			protected.GET("/analytics/engagement-trends", handlers.GetEngagementTrendsHandler(queries))
 		}
 	}
 

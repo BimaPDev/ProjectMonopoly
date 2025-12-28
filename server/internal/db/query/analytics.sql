@@ -174,3 +174,25 @@ FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
 WHERE uc.user_id = $1
   AND (uc.group_id = $2 OR uc.group_id IS NULL);
+
+-- name: GetDailyEngagementTrends :many
+-- Returns daily aggregated engagement data for the dashboard chart
+-- $3 is the number of days to look back (7, 30, or 90)
+SELECT
+  DATE(cp.posted_at) as post_date,
+  COUNT(*)::bigint as post_count,
+  SUM(COALESCE((cp.engagement->>'likes')::bigint, 0))::bigint as total_likes,
+  SUM(COALESCE((cp.engagement->>'comments')::bigint, 0))::bigint as total_comments,
+  AVG(
+    COALESCE((cp.engagement->>'likes')::bigint, 0) + 
+    COALESCE((cp.engagement->>'comments')::bigint, 0)
+  )::float8 as avg_engagement
+FROM competitor_posts cp
+JOIN competitors c ON c.id = cp.competitor_id
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL)
+  AND cp.posted_at >= NOW() - ($3 || ' days')::interval
+  AND cp.posted_at IS NOT NULL
+GROUP BY DATE(cp.posted_at)
+ORDER BY post_date ASC;

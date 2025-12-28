@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
@@ -183,6 +184,72 @@ func (q *Queries) GetCompetitorPostCount14Days(ctx context.Context, arg GetCompe
 	var post_count int64
 	err := row.Scan(&post_count)
 	return post_count, err
+}
+
+const getDailyEngagementTrends = `-- name: GetDailyEngagementTrends :many
+SELECT
+  DATE(cp.posted_at) as post_date,
+  COUNT(*)::bigint as post_count,
+  SUM(COALESCE((cp.engagement->>'likes')::bigint, 0))::bigint as total_likes,
+  SUM(COALESCE((cp.engagement->>'comments')::bigint, 0))::bigint as total_comments,
+  AVG(
+    COALESCE((cp.engagement->>'likes')::bigint, 0) + 
+    COALESCE((cp.engagement->>'comments')::bigint, 0)
+  )::float8 as avg_engagement
+FROM competitor_posts cp
+JOIN competitors c ON c.id = cp.competitor_id
+JOIN user_competitors uc ON uc.competitor_id = c.id
+WHERE uc.user_id = $1
+  AND (uc.group_id = $2 OR uc.group_id IS NULL)
+  AND cp.posted_at >= NOW() - ($3 || ' days')::interval
+  AND cp.posted_at IS NOT NULL
+GROUP BY DATE(cp.posted_at)
+ORDER BY post_date ASC
+`
+
+type GetDailyEngagementTrendsParams struct {
+	UserID  int32          `json:"user_id"`
+	GroupID sql.NullInt32  `json:"group_id"`
+	Column3 sql.NullString `json:"column_3"`
+}
+
+type GetDailyEngagementTrendsRow struct {
+	PostDate      time.Time `json:"post_date"`
+	PostCount     int64     `json:"post_count"`
+	TotalLikes    int64     `json:"total_likes"`
+	TotalComments int64     `json:"total_comments"`
+	AvgEngagement float64   `json:"avg_engagement"`
+}
+
+// Returns daily aggregated engagement data for the dashboard chart
+// $3 is the number of days to look back (7, 30, or 90)
+func (q *Queries) GetDailyEngagementTrends(ctx context.Context, arg GetDailyEngagementTrendsParams) ([]GetDailyEngagementTrendsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDailyEngagementTrends, arg.UserID, arg.GroupID, arg.Column3)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDailyEngagementTrendsRow
+	for rows.Next() {
+		var i GetDailyEngagementTrendsRow
+		if err := rows.Scan(
+			&i.PostDate,
+			&i.PostCount,
+			&i.TotalLikes,
+			&i.TotalComments,
+			&i.AvgEngagement,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPostingFrequency28Days = `-- name: GetPostingFrequency28Days :one
