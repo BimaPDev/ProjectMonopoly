@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
@@ -43,8 +44,19 @@ func ListCompetitorsWithProfiles(c *gin.Context, queries *db.Queries) {
 		return
 	}
 
-	// Get all competitors for this user
-	competitors, err := queries.ListCompetitorsWithProfiles(ctx, userID)
+	// Get group_id from query params (required for proper scoping)
+	var groupID sql.NullInt32
+	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
+		if gid, err := strconv.Atoi(groupIDStr); err == nil {
+			groupID = sql.NullInt32{Int32: int32(gid), Valid: true}
+		}
+	}
+
+	// Get all competitors for this user and group
+	competitors, err := queries.ListCompetitorsWithProfiles(ctx, db.ListCompetitorsWithProfilesParams{
+		UserID:  userID,
+		GroupID: groupID,
+	})
 	if err != nil {
 		log.Printf("❌ Failed to list competitors: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch competitors"})

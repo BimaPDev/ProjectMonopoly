@@ -118,24 +118,25 @@ func main() {
 			// ─── Campaign Workflow ───────────────────────────────────────────
 			// Wizard options (preset data)
 			protected.GET("/campaigns/wizard", handlers.GetWizardOptionsHandler())
-			
+
 			// Campaign CRUD
 			protected.POST("/campaigns", handlers.CreateCampaignHandler(queries))
 			protected.GET("/campaigns", handlers.ListCampaignsHandler(queries))
 			protected.GET("/campaigns/:id", handlers.GetCampaignHandler(queries))
-			
+			protected.DELETE("/campaigns/:id", handlers.DeleteCampaignHandler(queries))
+
 			// Campaign assets
 			protected.POST("/campaigns/:id/assets", handlers.AttachCampaignAssetsHandler(queries))
-			
+
 			// AI generation
 			protected.POST("/campaigns/:id/generate", handlers.GenerateCampaignDraftsHandler(queries))
-			
+
 			// Drafts
 			protected.GET("/campaigns/:id/drafts", handlers.ListCampaignDraftsHandler(queries))
-			
+
 			// Insights / feedback loop
 			protected.GET("/campaigns/:id/insights", handlers.GetCampaignInsightsHandler(queries))
-			
+
 			// Metrics ingestion (can be called by external systems)
 			protected.POST("/metrics/ingest", handlers.IngestMetricsHandler(queries))
 		}

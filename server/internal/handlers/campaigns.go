@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
@@ -276,7 +277,18 @@ func ListCampaignsHandler(queries *db.Queries) gin.HandlerFunc {
 		}
 		userIDInt := userID.(int32)
 
-		campaigns, err := queries.ListCampaignsByUser(context.Background(), userIDInt)
+		// Get group_id from query params for proper group scoping
+		var groupID sql.NullInt32
+		if groupIDStr := c.Query("group_id"); groupIDStr != "" {
+			if gid, err := strconv.Atoi(groupIDStr); err == nil {
+				groupID = sql.NullInt32{Int32: int32(gid), Valid: true}
+			}
+		}
+
+		campaigns, err := queries.ListCampaignsByUser(context.Background(), db.ListCampaignsByUserParams{
+			UserID:  userIDInt,
+			GroupID: groupID,
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to list campaigns: %v", err)})
 			return
@@ -306,6 +318,52 @@ func GetCampaignHandler(queries *db.Queries) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, campaign)
+	}
+}
+
+// DeleteCampaignHandler deletes a campaign and all associated drafts/assets
+func DeleteCampaignHandler(queries *db.Queries) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("userID")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+		userIDInt := userID.(int32)
+
+		campaignID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
+			return
+		}
+
+		// Verify the campaign belongs to this user
+		campaign, err := queries.GetCampaignByID(context.Background(), campaignID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Campaign not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get campaign: %v", err)})
+			return
+		}
+
+		if campaign.UserID != userIDInt {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to delete this campaign"})
+			return
+		}
+
+		// Delete the campaign (cascades to drafts and assets via foreign keys)
+		err = queries.DeleteCampaign(context.Background(), campaignID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete campaign: %v", err)})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":     "Campaign deleted successfully",
+			"campaign_id": campaignID.String(),
+		})
 	}
 }
 
@@ -399,7 +457,13 @@ func GenerateCampaignDraftsHandler(queries *db.Queries) gin.HandlerFunc {
 		var cadence CadenceConfig
 		json.Unmarshal(campaign.Cadence, &cadence)
 
-		// Generate drafts using AI (simplified for now - would call LLM)
+		// Delete existing drafts before generating new ones (prevents accumulation)
+		if err := queries.DeleteDraftsByCampaign(context.Background(), campaignID); err != nil {
+			fmt.Printf("Warning: failed to delete existing drafts: %v\n", err)
+			// Continue anyway - not a fatal error
+		}
+
+		// Generate drafts using AI
 		drafts := generateStructuredDrafts(campaign, pillars, cadence, req.Platform)
 
 		// Validate and store drafts
@@ -637,18 +701,25 @@ func generateStructuredDrafts(campaign db.Campaign, pillars []string, cadence Ca
 		postsPerWeek = 3
 	}
 
+	// Try to use LLM for content generation
+	provider := GetLLMProvider()
+	ctx := context.Background()
+
 	pillarIndex := 0
 	for i := 0; i < postsPerWeek; i++ {
 		for _, platform := range platforms {
 			pillar := pillars[pillarIndex%len(pillars)]
 			pillarIndex++
 
+			// Generate unique content using LLM
+			hook, caption, hashtags := generateDraftContentWithLLM(ctx, provider, campaign, pillar, platform, i)
+
 			draft := DraftOutput{
 				Platform: platform,
 				PostType: getPostTypeForPlatform(platform),
-				Hook:     generateHookForPillar(pillar, campaign.Goal),
-				Caption:  generateCaptionForPillar(pillar, campaign.Goal),
-				Hashtags: generateHashtagsForPillar(pillar),
+				Hook:     hook,
+				Caption:  caption,
+				Hashtags: hashtags,
 				CTA:      getCTAForGoal(campaign.Goal),
 				RecommendedTimeWindow: TimeWindow{
 					DayOfWeek: getDayForIndex(i),
@@ -667,6 +738,100 @@ func generateStructuredDrafts(campaign db.Campaign, pillars []string, cadence Ca
 	}
 
 	return drafts
+}
+
+// generateDraftContentWithLLM uses the AI to create unique content for each draft
+func generateDraftContentWithLLM(ctx context.Context, provider LLMProvider, campaign db.Campaign, pillar, platform string, draftIndex int) (hook, caption string, hashtags []string) {
+	// Build a prompt for unique content generation
+	prompt := fmt.Sprintf(`Generate a unique social media post for a game marketing campaign.
+
+Campaign Goal: %s
+Content Pillar: %s
+Platform: %s
+Post Number: %d
+
+Requirements:
+1. Create an ATTENTION-GRABBING hook (1 short sentence that makes people stop scrolling)
+2. Write a COMPELLING caption (2-3 sentences that tell a story or create intrigue)
+3. Generate 5-6 relevant hashtags (include gamedev, indiedev, plus pillar-specific tags)
+
+Be creative and varied! This is post #%d so make it DIFFERENT from other posts.
+
+Respond ONLY in this exact JSON format (no other text):
+{
+  "hook": "your attention-grabbing hook here",
+  "caption": "your compelling caption here",
+  "hashtags": ["gamedev", "indiedev", "tag3", "tag4", "tag5"]
+}`, campaign.Goal, pillar, platform, draftIndex+1, draftIndex+1)
+
+	systemPrompt := `You are a creative social media marketing expert for indie game developers. 
+Generate unique, engaging content that stops the scroll. 
+Each post should be distinctly different - vary your tone, style, and approach.
+Never repeat the same hook or caption patterns.
+Output ONLY valid JSON, no explanations.`
+
+	result, err := provider.Call(ctx, systemPrompt, prompt, map[string]any{
+		"temperature": 0.9, // Higher temperature for more variety
+		"max_tokens":  300,
+	}, nil)
+
+	if err != nil {
+		fmt.Printf("LLM generation failed for draft %d: %v, using fallback\n", draftIndex, err)
+		return generateFallbackContent(pillar, campaign.Goal, draftIndex)
+	}
+
+	// Parse the JSON response
+	var parsed struct {
+		Hook     string   `json:"hook"`
+		Caption  string   `json:"caption"`
+		Hashtags []string `json:"hashtags"`
+	}
+
+	// Try to extract JSON from the response (it might have extra text)
+	jsonStart := strings.Index(result, "{")
+	jsonEnd := strings.LastIndex(result, "}")
+	if jsonStart >= 0 && jsonEnd > jsonStart {
+		result = result[jsonStart : jsonEnd+1]
+	}
+
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		fmt.Printf("Failed to parse LLM response for draft %d: %v\n", draftIndex, err)
+		return generateFallbackContent(pillar, campaign.Goal, draftIndex)
+	}
+
+	if parsed.Hook == "" || parsed.Caption == "" {
+		return generateFallbackContent(pillar, campaign.Goal, draftIndex)
+	}
+
+	return parsed.Hook, parsed.Caption, parsed.Hashtags
+}
+
+// generateFallbackContent creates varied fallback content when LLM is unavailable
+func generateFallbackContent(pillar, goal string, index int) (hook, caption string, hashtags []string) {
+	// Use different templates based on index for variety
+	hookTemplates := []string{
+		"Ever wondered what goes into making a game?",
+		"This is something you don't see every day...",
+		"Let me show you something cool 🎮",
+		"Here's a peek behind the curtain...",
+		"Game dev moment: when everything just clicks ✨",
+		"The journey continues - here's today's update",
+		"Something exciting is brewing...",
+	}
+
+	captionTemplates := []string{
+		"Working on %s today and things are getting interesting! The %s journey continues with new discoveries every day.",
+		"Deep into %s exploration right now. Every step of this %s adventure brings new challenges and wins.",
+		"Today's focus: pushing %s to the next level. The path to our %s goal is paved with moments like these.",
+		"%s update incoming! Making progress toward our %s milestone one step at a time.",
+		"Sharing today's %s progress. Every indie dev knows the %s grind - and we're loving it!",
+	}
+
+	hook = hookTemplates[index%len(hookTemplates)]
+	caption = fmt.Sprintf(captionTemplates[index%len(captionTemplates)], pillar, goal)
+	hashtags = generateHashtagsForPillar(pillar)
+
+	return hook, caption, hashtags
 }
 
 func getPostTypeForPlatform(platform string) string {

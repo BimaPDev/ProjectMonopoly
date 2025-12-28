@@ -19,7 +19,8 @@ SELECT * FROM campaigns WHERE id = $1;
 
 -- name: ListCampaignsByUser :many
 SELECT * FROM campaigns
-WHERE user_id = $1
+WHERE user_id = $1 
+  AND (group_id = $2 OR group_id IS NULL OR $2 IS NULL)
 ORDER BY created_at DESC;
 
 -- name: ListCampaignsByGroup :many
@@ -105,6 +106,9 @@ UPDATE post_drafts SET status = $2 WHERE id = $1;
 
 -- name: UpdateDraftSchedule :exec
 UPDATE post_drafts SET scheduled_at = $2, status = 'scheduled' WHERE id = $1;
+
+-- name: DeleteDraftsByCampaign :exec
+DELETE FROM post_drafts WHERE campaign_id = $1;
 
 -- name: BulkCreateDraft :exec
 INSERT INTO post_drafts (

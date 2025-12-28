@@ -258,6 +258,15 @@ func (q *Queries) DeleteCampaignAsset(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const deleteDraftsByCampaign = `-- name: DeleteDraftsByCampaign :exec
+DELETE FROM post_drafts WHERE campaign_id = $1
+`
+
+func (q *Queries) DeleteDraftsByCampaign(ctx context.Context, campaignID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteDraftsByCampaign, campaignID)
+	return err
+}
+
 const getBestPostingWindows = `-- name: GetBestPostingWindows :many
 SELECT
   EXTRACT(DOW FROM captured_at)::int as day_of_week,
@@ -571,12 +580,18 @@ func (q *Queries) ListCampaignsByGroup(ctx context.Context, groupID sql.NullInt3
 
 const listCampaignsByUser = `-- name: ListCampaignsByUser :many
 SELECT id, user_id, group_id, name, goal, audience, pillars, cadence, status, created_at, updated_at FROM campaigns
-WHERE user_id = $1
+WHERE user_id = $1 
+  AND (group_id = $2 OR group_id IS NULL OR $2 IS NULL)
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListCampaignsByUser(ctx context.Context, userID int32) ([]Campaign, error) {
-	rows, err := q.db.QueryContext(ctx, listCampaignsByUser, userID)
+type ListCampaignsByUserParams struct {
+	UserID  int32         `json:"user_id"`
+	GroupID sql.NullInt32 `json:"group_id"`
+}
+
+func (q *Queries) ListCampaignsByUser(ctx context.Context, arg ListCampaignsByUserParams) ([]Campaign, error) {
+	rows, err := q.db.QueryContext(ctx, listCampaignsByUser, arg.UserID, arg.GroupID)
 	if err != nil {
 		return nil, err
 	}

@@ -35,6 +35,7 @@ import {
   Sparkles,
   FileText,
   BarChart3,
+  Trash2,
 } from "lucide-react";
 
 // Types
@@ -86,21 +87,19 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: str
       {steps.map((step, idx) => (
         <div key={step} className="flex items-center">
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
-              idx < currentStep
-                ? "bg-emerald-500 text-white"
-                : idx === currentStep
+            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all ${idx < currentStep
+              ? "bg-emerald-500 text-white"
+              : idx === currentStep
                 ? "bg-violet-600 text-white ring-4 ring-violet-600/30"
                 : "bg-zinc-800 text-zinc-400"
-            }`}
+              }`}
           >
             {idx < currentStep ? <Check className="w-5 h-5" /> : idx + 1}
           </div>
           {idx < steps.length - 1 && (
             <div
-              className={`w-16 h-1 mx-2 rounded ${
-                idx < currentStep ? "bg-emerald-500" : "bg-zinc-800"
-              }`}
+              className={`w-16 h-1 mx-2 rounded ${idx < currentStep ? "bg-emerald-500" : "bg-zinc-800"
+                }`}
             />
           )}
         </div>
@@ -136,12 +135,12 @@ export default function CampaignsPage() {
   const steps = ["Goal", "Audience", "Pillars", "Assets", "Cadence"];
   const stepIcons = [Target, Users, Layers, Upload, Calendar];
 
-  // Fetch campaigns on load
+  // Fetch campaigns on load and when group changes
   useEffect(() => {
-    if (view === "list") {
+    if (view === "list" && activeGroup?.ID) {
       fetchCampaigns();
     }
-  }, [view]);
+  }, [view, activeGroup]);
 
   // Fetch wizard options when entering wizard
   useEffect(() => {
@@ -154,7 +153,7 @@ export default function CampaignsPage() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("/api/campaigns", {
+      const res = await fetch(`/api/campaigns?group_id=${activeGroup?.ID || ""}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -239,7 +238,7 @@ export default function CampaignsPage() {
 
       // Generate drafts
       await generateDrafts(data.campaign.id);
-      
+
       setView("list");
       resetWizard();
       fetchCampaigns();
@@ -266,6 +265,42 @@ export default function CampaignsPage() {
       });
     } catch (error) {
       console.error("Failed to generate drafts:", error);
+    }
+  }
+
+  async function deleteCampaign(campaignId: string) {
+    if (!confirm("Are you sure you want to delete this campaign? This action cannot be undone.")) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/campaigns/${campaignId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete campaign");
+      }
+
+      toast({
+        title: "Campaign Deleted",
+        description: "The campaign has been removed successfully.",
+      });
+
+      setView("list");
+      setSelectedCampaign(null);
+      fetchCampaigns();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete campaign",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -431,13 +466,24 @@ export default function CampaignsPage() {
                 </Badge>
               </div>
             </div>
-            <Button
-              onClick={() => generateDrafts(selectedCampaign.id).then(() => fetchDrafts(selectedCampaign.id))}
-              className="bg-violet-600 hover:bg-violet-700"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Regenerate Drafts
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => generateDrafts(selectedCampaign.id).then(() => fetchDrafts(selectedCampaign.id))}
+                className="bg-violet-600 hover:bg-violet-700"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Regenerate Drafts
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => deleteCampaign(selectedCampaign.id)}
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                disabled={isLoading}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+            </div>
           </div>
 
           <h2 className="text-xl font-semibold text-white mb-4">Content Drafts</h2>
@@ -564,11 +610,10 @@ export default function CampaignsPage() {
                       <button
                         key={goal}
                         onClick={() => setFormData({ ...formData, goal })}
-                        className={`p-4 rounded-lg border text-left transition-all ${
-                          formData.goal === goal
-                            ? "border-violet-500 bg-violet-500/10"
-                            : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
-                        }`}
+                        className={`p-4 rounded-lg border text-left transition-all ${formData.goal === goal
+                          ? "border-violet-500 bg-violet-500/10"
+                          : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
+                          }`}
                       >
                         <span className="text-white font-medium capitalize">{goal}</span>
                       </button>
@@ -585,19 +630,17 @@ export default function CampaignsPage() {
                   <button
                     key={audience.id}
                     onClick={() => setFormData({ ...formData, audience })}
-                    className={`w-full p-4 rounded-lg border text-left transition-all ${
-                      formData.audience?.id === audience.id
-                        ? "border-violet-500 bg-violet-500/10"
-                        : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
-                    }`}
+                    className={`w-full p-4 rounded-lg border text-left transition-all ${formData.audience?.id === audience.id
+                      ? "border-violet-500 bg-violet-500/10"
+                      : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          formData.audience?.id === audience.id
-                            ? "border-violet-500 bg-violet-500"
-                            : "border-zinc-600"
-                        }`}
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.audience?.id === audience.id
+                          ? "border-violet-500 bg-violet-500"
+                          : "border-zinc-600"
+                          }`}
                       >
                         {formData.audience?.id === audience.id && (
                           <Check className="w-3 h-3 text-white" />
@@ -640,13 +683,12 @@ export default function CampaignsPage() {
                             });
                           }
                         }}
-                        className={`p-3 rounded-lg border text-left transition-all ${
-                          isSelected
-                            ? "border-violet-500 bg-violet-500/10"
-                            : isDisabled
+                        className={`p-3 rounded-lg border text-left transition-all ${isSelected
+                          ? "border-violet-500 bg-violet-500/10"
+                          : isDisabled
                             ? "border-zinc-800 bg-zinc-900 opacity-50 cursor-not-allowed"
                             : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <Checkbox checked={isSelected} />
@@ -706,11 +748,10 @@ export default function CampaignsPage() {
                                 });
                               }
                             }}
-                            className={`px-4 py-2 rounded-lg border transition-all capitalize ${
-                              isSelected
-                                ? "border-violet-500 bg-violet-500/10 text-violet-400"
-                                : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border transition-all capitalize ${isSelected
+                              ? "border-violet-500 bg-violet-500/10 text-violet-400"
+                              : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                              }`}
                           >
                             {platform}
                           </button>

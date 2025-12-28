@@ -1,7 +1,7 @@
 # CODEBASE_LAYOUT
 
-- Commit: `ed8c1d4e7530c3c668b9a95aff27dc8ba352ce69`
-- Generated at: `2025-12-25T01:36:43.853751-05:00`
+- Commit: `96fbc66715468a658a0d27aa5a6147aad91a31ab5`
+- Generated at: `2025-12-27T15:48:00-05:00`
 
 ## 1) Ground-truth repo tree
 ```text
@@ -21,8 +21,12 @@
 |   +-- src/
 |   |   +-- app/
 |   |   |   +-- Ai/
+|   |   |   +-- campaigns/
+|   |   |   |   +-- insights/
+|   |   |   |   |   \-- page.tsx
+|   |   |   |   \-- page.tsx
 |   |   |   +-- competitors/
-|   |   |   +-- gamecontext/
+|   |   |   +-- gameContext/
 |   |   |   +-- landing/
 |   |   |   +-- llmTest/
 |   |   |   +-- login/
@@ -110,14 +114,34 @@
 |   |   |   \-- register.go
 |   |   +-- db/
 |   |   |   +-- migration/
+|   |   |   |   +-- 000001_init_schema.down.sql
+|   |   |   |   +-- 000001_init_schema.up.sql
+|   |   |   |   +-- 000002_campaigns.down.sql
+|   |   |   |   \-- 000002_campaigns.up.sql
 |   |   |   +-- query/
+|   |   |   |   +-- ListVisibleCompetitorPosts.sql
+|   |   |   |   +-- account.sql
+|   |   |   |   +-- analytics.sql
+|   |   |   |   +-- campaigns.sql
+|   |   |   |   +-- competitor_posts.sql
+|   |   |   |   \-- competitor_profiles.sql
 |   |   |   +-- sqlc/
+|   |   |   |   +-- ListVisibleCompetitorPosts.sql.go
+|   |   |   |   +-- account.sql.go
+|   |   |   |   +-- analytics.sql.go
+|   |   |   |   +-- campaigns.sql.go
+|   |   |   |   +-- competitor_posts.sql.go
+|   |   |   |   +-- competitor_profiles.sql.go
+|   |   |   |   +-- db.go
+|   |   |   |   +-- models.go
+|   |   |   |   \-- workshop.sql.go
 |   |   |   \-- PostGress.go
 |   |   +-- function/
 |   |   |   \-- hashtag.go
 |   |   +-- handlers/
 |   |   |   +-- ai.go
 |   |   |   +-- ai_generator.go
+|   |   |   +-- campaigns.go
 |   |   |   +-- competitor.go
 |   |   |   +-- competitor_list.go
 |   |   |   +-- competitor_posts.go
@@ -249,39 +273,47 @@
 ### 2.1 Routes (normalized)
 | METHOD | PATH (normalized) | Handler | file:line | Middleware stack (best-effort) |
 |---|---|---|---|---|
-| POST | `/ai/deepseek` | `wrap(handlers.DeepSeekHandler)` | `server/cmd/api/main.go:58` | cors.New(config) |
-| POST | `/api/AddGroupItem` | `wrap(handlers.AddOrUpdateGroupItem)` | `server/cmd/api/main.go:82` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/GroupItem` | `wrap(handlers.GetGroupItems)` | `server/cmd/api/main.go:83` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/UploadItemsByGroupID` | `wrap(handlers.GetUploadItemsByGroupID)` | `server/cmd/api/main.go:79` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/UserID` | `handlers.GetUserIDHandler(queries)` | `server/cmd/api/main.go:75` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/ai/chat` | `wrap(handlers.DeepSeekHandler)` | `server/cmd/api/main.go:108` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/competitors/posts` | `wrap(handlers.ListVisibleCompetitorPosts)` | `server/cmd/api/main.go:95` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/competitors/with-profiles` | `wrap(handlers.ListCompetitorsWithProfiles)` | `server/cmd/api/main.go:96` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/games/extract` | `wrap(handlers.ExtractGameContext)` | `server/cmd/api/main.go:104` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/games/input` | `wrap(handlers.SaveGameContext)` | `server/cmd/api/main.go:105` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/groups` | `wrap(handlers.GetGroups)` | `server/cmd/api/main.go:87` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/groups` | `wrap(handlers.CreateGroup)` | `server/cmd/api/main.go:86` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/groups/:param/competitors` | `wrap(handlers.ListUserCompetitors)` | `server/cmd/api/main.go:92` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/groups/:param/competitors` | `wrap(handlers.CreateCompetitor)` | `server/cmd/api/main.go:91` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/groups/competitors` | `wrap(handlers.ListUserCompetitors)` | `server/cmd/api/main.go:94` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/groups/competitors` | `wrap(handlers.CreateCompetitor)` | `server/cmd/api/main.go:93` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/login` | `auth.LoginHandler(queries)` | `server/cmd/api/main.go:64` | cors.New(config) |
-| POST | `/api/marketing/generate` | `handlers.GenerateMarketingStrategyHandler(queries)` | `server/cmd/api/main.go:111` | cors.New(config); auth.AuthMiddleware() |
-| GET | `/api/protected/dashboard` | `func(c *gin.Context) {
-				c.String(http.StatusOK, "? Welcome to the protected dashboard!")
-			}` | `server/cmd/api/main.go:70` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/register` | `auth.RegisterHandler(queries)` | `server/cmd/api/main.go:63` | cors.New(config) |
-| POST | `/api/test/llm` | `handlers.TestLLMHandler` | `server/cmd/api/main.go:114` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/upload` | `wrap(handlers.UploadVideoHandler)` | `server/cmd/api/main.go:78` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/workshop/ask` | `handlers.WorkshopAskHandler(queries)` | `server/cmd/api/main.go:101` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/workshop/search` | `handlers.WorkshopSearchHandler(queries)` | `server/cmd/api/main.go:100` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/api/workshop/upload` | `wrap(handlers.WorkshopUploadHandler)` | `server/cmd/api/main.go:99` | cors.New(config); auth.AuthMiddleware() |
-| POST | `/followers` | `wrap(handlers.TriggerFollowersScript)` | `server/cmd/api/main.go:57` | cors.New(config) |
+| POST | `/ai/deepseek` | `wrap(handlers.DeepSeekHandler)` | `server/cmd/api/main.go:59` | cors.New(config) |
+| POST | `/api/AddGroupItem` | `wrap(handlers.AddOrUpdateGroupItem)` | `server/cmd/api/main.go:83` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/GroupItem` | `wrap(handlers.GetGroupItems)` | `server/cmd/api/main.go:84` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/UploadItemsByGroupID` | `wrap(handlers.GetUploadItemsByGroupID)` | `server/cmd/api/main.go:80` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/UserID` | `handlers.GetUserIDHandler(queries)` | `server/cmd/api/main.go:76` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/ai/chat` | `wrap(handlers.DeepSeekHandler)` | `server/cmd/api/main.go:109` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/campaigns` | `handlers.ListCampaignsHandler(queries)` | `server/cmd/api/main.go:121` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/campaigns` | `handlers.CreateCampaignHandler(queries)` | `server/cmd/api/main.go:120` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/campaigns/:param` | `handlers.GetCampaignHandler(queries)` | `server/cmd/api/main.go:122` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/campaigns/:param/assets` | `handlers.AttachCampaignAssetsHandler(queries)` | `server/cmd/api/main.go:125` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/campaigns/:param/drafts` | `handlers.ListCampaignDraftsHandler(queries)` | `server/cmd/api/main.go:131` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/campaigns/:param/generate` | `handlers.GenerateCampaignDraftsHandler(queries)` | `server/cmd/api/main.go:128` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/campaigns/:param/insights` | `handlers.GetCampaignInsightsHandler(queries)` | `server/cmd/api/main.go:134` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/campaigns/wizard` | `handlers.GetWizardOptionsHandler()` | `server/cmd/api/main.go:118` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/competitors/posts` | `wrap(handlers.ListVisibleCompetitorPosts)` | `server/cmd/api/main.go:96` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/competitors/with-profiles` | `wrap(handlers.ListCompetitorsWithProfiles)` | `server/cmd/api/main.go:97` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/games/extract` | `wrap(handlers.ExtractGameContext)` | `server/cmd/api/main.go:105` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/games/input` | `wrap(handlers.SaveGameContext)` | `server/cmd/api/main.go:106` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/groups` | `wrap(handlers.GetGroups)` | `server/cmd/api/main.go:88` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/groups` | `wrap(handlers.CreateGroup)` | `server/cmd/api/main.go:87` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/groups/:param/competitors` | `wrap(handlers.ListUserCompetitors)` | `server/cmd/api/main.go:93` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/groups/:param/competitors` | `wrap(handlers.CreateCompetitor)` | `server/cmd/api/main.go:92` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/groups/competitors` | `wrap(handlers.ListUserCompetitors)` | `server/cmd/api/main.go:95` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/groups/competitors` | `wrap(handlers.CreateCompetitor)` | `server/cmd/api/main.go:94` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/login` | `auth.LoginHandler(queries)` | `server/cmd/api/main.go:65` | cors.New(config) |
+| POST | `/api/marketing/generate` | `handlers.GenerateMarketingStrategyHandler(queries)` | `server/cmd/api/main.go:112` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/metrics/ingest` | `handlers.IngestMetricsHandler(queries)` | `server/cmd/api/main.go:137` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/api/protected/dashboard` | `func(c *gin.Context) {...}` | `server/cmd/api/main.go:71` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/register` | `auth.RegisterHandler(queries)` | `server/cmd/api/main.go:64` | cors.New(config) |
+| POST | `/api/test/llm` | `handlers.TestLLMHandler` | `server/cmd/api/main.go:115` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/upload` | `wrap(handlers.UploadVideoHandler)` | `server/cmd/api/main.go:79` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/workshop/ask` | `handlers.WorkshopAskHandler(queries)` | `server/cmd/api/main.go:102` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/workshop/search` | `handlers.WorkshopSearchHandler(queries)` | `server/cmd/api/main.go:101` | cors.New(config); auth.AuthMiddleware() |
+| POST | `/api/workshop/upload` | `wrap(handlers.WorkshopUploadHandler)` | `server/cmd/api/main.go:100` | cors.New(config); auth.AuthMiddleware() |
+| GET | `/followers` | `wrap(handlers.TriggerFollowersScript)` | `server/cmd/api/main.go:57` | cors.New(config) |
+| POST | `/followers` | `wrap(handlers.TriggerFollowersScript)` | `server/cmd/api/main.go:58` | cors.New(config) |
 | GET | `/health` | `handlers.HealthCheck` | `server/cmd/api/main.go:56` | cors.New(config) |
 | POST | `/trigger` | `handlers.TriggerPythonScript` | `server/cmd/api/main.go:55` | cors.New(config) |
 
 ### 2.2 /api/protected/dashboard reconciliation
-- Proven: `server/cmd/api/main.go:70` registers `GET /api/protected/dashboard`.
+- Proven: `server/cmd/api/main.go:71` registers `GET /api/protected/dashboard`.
 
 ## 3) Client: endpoint extraction
 - Normalized client path: collapse repeated slashes, replace ${...} with :param, then normalize params to :param (for contract drift).
@@ -314,6 +346,41 @@
   - `/api/UserID`
 - References:
   - `client/src/components/dashboard.tsx:87`
+
+### `/api/campaigns`
+- Methods used by client: **GET,POST**
+- Examples (raw URL strings):
+  - `/api/campaigns`
+- References:
+  - `client/src/app/campaigns/page.tsx`
+
+### `/api/campaigns/:param`
+- Methods used by client: **GET**
+- Examples (raw URL strings):
+  - `/api/campaigns/${campaignId}`
+- References:
+  - `client/src/app/campaigns/page.tsx`
+
+### `/api/campaigns/:param/generate`
+- Methods used by client: **POST**
+- Examples (raw URL strings):
+  - `/api/campaigns/${campaignId}/generate`
+- References:
+  - `client/src/app/campaigns/page.tsx`
+
+### `/api/campaigns/:param/insights`
+- Methods used by client: **GET**
+- Examples (raw URL strings):
+  - `/api/campaigns/${campaignId}/insights`
+- References:
+  - `client/src/app/campaigns/insights/page.tsx`
+
+### `/api/campaigns/wizard`
+- Methods used by client: **GET**
+- Examples (raw URL strings):
+  - `/api/campaigns/wizard`
+- References:
+  - `client/src/app/campaigns/page.tsx`
 
 ### `/api/competitors/:param/profiles`
 - Methods used by client: **POST**
@@ -348,14 +415,14 @@
 - Examples (raw URL strings):
   - `/api/games/extract`
 - References:
-  - `client/src/app/gamecontext/page.tsx:101`
+  - `client/src/app/gameContext/page.tsx:101`
 
 ### `/api/games/input`
 - Methods used by client: **POST**
 - Examples (raw URL strings):
   - `/api/games/input`
 - References:
-  - `client/src/app/gamecontext/page.tsx:228`
+  - `client/src/app/gameContext/page.tsx:228`
 
 ### `/api/groups`
 - Methods used by client: **GET,POST**
@@ -462,32 +529,50 @@
 ## 4) Contract drift
 | Normalized client endpoint | Client methods | Exists in server routes? | Server route entry | Client refs (file:line) |
 |---|---|---:|---|---|
-| `/api/AddGroupItem` | POST | Yes | POST /api/AddGroupItem server/cmd/api/main.go:82 | `client/src/app/settings/socialMedia/page.tsx:202`, `client/src/app/settings/socialMedia/page.tsx:295` |
-| `/api/GroupItem` | GET | Yes | GET /api/GroupItem server/cmd/api/main.go:83 | `client/src/app/settings/socialMedia/page.tsx:164` |
-| `/api/UploadItemsByGroupID` | GET | Yes | GET /api/UploadItemsByGroupID server/cmd/api/main.go:79 | `client/src/components/dashboard.tsx:139` |
-| `/api/UserID` | POST | Yes | GET /api/UserID server/cmd/api/main.go:75 | `client/src/components/dashboard.tsx:87` |
+| `/api/AddGroupItem` | POST | Yes | POST /api/AddGroupItem server/cmd/api/main.go:83 | `client/src/app/settings/socialMedia/page.tsx:202`, `client/src/app/settings/socialMedia/page.tsx:295` |
+| `/api/GroupItem` | GET | Yes | GET /api/GroupItem server/cmd/api/main.go:84 | `client/src/app/settings/socialMedia/page.tsx:164` |
+| `/api/UploadItemsByGroupID` | GET | Yes | GET /api/UploadItemsByGroupID server/cmd/api/main.go:80 | `client/src/components/dashboard.tsx:139` |
+| `/api/UserID` | POST | Yes | POST /api/UserID server/cmd/api/main.go:76 | `client/src/components/dashboard.tsx:87` |
+| `/api/campaigns` | GET, POST | Yes | GET /api/campaigns server/cmd/api/main.go:121<br/>POST /api/campaigns server/cmd/api/main.go:120 | `client/src/app/campaigns/page.tsx` |
+| `/api/campaigns/:param` | GET | Yes | GET /api/campaigns/:id server/cmd/api/main.go:122 | `client/src/app/campaigns/page.tsx` |
+| `/api/campaigns/:param/generate` | POST | Yes | POST /api/campaigns/:id/generate server/cmd/api/main.go:128 | `client/src/app/campaigns/page.tsx` |
+| `/api/campaigns/:param/insights` | GET | Yes | GET /api/campaigns/:id/insights server/cmd/api/main.go:134 | `client/src/app/campaigns/insights/page.tsx` |
+| `/api/campaigns/wizard` | GET | Yes | GET /api/campaigns/wizard server/cmd/api/main.go:118 | `client/src/app/campaigns/page.tsx` |
 | `/api/competitors/:param/profiles` | POST | No |  | `client/src/components/CompetitorEditModal.tsx:51` |
-| `/api/competitors/posts` | GET | Yes | GET /api/competitors/posts server/cmd/api/main.go:95 | `client/src/components/competitors-page.tsx:109` |
+| `/api/competitors/posts` | GET | Yes | GET /api/competitors/posts server/cmd/api/main.go:96 | `client/src/components/competitors-page.tsx:109` |
 | `/api/competitors/profiles/:param` | DELETE | No |  | `client/src/components/CompetitorEditModal.tsx:84` |
-| `/api/competitors/with-profiles` | GET | Yes | GET /api/competitors/with-profiles server/cmd/api/main.go:96 | `client/src/components/competitors-page.tsx:156` |
-| `/api/games/extract` | POST | Yes | POST /api/games/extract server/cmd/api/main.go:104 | `client/src/app/gamecontext/page.tsx:101` |
-| `/api/games/input` | POST | Yes | POST /api/games/input server/cmd/api/main.go:105 | `client/src/app/gamecontext/page.tsx:228` |
-| `/api/groups` | GET, POST | Yes | GET /api/groups server/cmd/api/main.go:87<br/>POST /api/groups server/cmd/api/main.go:86 | `client/src/app/settings/socialMedia/page.tsx:112`, `client/src/app/settings/socialMedia/page.tsx:237`, `client/src/components/team-switcher.tsx:67`, `client/src/components/team-switcher.tsx:119`, `client/src/components/upload.tsx:94` |
-| `/api/groups/competitors` | GET | Yes | GET /api/groups/competitors server/cmd/api/main.go:94 | `client/src/components/competitors-page.tsx:185` |
-| `/api/login` | POST | Yes | POST /api/login server/cmd/api/main.go:64 | `client/src/components/login-form.tsx:18`, `client/src/components/login-form.tsx:64`, `client/src/components/rform.tsx:23`, `client/src/components/rform.tsx:56`, `client/src/utils/auth.ts:3` |
-| `/api/marketing/generate` | POST | Yes | POST /api/marketing/generate server/cmd/api/main.go:111 | `client/src/app/marketing/page.tsx:72` |
-| `/api/protected/dashboard` | GET | Yes | GET /api/protected/dashboard server/cmd/api/main.go:70 | `client/src/utils/api.ts:7` |
-| `/api/register` | POST | Yes | POST /api/register server/cmd/api/main.go:63 | `client/src/app/register/page.tsx:50`, `client/src/app/register/page.tsx:124`, `client/src/components/login-form.tsx:72` |
-| `/api/test/llm` | POST | Yes | POST /api/test/llm server/cmd/api/main.go:114 | `client/src/app/llmTest/page.tsx:37` |
-| `/api/upload` | POST | Yes | POST /api/upload server/cmd/api/main.go:78 | `client/src/components/upload.tsx:167` |
-| `/api/workshop/ask` | POST | Yes | POST /api/workshop/ask server/cmd/api/main.go:101 | `client/src/components/Ai-page.tsx:176` |
-| `/api/workshop/upload` | [Unknown] | Yes | POST /api/workshop/upload server/cmd/api/main.go:99 | `client/src/components/uploadContext.tsx:49` |
-| `/followers` | GET | Yes | POST /followers server/cmd/api/main.go:57 | `client/src/components/dashboard.tsx:114` |
+| `/api/competitors/with-profiles` | GET | Yes | GET /api/competitors/with-profiles server/cmd/api/main.go:97 | `client/src/components/competitors-page.tsx:156` |
+| `/api/games/extract` | POST | Yes | POST /api/games/extract server/cmd/api/main.go:105 | `client/src/app/gameContext/page.tsx:101` |
+| `/api/games/input` | POST | Yes | POST /api/games/input server/cmd/api/main.go:106 | `client/src/app/gameContext/page.tsx:228` |
+| `/api/groups` | GET, POST | Yes | GET /api/groups server/cmd/api/main.go:88<br/>POST /api/groups server/cmd/api/main.go:87 | `client/src/app/settings/socialMedia/page.tsx:112`, `client/src/app/settings/socialMedia/page.tsx:237`, `client/src/components/team-switcher.tsx:67`, `client/src/components/team-switcher.tsx:119`, `client/src/components/upload.tsx:94` |
+| `/api/groups/competitors` | GET | Yes | GET /api/groups/competitors server/cmd/api/main.go:95 | `client/src/components/competitors-page.tsx:185` |
+| `/api/login` | POST | Yes | POST /api/login server/cmd/api/main.go:65 | `client/src/components/login-form.tsx:18`, `client/src/components/login-form.tsx:64`, `client/src/components/rform.tsx:23`, `client/src/components/rform.tsx:56`, `client/src/utils/auth.ts:3` |
+| `/api/marketing/generate` | POST | Yes | POST /api/marketing/generate server/cmd/api/main.go:112 | `client/src/app/marketing/page.tsx:72` |
+| `/api/protected/dashboard` | GET | Yes | GET /api/protected/dashboard server/cmd/api/main.go:71 | `client/src/utils/api.ts:7` |
+| `/api/register` | POST | Yes | POST /api/register server/cmd/api/main.go:64 | `client/src/app/register/page.tsx:50`, `client/src/app/register/page.tsx:124`, `client/src/components/login-form.tsx:72` |
+| `/api/test/llm` | POST | Yes | POST /api/test/llm server/cmd/api/main.go:115 | `client/src/app/llmTest/page.tsx:37` |
+| `/api/upload` | POST | Yes | POST /api/upload server/cmd/api/main.go:79 | `client/src/components/upload.tsx:167` |
+| `/api/workshop/ask` | POST | Yes | POST /api/workshop/ask server/cmd/api/main.go:102 | `client/src/components/Ai-page.tsx:176` |
+| `/api/workshop/upload` | [Unknown] | Yes | POST /api/workshop/upload server/cmd/api/main.go:100 | `client/src/components/uploadContext.tsx:49` |
+| `/followers` | GET | Yes | GET /followers server/cmd/api/main.go:57 | `client/src/components/dashboard.tsx:114` |
 | `/health` | GET | Yes | GET /health server/cmd/api/main.go:56 | `client/src/components/Ai-page.tsx:85` |
 
 ## 5) DB layer
 
 ### 5.1 Table -> sqlc queries (filtered to migration tables)
+- **campaigns**:
+  - `CreateCampaign` (server/internal/db/query/campaigns.sql:3)
+  - `DeleteCampaign` (server/internal/db/query/campaigns.sql:43)
+  - `GetCampaignByID` (server/internal/db/query/campaigns.sql:17)
+  - `GetTopHookPatterns` (server/internal/db/query/campaigns.sql:180)
+  - `ListCampaignsByGroup` (server/internal/db/query/campaigns.sql:25)
+  - `ListCampaignsByUser` (server/internal/db/query/campaigns.sql:20)
+  - `UpdateCampaign` (server/internal/db/query/campaigns.sql:32)
+  - `UpdateCampaignStatus` (server/internal/db/query/campaigns.sql:30)
+- **campaign_assets**:
+  - `CreateCampaignAsset` (server/internal/db/query/campaigns.sql:47)
+  - `DeleteCampaignAsset` (server/internal/db/query/campaigns.sql:64)
+  - `ListCampaignAssets` (server/internal/db/query/campaigns.sql:59)
 - **competitor_posts**:
   - `GetBestPostingDay` (server/internal/db/query/analytics.sql:105)
   - `GetBestPostingHour` (server/internal/db/query/analytics.sql:39)
@@ -560,6 +645,22 @@
   - `CreateGroup` (server/internal/db/query/account.sql:146)
   - `GetGroupByID` (server/internal/db/query/account.sql:141)
   - `ListGroupsByUser` (server/internal/db/query/account.sql:151)
+- **post_drafts**:
+  - `BulkCreateDraft` (server/internal/db/query/campaigns.sql:105)
+  - `CreatePostDraft` (server/internal/db/query/campaigns.sql:69)
+  - `GetPostDraftByID` (server/internal/db/query/campaigns.sql:85)
+  - `GetTopHookPatterns` (server/internal/db/query/campaigns.sql:180)
+  - `ListDraftsByCampaign` (server/internal/db/query/campaigns.sql:88)
+  - `ListDraftsByStatus` (server/internal/db/query/campaigns.sql:93)
+  - `UpdateDraftSchedule` (server/internal/db/query/campaigns.sql:101)
+  - `UpdateDraftStatus` (server/internal/db/query/campaigns.sql:98)
+- **post_metrics**:
+  - `GetBestPostingWindows` (server/internal/db/query/campaigns.sql:165)
+  - `GetMetricsSummary` (server/internal/db/query/campaigns.sql:150)
+  - `GetTopHookPatterns` (server/internal/db/query/campaigns.sql:180)
+  - `InsertPostMetrics` (server/internal/db/query/campaigns.sql:129)
+  - `ListMetricsByDraft` (server/internal/db/query/campaigns.sql:144)
+  - `ListMetricsByGroup` (server/internal/db/query/campaigns.sql:139)
 - **sessions**:
   - `CreateSession` (server/internal/db/query/account.sql:66)
   - `DeleteSession` (server/internal/db/query/account.sql:78)
@@ -630,6 +731,20 @@
 - `q.GetTopCompetitorHashtags(...)` at `server/internal/handlers/ai_generator.go:462`
 - `q.SearchChunks(...)` at `server/internal/handlers/ai_generator.go:781`
 
+#### `server/internal/handlers/campaigns.go`
+- `q.CreateCampaign(...)` at `server/internal/handlers/campaigns.go`
+- `q.GetCampaignByID(...)` at `server/internal/handlers/campaigns.go`
+- `q.ListCampaignsByUser(...)` at `server/internal/handlers/campaigns.go`
+- `q.ListCampaignsByGroup(...)` at `server/internal/handlers/campaigns.go`
+- `q.CreateCampaignAsset(...)` at `server/internal/handlers/campaigns.go`
+- `q.ListCampaignAssets(...)` at `server/internal/handlers/campaigns.go`
+- `q.CreatePostDraft(...)` at `server/internal/handlers/campaigns.go`
+- `q.ListDraftsByCampaign(...)` at `server/internal/handlers/campaigns.go`
+- `q.InsertPostMetrics(...)` at `server/internal/handlers/campaigns.go`
+- `q.GetMetricsSummary(...)` at `server/internal/handlers/campaigns.go`
+- `q.GetBestPostingWindows(...)` at `server/internal/handlers/campaigns.go`
+- `q.GetTopHookPatterns(...)` at `server/internal/handlers/campaigns.go`
+
 #### `server/internal/handlers/competitor.go`
 - `queries.GetCompetitorByPlatformUsername(...)` at `server/internal/handlers/competitor.go:53`
 - `queries.GetProfileByCompetitorAndPlatform(...)` at `server/internal/handlers/competitor.go:60`
@@ -688,6 +803,37 @@
 - `q.CreateWorkshopDocument(...)` at `server/internal/handlers/workshop_upload.go:107`
 - `q.EnqueueIngestJob(...)` at `server/internal/handlers/workshop_upload.go:124`
 
-## Known limitations
-- Client endpoints containing unreplaced `${...}` are omitted from normalized endpoint lists and appear only under [Unparsed].
-- This document is ASCII-only; non-ASCII content in source (e.g. emoji strings) is replaced with `?` in output.
+## 6) Campaign Workflow Feature (NEW)
+
+### 6.1 Overview
+The campaigns feature provides structured marketing automation with:
+- Wizard-based campaign creation with preset audience archetypes
+- AI-generated post drafts with structured JSON output
+- Asset management for campaign media
+- Performance metrics tracking with feedback loop
+- Insights generation for optimization
+
+### 6.2 Database Tables (Migration 000002)
+| Table | Purpose |
+|---|---|
+| `campaigns` | Stores wizard-created campaign configurations (goal, audience, pillars, cadence) |
+| `campaign_assets` | Uploaded media files with tags |
+| `post_drafts` | AI-generated structured content (hook, caption, hashtags, CTA, time_window) |
+| `post_metrics` | Performance snapshots for feedback loop |
+
+### 6.3 API Endpoints
+| METHOD | PATH | Handler | Purpose |
+|---|---|---|---|
+| GET | `/api/campaigns/wizard` | `GetWizardOptionsHandler` | Fetch preset wizard options (archetypes, goals, pillars) |
+| POST | `/api/campaigns` | `CreateCampaignHandler` | Create new campaign from wizard |
+| GET | `/api/campaigns` | `ListCampaignsHandler` | List user's campaigns |
+| GET | `/api/campaigns/:id` | `GetCampaignHandler` | Get single campaign details |
+| POST | `/api/campaigns/:id/assets` | `AttachCampaignAssetsHandler` | Upload campaign media assets |
+| POST | `/api/campaigns/:id/generate` | `GenerateCampaignDraftsHandler` | Trigger AI draft generation |
+| GET | `/api/campaigns/:id/drafts` | `ListCampaignDraftsHandler` | List generated drafts |
+| GET | `/api/campaigns/:id/insights` | `GetCampaignInsightsHandler` | Get performance insights |
+| POST | `/api/metrics/ingest` | `IngestMetricsHandler` | Store performance snapshots |
+
+### 6.4 Frontend Pages
+- `client/src/app/campaigns/page.tsx` - Main campaign management page
+- `client/src/app/campaigns/insights/page.tsx` - Campaign insights/analytics page
