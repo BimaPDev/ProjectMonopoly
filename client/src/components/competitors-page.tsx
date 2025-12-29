@@ -152,8 +152,8 @@ export function CompetitorsPage() {
   }
   const fetchCompetitors = async () => {
     try {
-      // Try new API first, fallback to legacy
-      let res = await fetch(`/api/competitors/with-profiles`, {
+      // Try new API first with group_id, fallback to legacy
+      let res = await fetch(`/api/competitors/with-profiles?group_id=${activeGroup?.ID}`, {
         method: "GET",
         headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${localStorage.getItem('token')}` }
       });

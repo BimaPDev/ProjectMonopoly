@@ -54,6 +54,8 @@ func main() {
 	// ─── Public Routes ────────────────────────────────────────────────────────────
 	r.POST("/trigger", handlers.TriggerPythonScript)
 	r.GET("/health", handlers.HealthCheck)
+	// /followers: support both GET (client uses GET) and POST for flexibility
+	r.GET("/followers", wrap(handlers.TriggerFollowersScript))
 	r.POST("/followers", wrap(handlers.TriggerFollowersScript))
 	r.POST("/ai/deepseek", wrap(handlers.DeepSeekHandler))
 
@@ -71,8 +73,8 @@ func main() {
 				c.String(http.StatusOK, "🔒 Welcome to the protected dashboard!")
 			})
 
-			// User
-			protected.GET("/UserID", handlers.GetUserIDHandler(queries))
+			// User - POST required as it accepts JSON body
+			protected.POST("/UserID", handlers.GetUserIDHandler(queries))
 
 			// Uploads
 			protected.POST("/upload", wrap(handlers.UploadVideoHandler))
@@ -95,6 +97,7 @@ func main() {
 			protected.GET("/groups/competitors", wrap(handlers.ListUserCompetitors))
 			protected.GET("/competitors/posts", wrap(handlers.ListVisibleCompetitorPosts))
 			protected.GET("/competitors/with-profiles", wrap(handlers.ListCompetitorsWithProfiles))
+			protected.POST("/competitors/:id/profiles", wrap(handlers.AddProfileToCompetitor))
 
 			// Workshop
 			protected.POST("/workshop/upload", wrap(handlers.WorkshopUploadHandler))
@@ -113,6 +116,34 @@ func main() {
 
 			// Test LLM
 			protected.POST("/test/llm", handlers.TestLLMHandler)
+
+			// ─── Campaign Workflow ───────────────────────────────────────────
+			// Wizard options (preset data)
+			protected.GET("/campaigns/wizard", handlers.GetWizardOptionsHandler())
+
+			// Campaign CRUD
+			protected.POST("/campaigns", handlers.CreateCampaignHandler(queries))
+			protected.GET("/campaigns", handlers.ListCampaignsHandler(queries))
+			protected.GET("/campaigns/:id", handlers.GetCampaignHandler(queries))
+			protected.DELETE("/campaigns/:id", handlers.DeleteCampaignHandler(queries))
+
+			// Campaign assets
+			protected.POST("/campaigns/:id/assets", handlers.AttachCampaignAssetsHandler(queries))
+
+			// AI generation
+			protected.POST("/campaigns/:id/generate", handlers.GenerateCampaignDraftsHandler(queries))
+
+			// Drafts
+			protected.GET("/campaigns/:id/drafts", handlers.ListCampaignDraftsHandler(queries))
+
+			// Insights / feedback loop
+			protected.GET("/campaigns/:id/insights", handlers.GetCampaignInsightsHandler(queries))
+
+			// Metrics ingestion (can be called by external systems)
+			protected.POST("/metrics/ingest", handlers.IngestMetricsHandler(queries))
+
+			// Dashboard Analytics
+			protected.GET("/analytics/engagement-trends", handlers.GetEngagementTrendsHandler(queries))
 		}
 	}
 

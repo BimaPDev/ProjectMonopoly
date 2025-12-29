@@ -9,7 +9,6 @@ import (
 
 	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 	"github.com/gin-gonic/gin"
-	"github.com/sqlc-dev/pqtype"
 )
 
 // Create a new group
@@ -123,10 +122,7 @@ func AddOrUpdateGroupItem(c *gin.Context, q *db.Queries) {
 	_, err = q.InsertGroupItemIfNotExists(c.Request.Context(), db.InsertGroupItemIfNotExistsParams{
 		GroupID:  int32(req.GroupID),
 		Platform: req.Platform,
-		Data: pqtype.NullRawMessage{
-			RawMessage: dataBytes,
-			Valid:      true,
-		},
+		Data:     dataBytes,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Insert error: %v", err)})

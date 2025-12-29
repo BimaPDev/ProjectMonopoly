@@ -90,22 +90,18 @@ class WeeklyInstagramScraper:
     
     def initialize_scraper(self) -> bool:
         """
-        Initialize the Instagram scraper with credentials.
+        Initialize the Instagram scraper in guest mode (no cookies/login).
         """
         try:
-            # Get credentials from environment variables
-            username = os.getenv("INSTAGRAM_USERNAME")
-            password = os.getenv("INSTAGRAM_PASSWORD")
+            log.info("🔧 Initializing Instagram scraper in guest mode...")
             
-            if not username or not password:
-                log.warning("⚠️  Instagram credentials not set. Scraper will run in GUEST MODE.")
-                # Continue without credentials
-                
-            self.scraper = InstagramScraper(username, password)
+            # Initialize with use_cookies=False for pure guest mode
+            # No credentials needed - Instagram profiles are publicly accessible
+            self.scraper = InstagramScraper(use_cookies=False)
             
-            # Attempt to login (which will handle guest mode if no creds)
+            # Attempt to login (which will go straight to guest mode)
             if not self.scraper.login():
-                log.error("❌ Failed to login to Instagram (even guest mode failed)")
+                log.error("❌ Failed to initialize Instagram guest mode")
                 return False
             
             log.info("✅ Instagram scraper initialized successfully")

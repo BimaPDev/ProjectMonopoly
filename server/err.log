@@ -1,2 +1,0 @@
-# github.com/BimaPDev/ProjectMonopoly/internal/handlers
-internal\handlers\competitor.go:54:3: unknown field Username in struct literal of type db.GetCompetitorByPlatformUsernameParams

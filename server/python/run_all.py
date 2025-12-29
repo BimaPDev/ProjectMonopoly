@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+"""
+Run All Services
+================
+
+Main entry point for the ProjectMonopoly Python worker container.
+Starts and manages all background services.
+
+Author: ProjectMonopoly Team
+Last Updated: 2025-12-27
+"""
+
 import os
 import sys
 import time

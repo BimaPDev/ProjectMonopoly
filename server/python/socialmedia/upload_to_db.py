@@ -435,6 +435,296 @@ def upload_posts_to_db(json_file_path):
     finally:
         conn.close()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TikTok Upload Functions
+# ─────────────────────────────────────────────────────────────────────────────
+
+def extract_tiktok_video_id(url):
+    """Extract video ID from TikTok URL."""
+    # Format: https://www.tiktok.com/@username/video/7581306068471516446
+    match = re.search(r'/video/(\d+)', url)
+    return match.group(1) if match else None
+
+
+def parse_tiktok_engagement(post):
+    """Parse engagement data from TikTok post."""
+    try:
+        likes = int(str(post.get('likes_count', '0')).replace(',', '') or '0')
+        comments = int(str(post.get('comments_count', '0')).replace(',', '') or '0')
+        shares = int(str(post.get('shared_count', '0')).replace(',', '') or '0')
+        saves = int(str(post.get('saved_count', '0')).replace(',', '') or '0')
+        
+        return {
+            "likes": likes,
+            "comments": comments,
+            "shares": shares,
+            "saves": saves,
+            "total_engagement": likes + comments + shares + saves
+        }
+    except (ValueError, AttributeError):
+        return {
+            "likes": 0,
+            "comments": 0,
+            "shares": 0,
+            "saves": 0,
+            "total_engagement": 0
+        }
+
+
+def upload_tiktok_data_to_db(posts_list, username, competitor_id, profile_id, followers=0):
+    """
+    Upload TikTok posts directly to database with analytics calculations.
+    
+    Args:
+        posts_list: List of TikTok post dictionaries
+        username: TikTok username
+        competitor_id: ID of the competitor in database
+        profile_id: ID of the competitor profile in database
+        followers: Optional follower count (for engagement rate calculation)
+        
+    Returns:
+        bool: True if successful
+    """
+    if not posts_list:
+        print("No TikTok posts to upload")
+        return False
+    
+    conn = get_database_connection()
+    
+    try:
+        # ─────────────────────────────────────────────────────────────────────
+        # Calculate Analytics from Posts
+        # ─────────────────────────────────────────────────────────────────────
+        total_likes = 0
+        total_comments = 0
+        total_shares = 0
+        total_saves = 0
+        valid_posts = 0
+        min_date = None
+        max_date = None
+        
+        for post in posts_list:
+            try:
+                engagement = parse_tiktok_engagement(post)
+                total_likes += engagement['likes']
+                total_comments += engagement['comments']
+                total_shares += engagement.get('shares', 0)
+                total_saves += engagement.get('saves', 0)
+                valid_posts += 1
+                
+                # Parse dates for frequency calculation
+                p_date_str = post.get('post_date')
+                if p_date_str:
+                    try:
+                        dt = parse_posted_at(p_date_str)
+                        if dt:
+                            if min_date is None or dt < min_date:
+                                min_date = dt
+                            if max_date is None or dt > max_date:
+                                max_date = dt
+                    except:
+                        pass
+            except:
+                pass
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # Calculate Engagement Rate
+        # TikTok engagement = (likes + comments + shares + saves) / views
+        # Since we don't have views, we use a different approach:
+        # Engagement rate as a percentage of total interactions
+        # ─────────────────────────────────────────────────────────────────────
+        engagement_rate = 0.0
+        if valid_posts > 0:
+            avg_likes = total_likes / valid_posts
+            avg_comments = total_comments / valid_posts
+            avg_shares = total_shares / valid_posts
+            avg_saves = total_saves / valid_posts
+            avg_total = avg_likes + avg_comments + avg_shares + avg_saves
+            
+            # If we have follower count, calculate as percentage of followers
+            if followers > 0:
+                engagement_rate = (avg_total / followers) * 100
+            else:
+                # Fallback: use raw engagement score (normalize later)
+                engagement_rate = avg_total / 100  # Scale down for display
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # Calculate Posting Frequency (Posts per Week)
+        # ─────────────────────────────────────────────────────────────────────
+        posting_freq = 0.0
+        if valid_posts > 1 and min_date and max_date:
+            delta_days = (max_date - min_date).days
+            if delta_days > 0:
+                weeks = delta_days / 7.0
+                posting_freq = valid_posts / weeks
+            else:
+                # All posted same day
+                posting_freq = valid_posts
+        elif valid_posts == 1:
+            posting_freq = 1.0
+        else:
+            posting_freq = min(valid_posts, 7.0)
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # Calculate Growth Rate (from previous snapshots)
+        # ─────────────────────────────────────────────────────────────────────
+        growth_rate = 0.0
+        if followers > 0:
+            try:
+                with conn.cursor() as cur:
+                    # Get previous snapshot
+                    cur.execute("""
+                        SELECT followers 
+                        FROM competitor_snapshots 
+                        WHERE competitor_id = %s 
+                        AND snapshot_date < CURRENT_DATE
+                        ORDER BY snapshot_date DESC 
+                        LIMIT 1
+                    """, (competitor_id,))
+                    row = cur.fetchone()
+                    
+                    if row and row[0] and row[0] > 0:
+                        prev_followers = float(row[0])
+                        growth_rate = ((followers - prev_followers) / prev_followers) * 100
+            except Exception as e:
+                print(f"Error calculating growth rate: {e}")
+        
+        print(f"Calculated TikTok Analytics: EngRate={engagement_rate:.2f}%, Freq={posting_freq:.2f}/week, Growth={growth_rate:.2f}%")
+        print(f"  → Total: {total_likes} likes, {total_comments} comments, {total_shares} shares, {total_saves} saves")
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # Update Database with Analytics
+        # ─────────────────────────────────────────────────────────────────────
+        with conn.cursor() as cur:
+            # Update Competitor Profile stats
+            if followers > 0:
+                cur.execute("""
+                    UPDATE competitor_profiles
+                    SET followers = %s,
+                        engagement_rate = %s,
+                        growth_rate = %s,
+                        posting_frequency = %s,
+                        last_checked = NOW()
+                    WHERE id = %s
+                """, (followers, engagement_rate, growth_rate, posting_freq, profile_id))
+            else:
+                cur.execute("""
+                    UPDATE competitor_profiles
+                    SET engagement_rate = %s,
+                        posting_frequency = %s,
+                        last_checked = NOW()
+                    WHERE id = %s
+                """, (engagement_rate, posting_freq, profile_id))
+            
+            # Update competitors table
+            cur.execute("""
+                UPDATE competitors
+                SET total_posts = COALESCE(total_posts, 0) + %s,
+                    last_checked = NOW()
+                WHERE id = %s
+            """, (valid_posts, competitor_id))
+            
+            # Add Snapshot for historical tracking
+            if followers > 0:
+                cur.execute("""
+                    INSERT INTO competitor_snapshots (competitor_id, followers, engagement_rate, snapshot_date)
+                    VALUES (%s, %s, %s, CURRENT_DATE)
+                    ON CONFLICT (competitor_id, snapshot_date) 
+                    DO UPDATE SET 
+                        followers = EXCLUDED.followers,
+                        engagement_rate = EXCLUDED.engagement_rate
+                """, (competitor_id, followers, engagement_rate))
+            
+            conn.commit()
+        
+        print(f"Updated TikTok stats for @{username}: {followers if followers > 0 else 'N/A'} followers, {engagement_rate:.2f}% engagement")
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # Process Each Post
+        # ─────────────────────────────────────────────────────────────────────
+        uploaded_count = 0
+        with conn.cursor() as cur:
+            for post in posts_list:
+                try:
+                    # Extract video ID from URL
+                    post_id = extract_tiktok_video_id(post.get('url', ''))
+                    if not post_id:
+                        print(f"Warning: Could not extract video ID from URL: {post.get('url')}")
+                        continue
+                    
+                    # Parse engagement data
+                    engagement = parse_tiktok_engagement(post)
+                    
+                    # Parse posted date
+                    posted_at = parse_posted_at(post.get('post_date'))
+                    
+                    # Prepare media data
+                    media_data = {
+                        "type": "video",
+                        "url": post.get('url', '')
+                    }
+                    
+                    # Content is the description
+                    content = post.get('description', '')
+                    
+                    # Generate caption hash for deduplication
+                    caption_hash = generate_caption_hash(content)
+                    
+                    # Get hashtags
+                    hashtags = post.get('hashtags', [])
+                    
+                    # Insert or update post
+                    cur.execute("""
+                        INSERT INTO competitor_posts (
+                            competitor_id, profile_id, username, platform, post_id, content, media,
+                            posted_at, engagement, hashtags, scraped_at, caption_hash
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (platform, post_id) DO UPDATE SET
+                            competitor_id = EXCLUDED.competitor_id,
+                            profile_id = EXCLUDED.profile_id,
+                            content = EXCLUDED.content,
+                            media = EXCLUDED.media,
+                            posted_at = EXCLUDED.posted_at,
+                            engagement = EXCLUDED.engagement,
+                            hashtags = EXCLUDED.hashtags,
+                            scraped_at = EXCLUDED.scraped_at
+                    """, (
+                        competitor_id,
+                        profile_id,
+                        username,
+                        'tiktok',
+                        post_id,
+                        content,
+                        json.dumps(media_data),
+                        posted_at,
+                        json.dumps(engagement),
+                        hashtags,
+                        datetime.now(),
+                        caption_hash
+                    ))
+                    
+                    uploaded_count += 1
+                    
+                except Exception as e:
+                    print(f"Error processing TikTok post {post.get('url', 'unknown')}: {e}")
+                    conn.rollback()
+                    continue
+
+        conn.commit()
+        print(f"Successfully uploaded {uploaded_count} TikTok posts to database for @{username}")
+        return True
+        
+    except Exception as e:
+        print(f"Error during TikTok upload: {e}")
+        import traceback
+        traceback.print_exc()
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
 def main():
     # Main function
     if len(sys.argv) != 2:

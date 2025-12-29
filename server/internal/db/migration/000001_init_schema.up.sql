@@ -27,13 +27,15 @@ CREATE TABLE "groups" (
 CREATE TABLE "group_items" (
   "id" SERIAL PRIMARY KEY,
   "group_id" INT NOT NULL,
-  "platform" VARCHAR(50) NOT NULL,  -- e.g., 'tiktok', 'youtube'
-  "data" JSONB,
+  "platform" VARCHAR(50) NOT NULL, 
+  "data" JSONB NOT NULL DEFAULT '{}'::jsonb,
   "created_at" TIMESTAMP DEFAULT NOW(),
   "updated_at" TIMESTAMP DEFAULT NOW(),
+  "cookie_created_at" TIMESTAMP,
   FOREIGN KEY ("group_id") REFERENCES "groups" ("id") ON DELETE CASCADE
 );
-ALTER TABLE group_items ADD CONSTRAINT unique_group_platform UNIQUE (group_id, platform);
+ALTER TABLE group_items
+ADD CONSTRAINT unique_group_platform UNIQUE (group_id, platform);
 
 CREATE TABLE competitors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

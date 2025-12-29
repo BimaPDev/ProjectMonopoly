@@ -38,6 +38,8 @@ services:
       DATABASE_URL: postgresql://root:secret@postgres:5432/project_monopoly
       CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
       CELERY_RESULT_BACKEND: "rpc://"
+      CELERY_CONCURRENCY: "4"
+      TZ: "UTC"
     volumes:
       - ./server/python:/app
       - docs_data:/data/docs
@@ -45,9 +47,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       ollama:
         condition: service_started
     restart: always
+
   postgres:
     image: pgvector/pgvector:pg15
     container_name: postgres

@@ -16,12 +16,14 @@ import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Settings from "./app/settings/page";
-import GameContextPage from "./app/gamecontext/page.tsx";
-import LLMTestPage from "./app/llmTest/page.tsx";
-import SocialMedia from "./app/settings/socialMedia/page.tsx";
-import MarketingGeneratorPage from "./app/marketing/page.tsx";
+import GameContextPage from "./app/gameContext/page";
+import LLMTestPage from "./app/llmTest/page";
+import SocialMedia from "./app/settings/socialMedia/page";
+import MarketingGeneratorPage from "./app/marketing/page";
+import CampaignsPage from "./app/campaigns/page";
+import CampaignInsightsPage from "./app/campaigns/insights/page";
 
-import { GroupProvider } from "./components/groupContext.tsx";
+import { GroupProvider } from "./components/groupContext";
 import { Toaster } from "@/components/ui/toaster";
 
 
@@ -71,6 +73,8 @@ function App() {
             />
             <Route path="/dashboard/llmTest" element={<LLMTestPage />} />
             <Route path="/dashboard/marketing" element={<MarketingGeneratorPage />} />
+            <Route path="/dashboard/campaigns" element={<CampaignsPage />} />
+            <Route path="/dashboard/campaigns/:id/insights" element={<CampaignInsightsPage />} />
           </Route>
 
           {/* 🔹 Catch-all Route for 404s */}

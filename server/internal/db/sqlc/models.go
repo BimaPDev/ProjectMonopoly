@@ -13,6 +13,31 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+type Campaign struct {
+	ID        uuid.UUID       `json:"id"`
+	UserID    int32           `json:"user_id"`
+	GroupID   sql.NullInt32   `json:"group_id"`
+	Name      string          `json:"name"`
+	Goal      string          `json:"goal"`
+	Audience  json.RawMessage `json:"audience"`
+	Pillars   json.RawMessage `json:"pillars"`
+	Cadence   json.RawMessage `json:"cadence"`
+	Status    string          `json:"status"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
+
+type CampaignAsset struct {
+	ID         uuid.UUID       `json:"id"`
+	CampaignID uuid.UUID       `json:"campaign_id"`
+	StorageUrl string          `json:"storage_url"`
+	Filename   string          `json:"filename"`
+	MimeType   sql.NullString  `json:"mime_type"`
+	SizeBytes  sql.NullInt64   `json:"size_bytes"`
+	Tags       json.RawMessage `json:"tags"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
 type Competitor struct {
 	ID          uuid.UUID      `json:"id"`
 	LastChecked sql.NullTime   `json:"last_checked"`
@@ -114,12 +139,13 @@ type Group struct {
 }
 
 type GroupItem struct {
-	ID        int32                 `json:"id"`
-	GroupID   int32                 `json:"group_id"`
-	Platform  string                `json:"platform"`
-	Data      pqtype.NullRawMessage `json:"data"`
-	CreatedAt sql.NullTime          `json:"created_at"`
-	UpdatedAt sql.NullTime          `json:"updated_at"`
+	ID              int32           `json:"id"`
+	GroupID         int32           `json:"group_id"`
+	Platform        string          `json:"platform"`
+	Data            json.RawMessage `json:"data"`
+	CreatedAt       sql.NullTime    `json:"created_at"`
+	UpdatedAt       sql.NullTime    `json:"updated_at"`
+	CookieCreatedAt sql.NullTime    `json:"cookie_created_at"`
 }
 
 type Post struct {
@@ -129,6 +155,34 @@ type Post struct {
 	SocialMediaLink string       `json:"social_media_link"`
 	CreatedAt       sql.NullTime `json:"created_at"`
 	UpdatedAt       sql.NullTime `json:"updated_at"`
+}
+
+type PostDraft struct {
+	ID          uuid.UUID             `json:"id"`
+	CampaignID  uuid.UUID             `json:"campaign_id"`
+	Platform    string                `json:"platform"`
+	PostType    string                `json:"post_type"`
+	Hook        sql.NullString        `json:"hook"`
+	Caption     sql.NullString        `json:"caption"`
+	Hashtags    []string              `json:"hashtags"`
+	Cta         sql.NullString        `json:"cta"`
+	TimeWindow  pqtype.NullRawMessage `json:"time_window"`
+	ReasonCodes []string              `json:"reason_codes"`
+	Confidence  sql.NullString        `json:"confidence"`
+	Status      string                `json:"status"`
+	ScheduledAt sql.NullTime          `json:"scheduled_at"`
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"updated_at"`
+}
+
+type PostMetric struct {
+	ID         int64           `json:"id"`
+	GroupID    int32           `json:"group_id"`
+	Platform   string          `json:"platform"`
+	PostID     string          `json:"post_id"`
+	DraftID    uuid.NullUUID   `json:"draft_id"`
+	CapturedAt time.Time       `json:"captured_at"`
+	Metrics    json.RawMessage `json:"metrics"`
 }
 
 type Session struct {

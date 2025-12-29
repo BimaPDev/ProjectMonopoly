@@ -226,9 +226,19 @@ SELECT
   c.total_posts
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
-WHERE uc.user_id = $1
+WHERE uc.user_id = $1 
+  AND (
+    uc.group_id = $2 
+    OR uc.group_id IS NULL
+    OR $2 IS NULL
+  )
 ORDER BY c.display_name
 `
+
+type ListCompetitorsWithProfilesParams struct {
+	UserID  int32         `json:"user_id"`
+	GroupID sql.NullInt32 `json:"group_id"`
+}
 
 type ListCompetitorsWithProfilesRow struct {
 	ID          uuid.UUID      `json:"id"`
@@ -237,8 +247,8 @@ type ListCompetitorsWithProfilesRow struct {
 	TotalPosts  sql.NullInt64  `json:"total_posts"`
 }
 
-func (q *Queries) ListCompetitorsWithProfiles(ctx context.Context, userID int32) ([]ListCompetitorsWithProfilesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listCompetitorsWithProfiles, userID)
+func (q *Queries) ListCompetitorsWithProfiles(ctx context.Context, arg ListCompetitorsWithProfilesParams) ([]ListCompetitorsWithProfilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listCompetitorsWithProfiles, arg.UserID, arg.GroupID)
 	if err != nil {
 		return nil, err
 	}

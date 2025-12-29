@@ -42,7 +42,12 @@ SELECT
   c.total_posts
 FROM competitors c
 JOIN user_competitors uc ON uc.competitor_id = c.id
-WHERE uc.user_id = $1
+WHERE uc.user_id = $1 
+  AND (
+    uc.group_id = $2 
+    OR uc.group_id IS NULL
+    OR $2 IS NULL
+  )
 ORDER BY c.display_name;
 
 -- name: GetCompetitorWithAllProfiles :one
