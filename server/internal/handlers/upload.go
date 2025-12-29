@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,6 +19,40 @@ import (
 )
 
 const baseUploadDir = "uploads" // Base upload directory
+
+func DeleteUploadVideo(c *gin.Context, queries *db.Queries){
+	// get job id from the url
+	jidStr := c.Param("jobID");
+	if jidStr == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "job_id is required"});
+		return
+	}
+	// delete the job using the job id string
+	err := queries.DeleteUploadJob(c, jidStr);
+
+	// if there was an error deleting the job
+	if(err != nil){
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return;
+	}
+	
+	// double check if the job is actually deleted
+	_, err = queries.GetUploadJob(c, jidStr )
+	if(err != nil ){
+		// if it's a no row error then it was deleted 
+		if errors.Is(err, sql.ErrNoRows){
+			c.JSON(http.StatusOK, gin.H{"message": "Job was deleted successfully"});
+			return;
+		}else{
+			// if we do get a result then the job is still there
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Job was not deleted"});
+			return;
+		}
+	}
+	// any other error that could pop up
+	c.JSON(http.StatusInternalServerError, gin.H{"error": err});
+	return;
+}
 
 func UploadVideoHandler(c *gin.Context, queries *db.Queries) {
 

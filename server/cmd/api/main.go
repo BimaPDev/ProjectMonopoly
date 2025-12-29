@@ -77,6 +77,7 @@ func main() {
 			// Uploads
 			protected.POST("/upload", wrap(handlers.UploadVideoHandler))
 			protected.GET("/UploadItemsByGroupID", wrap(handlers.GetUploadItemsByGroupID))
+			protected.DELETE("/upload/:jobID", wrap(handlers.DeleteUploadVideo))
 
 			// Group Items
 			protected.POST("/AddGroupItem", wrap(handlers.AddOrUpdateGroupItem))

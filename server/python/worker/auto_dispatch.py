@@ -103,7 +103,7 @@ def dispatch_loop():
                 dispatch_loop.last_scrape_dispatch = 0
                 
             if now - dispatch_loop.last_scrape_dispatch > 60: # Check every 60 seconds
-                print("DEBUG: Running check query...")
+                #print("DEBUG: Running check query...")
                 try:
                     with  psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
                         # Default to 7 days if not set

@@ -1,3 +1,7 @@
+-- ============================================================================
+-- USER MANAGEMENT
+-- ============================================================================
+
 -- Register a new user with a password
 -- name: CreateUserWithPassword :one
 INSERT INTO users (username, email, password_hash, created_at, updated_at)
@@ -29,6 +33,13 @@ WHERE email = $1;
 SELECT id, username, email, oauth_provider, oauth_id, created_at, updated_at
 FROM users
 WHERE email = $1;
+
+-- Get user ID by username and email
+-- name: GetUserIDByUsernameEmail :one
+SELECT id
+FROM users
+WHERE username = $1
+  AND email    = $2;
 
 -- List all users
 -- name: ListUsers :many
@@ -62,6 +73,11 @@ SELECT COUNT(*) > 0 AS exists
 FROM users
 WHERE email = $1;
 
+
+-- ============================================================================
+-- SESSION MANAGEMENT
+-- ============================================================================
+
 -- Create a new session with configurable expiration
 -- name: CreateSession :one
 INSERT INTO sessions (user_id, expires_at)
@@ -78,6 +94,68 @@ WHERE id = $1;
 -- name: DeleteSession :exec
 DELETE FROM sessions WHERE id = $1;
 
+
+-- ============================================================================
+-- GROUP MANAGEMENT
+-- ============================================================================
+
+-- Create a new group
+-- name: CreateGroup :one
+INSERT INTO groups (user_id, name, description, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+RETURNING id, user_id, name, description, created_at, updated_at;
+
+-- Get group by ID
+-- name: GetGroupByID :one
+SELECT id, user_id, name, description, created_at, updated_at
+FROM groups
+WHERE id = $1;
+
+-- List all groups for a user
+-- name: ListGroupsByUser :many
+SELECT
+  id,
+  user_id,
+  name,
+  description,
+  created_at,
+  updated_at
+FROM groups
+WHERE user_id = $1
+ORDER BY id;
+
+
+-- ============================================================================
+-- GROUP ITEMS
+-- ============================================================================
+
+-- Insert group item if not exists
+-- name: InsertGroupItemIfNotExists :execrows
+INSERT INTO group_items (group_id, platform, data, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
+ON CONFLICT (group_id, platform) DO NOTHING;
+
+-- Get group items by group ID
+-- name: GetGroupItemByGroupID :many
+SELECT id, group_id, platform, data, created_at, updated_at
+FROM group_items
+WHERE group_id = $1;
+
+-- Update group item data
+-- name: UpdateGroupItemData :exec
+UPDATE group_items
+SET data = @data::jsonb, updated_at = NOW()
+WHERE group_id = @group_id AND platform = @platform;
+
+
+-- ============================================================================
+-- UPLOAD JOBS
+-- ============================================================================
+
+-- Delete an existing upload job
+-- name: DeleteUploadJob :exec
+DELETE from upload_jobs where id = $1;
+-- Create a new upload job
 -- name: CreateUploadJob :one
 INSERT INTO upload_jobs (
   id,
@@ -93,10 +171,9 @@ INSERT INTO upload_jobs (
   group_id,
   created_at,
   updated_at
-
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, $11,NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
 )
 RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at, group_id;
 
@@ -105,6 +182,20 @@ RETURNING id, user_id, platform, video_path, storage_type, file_url, status, use
 SELECT id, user_id, platform, video_path, storage_type, file_url, status, created_at, updated_at
 FROM upload_jobs
 WHERE id = $1;
+
+-- Get upload jobs by group ID
+-- name: GetUploadJobByGID :many
+SELECT id, group_id, platform, status, created_at
+FROM upload_jobs 
+WHERE group_id = $1 
+ORDER BY id;
+
+-- List all upload jobs for a user
+-- name: ListUserUploadJobs :many
+SELECT id, platform, video_path, storage_type, file_url, status, created_at, updated_at
+FROM upload_jobs
+WHERE user_id = $1
+ORDER BY created_at DESC;
 
 -- Update upload job status
 -- name: UpdateUploadJobStatus :exec
@@ -120,70 +211,7 @@ SET file_url = $2,
     updated_at = NOW()
 WHERE id = $1;
 
--- List all upload jobs for a user
--- name: ListUserUploadJobs :many
-SELECT id, platform, video_path, storage_type, file_url, status, created_at, updated_at
-FROM upload_jobs
-WHERE user_id = $1
-ORDER BY created_at DESC;
-
--- name: InsertGroupItemIfNotExists :execrows
-INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
-VALUES ($1,$2,$3, NOW(), NOW())
-ON CONFLICT (group_id, platform) DO NOTHING;
-
-
--- name: GetGroupItemByGroupID :many
-SELECT id, group_id, platform, data, created_at, updated_at
-FROM group_items
-WHERE group_id = $1;
-
--- name: GetGroupByID :one
-SELECT id, user_id, name, description, created_at, updated_at
-FROM groups
-WHERE id = $1;
-
--- name: CreateGroup :one
-INSERT INTO groups (user_id, name, description, created_at, updated_at)
-VALUES ($1, $2, $3, NOW(), NOW())
-RETURNING id, user_id, name, description, created_at, updated_at;
-
--- name: ListGroupsByUser :many
-SELECT
-  id,
-  user_id,
-  name,
-  description,
-  created_at,
-  updated_at
-FROM groups
-WHERE user_id = $1
-ORDER BY id;
-
--- name: CreateCompetitor :one
-INSERT INTO competitors (display_name)
-VALUES ($1)
-RETURNING *;
-
--- name: GetGroupCompetitors :many
-SELECT
-  c.id,
-  c.display_name,
-  c.last_checked,
-  c.total_posts,
-  cp.id as profile_id,
-  cp.platform,
-  cp.handle as username,
-  cp.profile_url,
-  cp.followers,
-  cp.engagement_rate,
-  cp.growth_rate,
-  cp.posting_frequency
-FROM competitors c
-JOIN user_competitors uc ON uc.competitor_id = c.id
-LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
-WHERE uc.user_id = $1;
-
+-- Fetch next pending job (with lock)
 -- name: FetchNextPendingJob :one
 UPDATE upload_jobs
 SET status = 'processing'
@@ -196,13 +224,12 @@ WHERE id = (
 )
 RETURNING *;
 
--- name: GetUploadJobByGID :many
- select id, group_id,platform,status, created_at
- from upload_jobs 
- where group_id = $1 order by id;
 
---uploding group items
+-- ============================================================================
+-- SOCIAL MEDIA DATA
+-- ============================================================================
 
+-- Create social media data entry
 -- name: CreateSocialMediaData :exec
 INSERT INTO socialmedia_data (
   group_id,
@@ -214,14 +241,14 @@ INSERT INTO socialmedia_data (
 )
 VALUES (
   $1,       -- group_id    (INT)
-  $2,      -- platform    (VARCHAR)
+  $2,       -- platform    (VARCHAR)
   $3,       -- type        (VARCHAR)
   $4::jsonb,-- data        (JSONB)
   NOW(),
   NOW()
 );
 
-
+-- List social media data by group
 -- name: ListSocialMediaDataByGroup :many
 SELECT
   id,
@@ -235,6 +262,7 @@ FROM socialmedia_data
 WHERE group_id = $1
 ORDER BY created_at DESC;
 
+-- Update social media data
 -- name: UpdateSocialMediaData :exec
 UPDATE socialmedia_data
 SET
@@ -243,26 +271,27 @@ SET
   updated_at = NOW()
 WHERE id = $1;
 
+-- Delete social media data
 -- name: DeleteSocialMediaData :exec
 DELETE FROM socialmedia_data
 WHERE id = $1;
 
 
--- name: GetUserIDByUsernameEmail :one
-SELECT id
-FROM users
-WHERE username = $1
-  AND email    = $2;
+-- ============================================================================
+-- FOLLOWER TRACKING
+-- ============================================================================
 
+-- Insert daily follower count
 -- name: InsertFollowerCount :exec
-insert into daily_followers(
+INSERT INTO daily_followers(
   record_date,
   follower_count
-) values (
+) VALUES (
   $1, -- record_date (INT)
-  $2  -- date           (timestamp)
+  $2  -- follower_count
 );
 
+-- Get most recent follower count
 -- name: GetFollowerByDate :one
 SELECT follower_count
 FROM daily_followers
@@ -270,12 +299,29 @@ ORDER BY record_date DESC
 LIMIT 1;
 
 
+-- ============================================================================
+-- COMPETITOR MANAGEMENT
+-- ============================================================================
 
+-- Create a new competitor
+-- name: CreateCompetitor :one
+INSERT INTO competitors (display_name)
+VALUES ($1)
+RETURNING *;
+
+-- Get competitor by platform and username
+-- name: GetCompetitorByPlatformUsername :one
+SELECT c.* FROM competitors c
+JOIN competitor_profiles cp ON cp.competitor_id = c.id
+WHERE cp.platform = $1 AND LOWER(cp.handle) = LOWER($2);
+
+-- Link user to competitor
 -- name: LinkUserToCompetitor :exec
 INSERT INTO user_competitors (user_id, group_id, competitor_id, visibility)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT DO NOTHING;
 
+-- List all competitors for a user
 -- name: ListUserCompetitors :many
 SELECT
   c.id,
@@ -295,6 +341,7 @@ JOIN user_competitors uc ON uc.competitor_id = c.id
 LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1;
 
+-- List competitors for a specific group
 -- name: ListGroupCompetitors :many
 SELECT
   c.id,
@@ -314,6 +361,7 @@ JOIN user_competitors uc ON uc.competitor_id = c.id
 LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
 WHERE uc.user_id = $1 AND uc.group_id = $2;
 
+-- List competitors available to add for a user
 -- name: ListAvailableCompetitorsToUser :many
 SELECT
   c.id,
@@ -325,16 +373,32 @@ WHERE c.id NOT IN (
   SELECT competitor_id FROM user_competitors WHERE user_id = $1
 );
 
--- name: GetCompetitorByPlatformUsername :one
-SELECT c.* FROM competitors c
-JOIN competitor_profiles cp ON cp.competitor_id = c.id
-WHERE cp.platform = $1 AND LOWER(cp.handle) = LOWER($2);
+-- Get group competitors (duplicate - consider removing)
+-- name: GetGroupCompetitors :many
+SELECT
+  c.id,
+  c.display_name,
+  c.last_checked,
+  c.total_posts,
+  cp.id as profile_id,
+  cp.platform,
+  cp.handle as username,
+  cp.profile_url,
+  cp.followers,
+  cp.engagement_rate,
+  cp.growth_rate,
+  cp.posting_frequency
+FROM competitors c
+JOIN user_competitors uc ON uc.competitor_id = c.id
+LEFT JOIN competitor_profiles cp ON cp.competitor_id = c.id
+WHERE uc.user_id = $1;
 
--- name: UpdateGroupItemData :exec
-UPDATE group_items
-SET data = @data::jsonb, updated_at = NOW()
-WHERE group_id = @group_id AND platform = @platform;
 
+-- ============================================================================
+-- GAME CONTEXT
+-- ============================================================================
+
+-- Create game context
 -- name: CreateGameContext :one
 INSERT INTO game_contexts (
     user_id, group_id,
@@ -350,22 +414,25 @@ VALUES (
     $8, $9, $10, $11, $12, $13,
     $14, $15, $16, $17,
     $18, $19, $20,
-    $21, $22 , $23
+    $21, $22, $23
 )
 RETURNING *;
 
+-- Get game context by group ID
 -- name: GetGameContextByGroupID :one
 SELECT * FROM game_contexts
 WHERE group_id = $1
 ORDER BY created_at DESC
 LIMIT 1;
 
+-- Get game context by user ID
 -- name: GetGameContextByUserID :one
 SELECT * FROM game_contexts
 WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT 1;
 
+-- List all game contexts for a user
 -- name: ListGameContextsByUser :many
 SELECT * FROM game_contexts
 WHERE user_id = $1

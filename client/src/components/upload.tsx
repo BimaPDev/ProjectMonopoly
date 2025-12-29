@@ -166,6 +166,7 @@ export default function UploadPage() {
       // Send request to backend
       const response = await fetch(`/api/upload`, {
         method: "POST",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
         body: formData,
       });
 
@@ -348,7 +349,7 @@ export default function UploadPage() {
                             />
                           ) : (
                             <div className="flex flex-col items-center justify-center p-4 space-y-4 text-center">
-                              <div className="p-4 border rounded-full bg-black border-gray-800">
+                              <div className="p-4 bg-black border border-gray-800 rounded-full">
                                 <Upload className="w-8 h-8 text-blue-400" />
                               </div>
                               <div className="space-y-2">
@@ -382,7 +383,7 @@ export default function UploadPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="absolute z-10 text-white right-2 top-2 bg-black/80 border border-gray-700 hover:bg-black hover:border-gray-600"
+                              className="absolute z-10 text-white border border-gray-700 right-2 top-2 bg-black/80 hover:bg-black hover:border-gray-600"
                               onClick={() => {
                                 setSelectedFile(null);
                                 setPreview("");
