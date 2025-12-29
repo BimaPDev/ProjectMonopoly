@@ -381,10 +381,11 @@ def dispatch_cookie_prep(cur) -> bool:
 def dispatch_competitor_scrape(cur) -> bool:
     """
     Check for and dispatch competitor scraping if needed.
+    Handles both Instagram and TikTok platforms.
     Only runs every SCRAPE_CHECK_INTERVAL seconds.
     
     Returns:
-        bool: True if scrape was dispatched
+        bool: True if any scrape was dispatched
     """
     now = time.time()
     
@@ -392,28 +393,59 @@ def dispatch_competitor_scrape(cur) -> bool:
     if now - _state.last_scrape_dispatch < SCRAPE_CHECK_INTERVAL:
         return False
     
+    did_dispatch = False
+    interval = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", str(WEEKLY_SCRAPE_INTERVAL)))
+    
     try:
-        interval = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", str(WEEKLY_SCRAPE_INTERVAL)))
-        cur.execute(SQL_PENDING_SCRAPES, (interval,))
+        # Check for pending Instagram scrapes
+        cur.execute("""
+            SELECT COUNT(DISTINCT cp.competitor_id) 
+            FROM competitor_profiles cp 
+            WHERE LOWER(cp.platform) = 'instagram'
+              AND (cp.last_checked IS NULL OR cp.last_checked < NOW() - (INTERVAL '1 day' * %s))
+        """, (interval,))
         row = cur.fetchone()
         
         if row and row[0] > 0:
             pending_count = row[0]
-            log.info("🔍 Found %d competitors pending scrape", pending_count)
+            log.info("🔍 Found %d Instagram competitors pending scrape", pending_count)
             
             result = app.send_task(
                 "worker.tasks.weekly_instagram_scrape",
                 queue="celery"
             )
-            log.info("🔄 Scrape task dispatched: task_id=%s", result.id)
-            
-            _state.last_scrape_dispatch = now
-            return True
-            
+            log.info("🔄 Instagram scrape task dispatched: task_id=%s", result.id)
+            did_dispatch = True
     except Exception as e:
-        log.error("Failed to check/dispatch competitor scrape: %s", e)
+        log.error("Failed to check/dispatch Instagram scrape: %s", e)
     
-    return False
+    try:
+        # Check for pending TikTok scrapes
+        cur.execute("""
+            SELECT COUNT(DISTINCT cp.competitor_id) 
+            FROM competitor_profiles cp 
+            WHERE LOWER(cp.platform) = 'tiktok'
+              AND (cp.last_checked IS NULL OR cp.last_checked < NOW() - (INTERVAL '1 day' * %s))
+        """, (interval,))
+        row = cur.fetchone()
+        
+        if row and row[0] > 0:
+            pending_count = row[0]
+            log.info("🔍 Found %d TikTok competitors pending scrape", pending_count)
+            
+            result = app.send_task(
+                "worker.tasks.weekly_tiktok_scrape",
+                queue="celery"
+            )
+            log.info("🔄 TikTok scrape task dispatched: task_id=%s", result.id)
+            did_dispatch = True
+    except Exception as e:
+        log.error("Failed to check/dispatch TikTok scrape: %s", e)
+    
+    if did_dispatch:
+        _state.last_scrape_dispatch = now
+    
+    return did_dispatch
 
 
 # ─────────────────────────────────────────────────────────────────────────────

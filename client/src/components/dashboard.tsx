@@ -34,6 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { useGroup } from './groupContext.tsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AddCompetitorModal } from "@/components/AddCompetitorModal";
 
 // Recharts imports
 import {
@@ -126,6 +127,7 @@ export function Dashboard() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '3m'>('7d');
   const [activeTab, setActiveTab] = useState<'competitors' | 'campaigns'>('competitors');
+  const [isAddCompetitorOpen, setIsAddCompetitorOpen] = useState(false);
 
   // Fetch engagement trends from API
   async function fetchEngagementTrends() {
@@ -540,12 +542,19 @@ export function Dashboard() {
                       Campaigns <Badge variant="outline" className="ml-1 text-xs">{campaignMetrics.total}</Badge>
                     </TabsTrigger>
                   </TabsList>
-                  <a href={activeTab === 'campaigns' ? 'dashboard/campaigns' : 'dashboard/competitors'}>
-                    <Button size="sm" className="gap-1">
+                  {activeTab === 'campaigns' ? (
+                    <a href="dashboard/campaigns">
+                      <Button size="sm" className="gap-1">
+                        <Plus className="w-4 h-4" />
+                        Add Campaign
+                      </Button>
+                    </a>
+                  ) : (
+                    <Button size="sm" className="gap-1" onClick={() => setIsAddCompetitorOpen(true)}>
                       <Plus className="w-4 h-4" />
-                      {activeTab === 'campaigns' ? 'Add Campaign' : 'Add Competitor'}
+                      Add Competitor
                     </Button>
-                  </a>
+                  )}
                 </div>
 
                 {/* Competitors Tab */}
@@ -755,6 +764,13 @@ export function Dashboard() {
           </CardHeader>
         </Card>
       </div>
+
+      {/* Add Competitor Modal */}
+      <AddCompetitorModal
+        isOpen={isAddCompetitorOpen}
+        onClose={() => setIsAddCompetitorOpen(false)}
+        onSuccess={fetchCompetitors}
+      />
     </div>
   );
 }

@@ -11,18 +11,20 @@ const CompetitorAddForm: React.FC<CompetitorAddFormProps> = ({ onSuccess }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [selectedPlatform, setSelectedPlatform] = useState(socialPlatforms[0]);
     const [socialUrl, setSocialUrl] = useState("");
+    const [competitorName, setCompetitorName] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { activeGroup } = useGroup();
     const handleReset = () => {
         setIsExpanded(false);
         setSocialUrl("");
+        setCompetitorName("");
         setSelectedPlatform(socialPlatforms[0]);
         setIsDropdownOpen(false);
     };
 
     const handleSubmit = async () => {
-        if (!socialUrl.trim() || !selectedPlatform?.id?.trim()) {
-            alert("Enter both username and platform");
+        if (!competitorName.trim() || !socialUrl.trim() || !selectedPlatform?.id?.trim()) {
+            alert("Please fill in all fields: competitor name, handle, and platform");
             return;
         }
         try {
@@ -93,19 +95,33 @@ const CompetitorAddForm: React.FC<CompetitorAddFormProps> = ({ onSuccess }) => {
                 >
                     <div className="p-6 w-80">
                         <h3 className="mb-4 text-lg font-semibold text-white">
-                            Add Social Media Account
+                            Add New Competitor
                         </h3>
+
+                        {/* Competitor Name Input */}
+                        <div className="mb-4">
+                            <label className="block mb-2 text-sm font-medium text-white">
+                                Competitor Name
+                            </label>
+                            <input
+                                type="text"
+                                value={competitorName}
+                                onChange={(e) => setCompetitorName(e.target.value)}
+                                placeholder="e.g., Nike, Adidas, Apple"
+                                className="w-full px-4 py-2 transition-all bg-black border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
 
                         {/* URL Input */}
                         <div className="mb-4">
                             <label className="block mb-2 text-sm font-medium text-white">
-                                Account URL or @username
+                                Social Media Handle
                             </label>
                             <input
                                 type="text"
                                 value={socialUrl}
                                 onChange={(e) => setSocialUrl(e.target.value)}
-                                placeholder="https://instagram.com/username or @username"
+                                placeholder="@username or profile URL"
                                 className="w-full px-4 py-2 transition-all bg-black border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>

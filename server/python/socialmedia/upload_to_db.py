@@ -435,6 +435,184 @@ def upload_posts_to_db(json_file_path):
     finally:
         conn.close()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TikTok Upload Functions
+# ─────────────────────────────────────────────────────────────────────────────
+
+def extract_tiktok_video_id(url):
+    """Extract video ID from TikTok URL."""
+    # Format: https://www.tiktok.com/@username/video/7581306068471516446
+    match = re.search(r'/video/(\d+)', url)
+    return match.group(1) if match else None
+
+
+def parse_tiktok_engagement(post):
+    """Parse engagement data from TikTok post."""
+    try:
+        likes = int(str(post.get('likes_count', '0')).replace(',', '') or '0')
+        comments = int(str(post.get('comments_count', '0')).replace(',', '') or '0')
+        shares = int(str(post.get('shared_count', '0')).replace(',', '') or '0')
+        saves = int(str(post.get('saved_count', '0')).replace(',', '') or '0')
+        
+        return {
+            "likes": likes,
+            "comments": comments,
+            "shares": shares,
+            "saves": saves,
+            "total_engagement": likes + comments + shares + saves
+        }
+    except (ValueError, AttributeError):
+        return {
+            "likes": 0,
+            "comments": 0,
+            "shares": 0,
+            "saves": 0,
+            "total_engagement": 0
+        }
+
+
+def upload_tiktok_data_to_db(posts_list, username, competitor_id, profile_id):
+    """
+    Upload TikTok posts directly to database.
+    
+    Args:
+        posts_list: List of TikTok post dictionaries
+        username: TikTok username
+        competitor_id: ID of the competitor in database
+        profile_id: ID of the competitor profile in database
+        
+    Returns:
+        bool: True if successful
+    """
+    if not posts_list:
+        print("No TikTok posts to upload")
+        return False
+    
+    conn = get_database_connection()
+    
+    try:
+        # Calculate analytics from posts
+        total_likes = 0
+        total_comments = 0
+        total_shares = 0
+        valid_posts = 0
+        
+        for post in posts_list:
+            try:
+                engagement = parse_tiktok_engagement(post)
+                total_likes += engagement['likes']
+                total_comments += engagement['comments']
+                total_shares += engagement.get('shares', 0)
+                valid_posts += 1
+            except:
+                pass
+        
+        # Calculate posting frequency (rough estimate based on posts count)
+        posting_freq = min(valid_posts, 7.0)  # Cap at 7 per week
+        
+        # Update competitor profile stats
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE competitor_profiles
+                SET posting_frequency = %s,
+                    last_checked = NOW()
+                WHERE id = %s
+            """, (posting_freq, profile_id))
+            
+            # Update competitors table
+            cur.execute("""
+                UPDATE competitors
+                SET total_posts = COALESCE(total_posts, 0) + %s,
+                    last_checked = NOW()
+                WHERE id = %s
+            """, (valid_posts, competitor_id))
+            
+            conn.commit()
+        
+        # Process each post
+        uploaded_count = 0
+        with conn.cursor() as cur:
+            for post in posts_list:
+                try:
+                    # Extract video ID from URL
+                    post_id = extract_tiktok_video_id(post.get('url', ''))
+                    if not post_id:
+                        print(f"Warning: Could not extract video ID from URL: {post.get('url')}")
+                        continue
+                    
+                    # Parse engagement data
+                    engagement = parse_tiktok_engagement(post)
+                    
+                    # Parse posted date
+                    posted_at = parse_posted_at(post.get('post_date'))
+                    
+                    # Prepare media data
+                    media_data = {
+                        "type": "video",
+                        "url": post.get('url', '')
+                    }
+                    
+                    # Content is the description
+                    content = post.get('description', '')
+                    
+                    # Generate caption hash for deduplication
+                    caption_hash = generate_caption_hash(content)
+                    
+                    # Get hashtags
+                    hashtags = post.get('hashtags', [])
+                    
+                    # Insert or update post
+                    cur.execute("""
+                        INSERT INTO competitor_posts (
+                            competitor_id, profile_id, username, platform, post_id, content, media,
+                            posted_at, engagement, hashtags, scraped_at, caption_hash
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (platform, post_id) DO UPDATE SET
+                            competitor_id = EXCLUDED.competitor_id,
+                            profile_id = EXCLUDED.profile_id,
+                            content = EXCLUDED.content,
+                            media = EXCLUDED.media,
+                            posted_at = EXCLUDED.posted_at,
+                            engagement = EXCLUDED.engagement,
+                            hashtags = EXCLUDED.hashtags,
+                            scraped_at = EXCLUDED.scraped_at
+                    """, (
+                        competitor_id,
+                        profile_id,
+                        username,
+                        'tiktok',
+                        post_id,
+                        content,
+                        json.dumps(media_data),
+                        posted_at,
+                        json.dumps(engagement),
+                        hashtags,
+                        datetime.now(),
+                        caption_hash
+                    ))
+                    
+                    uploaded_count += 1
+                    
+                except Exception as e:
+                    print(f"Error processing TikTok post {post.get('url', 'unknown')}: {e}")
+                    conn.rollback()
+                    continue
+
+        conn.commit()
+        print(f"Successfully uploaded {uploaded_count} TikTok posts to database for @{username}")
+        return True
+        
+    except Exception as e:
+        print(f"Error during TikTok upload: {e}")
+        import traceback
+        traceback.print_exc()
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
 def main():
     # Main function
     if len(sys.argv) != 2:

@@ -568,6 +568,75 @@ def weekly_instagram_scrape(self) -> Dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Weekly TikTok Scraping Task
+# ─────────────────────────────────────────────────────────────────────────────
+@app.task(
+    name="worker.tasks.weekly_tiktok_scrape",
+    queue="celery",
+    bind=True,
+    max_retries=1,
+    soft_time_limit=1800,  # 30 minute soft limit
+    time_limit=2100,       # 35 minute hard limit
+    acks_late=True,
+)
+def weekly_tiktok_scrape(self) -> Dict[str, Any]:
+    """
+    Scrape TikTok competitors that haven't been updated recently.
+    
+    This task:
+    1. Queries for TikTok competitors with stale or missing data
+    2. Initializes the TikTok scraper (guest mode, no login required)
+    3. Scrapes profile data & posts for each competitor
+    4. Stores results in database
+    5. Updates last_checked timestamps
+    
+    Returns:
+        dict: Result containing:
+            - status: 'success' or 'failed'
+            - message: Description of outcome
+            - scraped: Number of competitors scraped (if successful)
+            - error: Error message (if failed)
+    
+    Note:
+        This task uses SeleniumBase CDP mode with xvfb for headless scraping.
+        TikTok blocks true headless Chrome, so a virtual display is used.
+    """
+    log.info("🔄 Starting weekly TikTok scraping task")
+    
+    try:
+        # Add parent directory to path for imports
+        parent_dir = os.path.join(os.path.dirname(__file__), '..')
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
+        
+        from socialmedia.weekly_tiktok_scraper import WeeklyTikTokScraper
+        
+        scraper = WeeklyTikTokScraper()
+        result = scraper.run_weekly_scrape()
+        
+        log.info("✅ Weekly TikTok scraping completed successfully")
+        
+        return {
+            "status": "success",
+            "message": "Weekly TikTok scraping completed",
+            "result": result
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        log.exception("❌ Weekly TikTok scraping failed: %s", error_msg)
+        
+        # Retry on specific recoverable errors
+        if "Connection" in error_msg or "Timeout" in error_msg:
+            raise self.retry(countdown=300, max_retries=1)
+        
+        return {
+            "status": "failed",
+            "error": error_msg
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Followers Scraping Task
 # ─────────────────────────────────────────────────────────────────────────────
 @app.task(
@@ -772,6 +841,7 @@ __all__ = [
     'process_upload_job',
     'process_document',
     'weekly_instagram_scrape',
+    'weekly_tiktok_scrape',
     'scrape_followers',
     'ai_web_scrape',
     'scrape_hashtag_trends',

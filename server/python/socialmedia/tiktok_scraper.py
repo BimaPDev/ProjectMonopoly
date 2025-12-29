@@ -1,10 +1,7 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from selenium.webdriver.common.action_chains import ActionChains
 import time
 import json
 import os
@@ -12,6 +9,12 @@ import pickle
 import re
 from datetime import datetime, timedelta
 import random
+import logging
+
+# Import the driver factory for SeleniumBase + Playwright fallback
+from .drivers import get_driver, switch_to_fallback, BotDetectedError
+
+log = logging.getLogger(__name__)
 
 
 def parse_shorthand(value: str) -> str:
@@ -92,47 +95,63 @@ def random_delay(min_seconds=1, max_seconds=3):
 
 
 class TikTokScraper:
-    def __init__(self, cookies_path="cookies/tiktok_cookies.pkl"):
+    def __init__(self, cookies_path="cookies/tiktok_cookies.pkl", use_cookies=False, headless=True):
+        """
+        Initialize TikTok scraper.
+        
+        Args:
+            cookies_path: Path to save/load cookies (only used if use_cookies=True)
+            use_cookies: If True, use cookies for authenticated scraping. If False, scrape as guest.
+            headless: Run browser in headless mode (recommended for server)
+        """
         self.cookies_path = cookies_path
+        self.use_cookies = use_cookies
+        self.headless = headless
         self.driver = None
+        self.driver_type = None  # 'seleniumbase' or 'playwright'
+        self._raw_driver = None  # The underlying driver object
         self.setup_driver()
         
     def setup_driver(self):
-        chrome_options = Options()
-        chrome_options.headless = False  # TikTok is harder to scrape headless
-        chrome_options.add_argument("--disable-notifications")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--disable-web-security")
-        chrome_options.add_argument("--disable-features=VizDisplayCompositor")
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--disable-plugins")
-        chrome_options.add_argument("--disable-images")  # Speed up loading
-        #chrome_options.add_argument("--disable-javascript")  # Disable JS to avoid detection
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        
-        # Add user agent for macOS
-        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        
-        # Add memory and stability options
-        chrome_options.add_argument("--max_old_space_size=4096")
-        chrome_options.add_argument("--memory-pressure-off")
-        chrome_options.add_argument("--disable-background-timer-throttling")
-        chrome_options.add_argument("--disable-renderer-backgrounding")
+        """Initialize scraper using SeleniumBase CDP mode with Playwright."""
+        print("Setting up TikTok scraper driver (SeleniumBase CDP + Playwright)...")
         
         try:
-            self.driver = webdriver.Chrome(options=chrome_options)
-            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            self.driver.set_window_size(1920, 1080)
-            # Set timeouts
-            self.driver.set_page_load_timeout(30)
-            self.driver.implicitly_wait(10)
+            self._raw_driver, self.driver_type = get_driver(headless=self.headless)
+            
+            # The driver now uses Playwright's page object directly
+            # All methods like get(), find_element(), page_source work on both
+            self.driver = self._raw_driver
+            
+            self._raw_driver.set_page_load_timeout(60)
+            print(f"TikTok scraper driver initialized successfully (using: {self.driver_type})")
+            
         except Exception as e:
-            print(f"Error setting up driver: {e}")
+            print(f"Failed to initialize TikTok scraper driver: {e}")
             raise
+    
+    def _switch_to_fallback(self):
+        """Switch to Playwright fallback if bot detection is triggered."""
+        print("Bot detection suspected. Switching to Playwright fallback...")
+        
+        try:
+            self._raw_driver, self.driver_type = switch_to_fallback(self._raw_driver, headless=self.headless)
+            
+            if self.driver_type == 'seleniumbase':
+                self.driver = self._raw_driver.driver
+            else:
+                self.driver = self._raw_driver
+            
+            self._raw_driver.set_page_load_timeout(60)
+            print(f"Switched to fallback driver: {self.driver_type}")
+            return True
+        except Exception as e:
+            print(f"Failed to switch to fallback: {e}")
+            return False
+    
+    def _check_bot_detection(self) -> bool:
+        """Check if bot detection has been triggered."""
+        return self._raw_driver.is_bot_detected()
         
     def save_cookies(self):
         pickle.dump(self.driver.get_cookies(), open(self.cookies_path, "wb"))
@@ -156,45 +175,74 @@ class TikTokScraper:
         return False
         
     def accept_cookies_and_setup(self):
-        """Handle initial TikTok page setup"""
+        """Handle initial TikTok page setup - accept cookie consent and dismiss popups."""
         self.driver.get("https://www.tiktok.com")
         time.sleep(3)
         
-        # Try to accept cookies if dialog appears
+        # Try to accept cookies if dialog appears (Playwright-compatible)
         try:
-            accept_button = WebDriverWait(self.driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Accept') or contains(text(), 'Agree')]"))
-            )
-            accept_button.click()
-            print("Accepted cookies")
-            time.sleep(2)
-        except TimeoutException:
-            print("No cookie dialog found")
+            accept_selectors = [
+                "button:has-text('Accept')",
+                "button:has-text('Agree')",
+                "button:has-text('Accept all')",
+            ]
+            for selector in accept_selectors:
+                try:
+                    locator = self.driver.page.locator(selector)
+                    if locator.count() > 0:
+                        locator.first.click(timeout=5000)
+                        print("Accepted cookies dialog")
+                        time.sleep(2)
+                        break
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"No cookie dialog found: {e}")
             
         # Close any popup dialogs
-        try:
-            close_button = self.driver.find_element(By.XPATH, "//button[@aria-label='Close']")
-            close_button.click()
-            time.sleep(1)
-        except NoSuchElementException:
-            pass
-        self.save_cookies()
+        self._dismiss_popups()
+        
+        # Only save cookies if we're using cookie mode
+        if self.use_cookies:
+            self.save_cookies()
         return True
     
+    def _dismiss_popups(self):
+        """Dismiss any popup dialogs (login prompts, notifications, etc.)."""
+        popup_selectors = [
+            "[aria-label='Close']",
+            "div[role='dialog'] button:has-text('close')",
+            "button:has-text('Not now')",
+            "button:has-text('Maybe later')",
+        ]
+        for selector in popup_selectors:
+            try:
+                locator = self.driver.page.locator(selector)
+                if locator.count() > 0:
+                    locator.first.click(timeout=2000)
+                    time.sleep(0.5)
+                    print(f"Dismissed popup using: {selector}")
+            except Exception:
+                pass
+    
     def scrape_profile(self, profile_url, max_posts=None):
-        """Scrape TikTok profile posts"""
+        """Scrape TikTok profile posts (public access, no login required)."""
         if not profile_url.startswith("https://www.tiktok.com/"):
             profile_url = profile_url.lstrip("@")
             profile_url = f"https://www.tiktok.com/@{profile_url.strip('/')}"
             
         print(f"Navigating to profile: {profile_url}")
         
-        # Load cookies first
-        if not self.load_cookies():
+        # Cookie handling - only if use_cookies is enabled
+        if self.use_cookies:
+            if not self.load_cookies():
+                self.accept_cookies_and_setup()
+        else:
+            # Guest mode - just accept cookie consent dialog
             self.accept_cookies_and_setup()
             
         self.driver.get(profile_url)
-        random_delay(3, 5)
+        random_delay(5, 8)  # Longer wait for headless mode
         
         try:
             profile_name = re.search(r"tiktok\.com/@([^/?]+)", profile_url).group(1)
@@ -203,17 +251,21 @@ class TikTokScraper:
         
         # Check for refresh button and click it if visible
         try:
-            refresh_button = WebDriverWait(self.driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Refresh')]"))
-            )
-            if refresh_button.is_displayed():
+            # Use Playwright-compatible approach
+            refresh_locator = self.driver.page.locator("xpath=//button[contains(text(), 'Refresh')]")
+            if refresh_locator.count() > 0 and refresh_locator.first.is_visible():
                 print("Refresh button found, clicking it...")
-                refresh_button.click()
-                random_delay(2, 3)  # Wait a bit after clicking refresh
-        except (TimeoutException, NoSuchElementException):
-            print("No refresh button found, proceeding...")
+                refresh_locator.first.click()
+                random_delay(2, 3)
         except Exception as e:
-            print(f"Error checking for refresh button: {e}")
+            print(f"No refresh button found, proceeding... ({e})")
+        
+        # Wait for video container to appear (important for headless mode)
+        try:
+            self.driver.page.wait_for_selector("[data-e2e='user-post-item']", timeout=15000)
+            print("Video container found, starting extraction...")
+        except Exception:
+            print("Video container not found, trying anyway...")
             
         posts_data = []
         video_links = set()
@@ -560,15 +612,19 @@ class TikTokScraper:
 
     
     def scrape_hashtag(self, hashtag, max_posts=None):
-        """Scrape videos from a hashtag page"""
+        """Scrape videos from a hashtag page (public access, no login required)."""
         if not hashtag.startswith("#"):
             hashtag = "#" + hashtag
             
         hashtag_url = f"https://www.tiktok.com/tag/{hashtag[1:]}"
         print(f"Navigating to hashtag: {hashtag_url}")
         
-        # Load cookies first
-        if not self.load_cookies():
+        # Cookie handling - only if use_cookies is enabled
+        if self.use_cookies:
+            if not self.load_cookies():
+                self.accept_cookies_and_setup()
+        else:
+            # Guest mode - just accept cookie consent dialog
             self.accept_cookies_and_setup()
             
         self.driver.get(hashtag_url)
@@ -639,12 +695,16 @@ class TikTokScraper:
         return posts_data
     
     def scrape_explore(self, max_posts=None):
-        """Scrape videos from TikTok explore page"""
-        explore_url = "hhttps://www.tiktok.com/explore?lang=en"
+        """Scrape videos from TikTok explore page (public access, no login required)."""
+        explore_url = "https://www.tiktok.com/explore?lang=en"
         print(f"Navigating to explore page: {explore_url}")
         
-        # Load cookies first
-        if not self.load_cookies():
+        # Cookie handling - only if use_cookies is enabled
+        if self.use_cookies:
+            if not self.load_cookies():
+                self.accept_cookies_and_setup()
+        else:
+            # Guest mode - just accept cookie consent dialog
             self.accept_cookies_and_setup()
             
         self.driver.get(explore_url)
@@ -769,8 +829,15 @@ class TikTokScraper:
         return posts_data
     
     def close(self):
-        if self.driver:
-            self.driver.quit()
+        """Close the scraper and clean up resources."""
+        if self._raw_driver:
+            try:
+                self._raw_driver.quit()
+            except Exception as e:
+                print(f"Error closing driver: {e}")
+            finally:
+                self._raw_driver = None
+                self.driver = None
 
 
 if __name__ == "__main__":
@@ -800,14 +867,15 @@ if __name__ == "__main__":
     # Format URL with lang parameter
     profile_url = f"https://www.tiktok.com/@{account_name}?lang=en"
     
-    print(f"\nInitializing browser...")
+    print(f"\nInitializing browser (Guest mode - no login required)...")
     print(f"Scraping profile: {profile_url}")
     if max_posts:
         print(f"Maximum posts: {max_posts}")
     else:
         print("Scraping all available posts...")
     
-    scraper = TikTokScraper()
+    # Create scraper with guest mode (headless mode with improved anti-detection)
+    scraper = TikTokScraper(use_cookies=False, headless=True)
     
     try:
         profile_data = scraper.scrape_profile(profile_url, max_posts)

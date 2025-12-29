@@ -29,7 +29,6 @@ class PlaywrightStealthDriver(BaseScraper):
         """Initialize Playwright with stealth mode."""
         try:
             from playwright.sync_api import sync_playwright
-            from playwright_stealth import stealth_sync
             
             log.info("Initializing Playwright with stealth mode...")
             
@@ -59,8 +58,21 @@ class PlaywrightStealthDriver(BaseScraper):
             
             self.page = self.context.new_page()
             
-            # Apply stealth mode to evade detection
-            stealth_sync(self.page)
+            # Apply stealth mode - handle both old and new API versions
+            try:
+                # New API (playwright_stealth v2.0.0+)
+                from playwright_stealth import Stealth
+                stealth = Stealth()
+                stealth.apply(self.page)
+                log.info("Applied stealth using new API (Stealth().apply())")
+            except (ImportError, AttributeError):
+                try:
+                    # Old API (playwright_stealth v1.x)
+                    from playwright_stealth import stealth_sync
+                    stealth_sync(self.page)
+                    log.info("Applied stealth using old API (stealth_sync())")
+                except ImportError:
+                    log.warning("playwright_stealth not available, continuing without stealth")
             
             self._is_setup = True
             log.info("Playwright stealth driver initialized successfully")
@@ -165,9 +177,15 @@ class PlaywrightStealthDriver(BaseScraper):
         return self.page.title()
     
     def execute_script(self, script: str, *args) -> Any:
-        """Execute JavaScript in the browser."""
+        """Execute JavaScript in the browser. Handles Selenium-style scripts."""
         if not self._is_setup:
             raise RuntimeError("Driver not setup. Call setup() first.")
+        
+        # Convert Selenium-style "return X" to Playwright's evaluate format
+        if script.strip().startswith("return "):
+            expression = script.strip()[7:]
+            script = f"() => {expression}"
+        
         return self.page.evaluate(script, *args) if args else self.page.evaluate(script)
     
     def get_cookies(self) -> List[Dict]:
