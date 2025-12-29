@@ -46,10 +46,20 @@ def prefix_words_with_hash(caption: str) -> str:
     return " ".join(f"{tok}" for tok in tokens if tok.strip())
 
 class InstagramScraper:
-    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl"):
+    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl", use_cookies=True):
+        """
+        Initialize Instagram scraper.
+        
+        Args:
+            username: Instagram username for login (optional)
+            password: Instagram password for login (optional)
+            cookies_path: Path to save/load cookies
+            use_cookies: If True, use cookies/login. If False, run in pure guest mode.
+        """
         self.username = username
         self.password = password
         self.cookies_path = cookies_path
+        self.use_cookies = use_cookies
         self.driver = None
         self.driver_type = None  # 'seleniumbase' or 'playwright'
         self._raw_driver = None  # The underlying driver object for direct access
@@ -100,6 +110,42 @@ class InstagramScraper:
         """Check if bot detection has been triggered."""
         return self._raw_driver.is_bot_detected()
     
+    def _try_solve_captcha(self) -> bool:
+        """Try to solve a captcha if one is detected.
+        
+        Returns:
+            bool: True if captcha was solved, False otherwise
+        """
+        if hasattr(self._raw_driver, 'solve_captcha'):
+            print("🔓 Attempting to solve captcha...")
+            result = self._raw_driver.solve_captcha()
+            if result:
+                print("✅ Captcha solving completed")
+                time.sleep(2)  # Wait for page to update
+            return result
+        return False
+    
+    def _handle_bot_detection(self) -> bool:
+        """Handle bot detection by trying captcha solving first, then fallback.
+        
+        Returns:
+            bool: True if bot detection was handled successfully
+        """
+        if not self._check_bot_detection():
+            return True  # No bot detection
+        
+        print("⚠️ Bot detection triggered!")
+        
+        # First try to solve captcha
+        if self._try_solve_captcha():
+            time.sleep(2)
+            if not self._check_bot_detection():
+                print("✅ Captcha solved - continuing")
+                return True
+        
+        # If captcha solving didn't work, try switching to fallback driver
+        return self._switch_to_fallback()
+    
     
     def save_cookies(self):
         os.makedirs(os.path.dirname(self.cookies_path) or '.', exist_ok=True)
@@ -134,6 +180,17 @@ class InstagramScraper:
         
     def login(self):
         """Login to Instagram using cookies or credentials"""
+        
+        # If use_cookies is False, skip directly to guest mode
+        if not self.use_cookies:
+            print("Cookies disabled. Running in GUEST MODE (Public Access).")
+            try:
+                self.driver.get("https://www.instagram.com")
+                time.sleep(2)
+                return True
+            except Exception as e:
+                print(f"Guest mode init failed: {e}")
+                return False
         
         # First try cookies (fastest and most reliable)
         if self.load_cookies():
@@ -348,6 +405,9 @@ class InstagramScraper:
                 for el in post_elements:
                     href = el.get_attribute("href")
                     if href:
+                        # Ensure absolute URL
+                        if href.startswith("/"):
+                            href = f"https://www.instagram.com{href}"
                         post_links.add(href)
                         
                 print(f"Found {len(post_links)} posts so far...")
@@ -471,7 +531,8 @@ class InstagramScraper:
                         "hashtags": [],
                         "likes": "",
                         "comments_count": "",
-                        "media_urls": []
+                        "media_urls": [],
+                        "comments": []  # List of comment objects
                     }
 
                     # caption
@@ -499,6 +560,22 @@ class InstagramScraper:
                             count = comments.get("count")
                             if count is not None:
                                 post_data["comments_count"] = str(count)
+                            
+                            # Extract actual comments
+                            comment_edges = comments.get("edges", [])
+                            for edge in comment_edges[:20]:  # Max 20 comments
+                                try:
+                                    comment_node = edge.get("node", {})
+                                    comment_data = {
+                                        "username": comment_node.get("owner", {}).get("username", ""),
+                                        "text": comment_node.get("text", ""),
+                                        "likes": str(comment_node.get("edge_liked_by", {}).get("count", "")),
+                                        "timestamp": comment_node.get("created_at", "")
+                                    }
+                                    if comment_data["text"]:
+                                        post_data["comments"].append(comment_data)
+                                except Exception:
+                                    continue
                     except Exception:
                         pass
 
@@ -547,7 +624,8 @@ class InstagramScraper:
                     "hashtags": [],
                     "likes": "",
                     "comments_count": "",
-                    "media_urls": []
+                    "media_urls": [],
+                    "comments": []  # List of comment objects
                 }
 
                 # post_date from <time datetime>
@@ -711,6 +789,91 @@ class InstagramScraper:
                         src = src_tag.get("src") if src_tag else None
                     if src and src not in post_data["media_urls"]:
                         post_data["media_urls"].append(src)
+
+                # Extract comments from HTML/DOM
+                try:
+                    print(f"  → Extracting comments...")
+                    
+                    # Try to find comments in embedded JSON first (LD+JSON)
+                    scripts = soup.find_all("script", type="application/ld+json")
+                    for script in scripts:
+                        try:
+                            if script.string:
+                                ld_json = json.loads(script.string)
+                                if isinstance(ld_json, dict) and "comment" in ld_json:
+                                    for c in ld_json.get("comment", [])[:20]:
+                                        comment_data = {
+                                            "username": c.get("author", {}).get("name", ""),
+                                            "text": c.get("text", ""),
+                                            "likes": "",
+                                            "timestamp": c.get("dateCreated", "")
+                                        }
+                                        if comment_data["text"]:
+                                            post_data["comments"].append(comment_data)
+                        except:
+                            continue
+                    
+                    # If no comments from JSON, try DOM extraction using Playwright
+                    if not post_data["comments"] and hasattr(self.driver, 'page'):
+                        try:
+                            page = self.driver.page
+                            # Wait a bit for comments to load
+                            time.sleep(1)
+                            
+                            # Instagram comment selectors
+                            comment_selectors = [
+                                "ul ul li",  # Nested list comments
+                                "div[class*='Comment'] span",  # Comment text spans
+                                "article ul > li",  # Comments in article
+                            ]
+                            
+                            for selector in comment_selectors:
+                                try:
+                                    elements = page.query_selector_all(selector)
+                                    if elements and len(elements) > 1:  # Skip if just header
+                                        for elem in elements[:20]:
+                                            try:
+                                                # Get all text from the element
+                                                full_text = elem.inner_text()
+                                                if not full_text or len(full_text) < 3:
+                                                    continue
+                                                
+                                                # Try to split username from comment
+                                                parts = full_text.split('\n')
+                                                username = ""
+                                                text = ""
+                                                
+                                                if len(parts) >= 2:
+                                                    username = parts[0].strip()
+                                                    text = ' '.join(parts[1:]).strip()
+                                                else:
+                                                    text = full_text.strip()
+                                                
+                                                # Skip if looks like UI text
+                                                if any(skip in text.lower() for skip in ['reply', 'view replies', 'like', 'hide']):
+                                                    continue
+                                                
+                                                if text and len(text) > 2:
+                                                    comment_data = {
+                                                        "username": username,
+                                                        "text": text,
+                                                        "likes": "",
+                                                        "timestamp": ""
+                                                    }
+                                                    post_data["comments"].append(comment_data)
+                                            except:
+                                                continue
+                                        if post_data["comments"]:
+                                            break  # Found comments, stop trying other selectors
+                                except:
+                                    continue
+                        except Exception as e:
+                            print(f"  → DOM comment extraction error: {e}")
+                    
+                    if post_data["comments"]:
+                        print(f"  → Found {len(post_data['comments'])} comments")
+                except Exception as e:
+                    print(f"  → Comment extraction failed: {e}")
 
                 return post_data
 

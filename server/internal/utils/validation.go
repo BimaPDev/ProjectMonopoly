@@ -3,6 +3,8 @@ package utils
 import (
 	"errors"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 // ValidateRequest validates API request parameters
@@ -20,4 +22,9 @@ func ValidateRequest(sessionID, videoPath, caption string) error {
 		return errors.New("video file does not exist at the given path")
 	}
 	return nil
+}
+
+// ParseUUID parses a string to a UUID
+func ParseUUID(s string) (uuid.UUID, error) {
+	return uuid.Parse(s)
 }

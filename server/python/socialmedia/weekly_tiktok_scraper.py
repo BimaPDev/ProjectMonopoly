@@ -35,7 +35,7 @@ class WeeklyTikTokScraper:
     def __init__(self):
         self.database_url = DATABASE_URL
         self.scraper = None
-        self.max_posts_per_profile = int(os.getenv("WEEKLY_MAX_POSTS", "10"))
+        self.max_posts_per_profile = int(os.getenv("WEEKLY_MAX_POSTS", "10"))  # Default: top 10 videos
         self.scrape_interval_days = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", "7"))
         
     def get_competitors_to_scrape(self) -> List[Dict[str, Any]]:
@@ -124,14 +124,20 @@ class WeeklyTikTokScraper:
                 log.warning(f"⚠️ No posts found for @{username}")
                 return None
             
-            log.info(f"✅ Successfully scraped {len(posts_data)} posts for @{username}")
+            # Get profile info (followers, following, likes) from scraper
+            profile_info = getattr(self.scraper, 'last_profile_info', {})
+            followers = profile_info.get('followers', 0)
+            
+            log.info(f"✅ Successfully scraped {len(posts_data)} posts for @{username} ({followers:,} followers)")
             
             return {
                 'username': username,
                 'profile_url': profile_url,
                 'posts': posts_data,
                 'competitor_id': competitor['id'],
-                'profile_id': competitor['profile_id']
+                'profile_id': competitor['profile_id'],
+                'followers': followers,
+                'profile_info': profile_info
             }
             
         except Exception as e:
@@ -158,7 +164,7 @@ class WeeklyTikTokScraper:
     
     def upload_posts_to_db(self, scrape_result: Dict[str, Any]) -> bool:
         """
-        Upload scraped TikTok posts to the database.
+        Upload scraped TikTok posts to the database with analytics.
         """
         from socialmedia.upload_to_db import upload_tiktok_data_to_db
         
@@ -167,7 +173,8 @@ class WeeklyTikTokScraper:
                 scrape_result['posts'],
                 scrape_result['username'],
                 scrape_result['competitor_id'],
-                scrape_result['profile_id']
+                scrape_result['profile_id'],
+                followers=scrape_result.get('followers', 0)
             )
         except Exception as e:
             log.error(f"❌ Error uploading posts to DB: {e}")

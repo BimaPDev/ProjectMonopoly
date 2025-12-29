@@ -110,11 +110,19 @@ class PlaywrightStealthDriver(BaseScraper):
         self.playwright = None
         self._is_setup = False
     
-    def get(self, url: str) -> None:
-        """Navigate to a URL."""
+    def get(self, url: str, timeout: int = 30000) -> None:
+        """Navigate to a URL with timeout protection.
+        
+        Args:
+            url: The URL to navigate to
+            timeout: Maximum time in milliseconds to wait (default 30 seconds)
+        """
         if not self._is_setup:
             raise RuntimeError("Driver not setup. Call setup() first.")
-        self.page.goto(url, wait_until='domcontentloaded')
+        try:
+            self.page.goto(url, wait_until='commit', timeout=timeout)
+        except Exception as e:
+            log.warning(f"Navigation timeout/error for {url}: {e}")
     
     def find_element(self, by: str, value: str) -> Any:
         """Find a single element. Converts Selenium locators to Playwright."""

@@ -12,6 +12,51 @@ from .base_scraper import BaseScraper
 log = logging.getLogger(__name__)
 
 
+class LocatorWrapper:
+    """Wraps Playwright Locator to provide Selenium-like interface with timeouts."""
+    
+    # Short timeout for element operations (2 seconds)
+    ELEMENT_TIMEOUT = 2000
+    
+    def __init__(self, locator):
+        self._locator = locator
+    
+    @property
+    def text(self) -> str:
+        """Get element text content (Selenium-compatible) with timeout."""
+        try:
+            # Check if element exists first (fast)
+            if self._locator.count() == 0:
+                return ""
+            return self._locator.text_content(timeout=self.ELEMENT_TIMEOUT) or ""
+        except Exception:
+            return ""
+    
+    def get_attribute(self, name: str) -> Optional[str]:
+        """Get element attribute (Selenium-compatible) with timeout."""
+        try:
+            if self._locator.count() == 0:
+                return None
+            return self._locator.get_attribute(name, timeout=self.ELEMENT_TIMEOUT)
+        except Exception:
+            return None
+    
+    def click(self, timeout: int = 2000):
+        """Click the element with timeout."""
+        self._locator.click(timeout=timeout)
+    
+    def is_displayed(self) -> bool:
+        """Check if element is visible."""
+        try:
+            return self._locator.count() > 0 and self._locator.is_visible()
+        except Exception:
+            return False
+    
+    def __getattr__(self, name):
+        """Forward other methods to the underlying locator."""
+        return getattr(self._locator, name)
+
+
 class SeleniumBaseDriver(BaseScraper):
     """
     Scraper driver using SeleniumBase's sb_cdp mode with Playwright connection.
@@ -59,7 +104,7 @@ class SeleniumBaseDriver(BaseScraper):
             # NOTE: TikTok blocks true headless Chrome, always use visible mode
             # On Linux with xvfb, the "visible" browser renders to the virtual display
             print("Starting Chrome browser (visible mode - required for TikTok)")
-            self.sb = sb_cdp.Chrome(headless=False)
+            self.sb = sb_cdp.Chrome(headless=False, locale="en")
             
             endpoint_url = self.sb.get_endpoint_url()
             log.info(f"SeleniumBase CDP endpoint: {endpoint_url}")
@@ -118,25 +163,38 @@ class SeleniumBaseDriver(BaseScraper):
         self._virtual_display = None
         self._is_setup = False
     
-    def get(self, url: str) -> None:
-        """Navigate to a URL."""
+    def get(self, url: str, timeout: int = 30000) -> None:
+        """Navigate to a URL with timeout protection.
+        
+        Args:
+            url: The URL to navigate to
+            timeout: Maximum time in milliseconds to wait (default 30 seconds)
+        """
         if not self._is_setup:
             raise RuntimeError("Driver not setup. Call setup() first.")
-        self.page.goto(url, wait_until='domcontentloaded')
+        try:
+            # Use 'commit' wait_until for faster navigation on dynamic pages
+            # 'domcontentloaded' can hang on SPAs like TikTok
+            self.page.goto(url, wait_until='commit', timeout=timeout)
+        except Exception as e:
+            # Log timeout but don't fail - page may still be usable
+            log.warning(f"Navigation timeout/error for {url}: {e}")
     
     def find_element(self, by: str, value: str) -> Any:
         """Find a single element. Converts Selenium locators to Playwright."""
         if not self._is_setup:
             raise RuntimeError("Driver not setup. Call setup() first.")
         selector = self._convert_locator(by, value)
-        return self.page.locator(selector).first
+        locator = self.page.locator(selector).first
+        return LocatorWrapper(locator)
     
     def find_elements(self, by: str, value: str) -> List[Any]:
         """Find multiple elements. Converts Selenium locators to Playwright."""
         if not self._is_setup:
             raise RuntimeError("Driver not setup. Call setup() first.")
         selector = self._convert_locator(by, value)
-        return self.page.locator(selector).all()
+        locators = self.page.locator(selector).all()
+        return [LocatorWrapper(loc) for loc in locators]
     
     def _convert_locator(self, by: str, value: str) -> str:
         """Convert Selenium By locators to Playwright selectors."""
@@ -277,6 +335,33 @@ class SeleniumBaseDriver(BaseScraper):
             return any(indicator in content for indicator in bot_indicators)
         except:
             return False
+    
+    def solve_captcha(self) -> bool:
+        """Attempt to solve a captcha using SeleniumBase's built-in solver.
+        
+        Returns:
+            bool: True if captcha solving was attempted
+        """
+        if not self._is_setup or not self.sb:
+            log.warning("Cannot solve captcha: driver not setup")
+            return False
+        
+        try:
+            log.info("Attempting to solve captcha...")
+            self.sb.solve_captcha()
+            log.info("Captcha solving completed")
+            return True
+        except Exception as e:
+            log.warning(f"Captcha solving failed: {e}")
+            return False
+    
+    def sleep(self, seconds: float) -> None:
+        """Sleep using SeleniumBase's sleep (more resistant to detection)."""
+        if self.sb:
+            self.sb.sleep(seconds)
+        else:
+            import time
+            time.sleep(seconds)
     
     def quit(self) -> None:
         """Clean up and close the driver."""

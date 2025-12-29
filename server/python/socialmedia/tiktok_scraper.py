@@ -152,6 +152,42 @@ class TikTokScraper:
     def _check_bot_detection(self) -> bool:
         """Check if bot detection has been triggered."""
         return self._raw_driver.is_bot_detected()
+    
+    def _try_solve_captcha(self) -> bool:
+        """Try to solve a captcha if one is detected.
+        
+        Returns:
+            bool: True if captcha was solved, False otherwise
+        """
+        if hasattr(self._raw_driver, 'solve_captcha'):
+            print("🔓 Attempting to solve captcha...")
+            result = self._raw_driver.solve_captcha()
+            if result:
+                print("✅ Captcha solving completed")
+                time.sleep(2)  # Wait for page to update
+            return result
+        return False
+    
+    def _handle_bot_detection(self) -> bool:
+        """Handle bot detection by trying captcha solving first, then fallback.
+        
+        Returns:
+            bool: True if bot detection was handled successfully
+        """
+        if not self._check_bot_detection():
+            return True  # No bot detection
+        
+        print("⚠️ Bot detection triggered!")
+        
+        # First try to solve captcha
+        if self._try_solve_captcha():
+            time.sleep(2)
+            if not self._check_bot_detection():
+                print("✅ Captcha solved - continuing")
+                return True
+        
+        # If captcha solving didn't work, try switching to fallback driver
+        return self._switch_to_fallback()
         
     def save_cookies(self):
         pickle.dump(self.driver.get_cookies(), open(self.cookies_path, "wb"))
@@ -226,7 +262,11 @@ class TikTokScraper:
                 pass
     
     def scrape_profile(self, profile_url, max_posts=None):
-        """Scrape TikTok profile posts (public access, no login required)."""
+        """Scrape TikTok profile posts (public access, no login required).
+        
+        Returns:
+            list: List of post dictionaries with profile_info added as first element metadata
+        """
         if not profile_url.startswith("https://www.tiktok.com/"):
             profile_url = profile_url.lstrip("@")
             profile_url = f"https://www.tiktok.com/@{profile_url.strip('/')}"
@@ -248,6 +288,11 @@ class TikTokScraper:
             profile_name = re.search(r"tiktok\.com/@([^/?]+)", profile_url).group(1)
         except:
             profile_name = "tiktok_profile"
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # Extract Profile Info (Followers, Following, Likes)
+        # ─────────────────────────────────────────────────────────────────────
+        profile_info = self._extract_profile_stats(profile_name)
         
         # Check for refresh button and click it if visible
         try:
@@ -332,13 +377,83 @@ class TikTokScraper:
                 print(f"Error processing {video_url}: {e}")
                 # Try to continue with next video
                 continue
+        
+        # Store profile_info as attribute for access by weekly scraper
+        self.last_profile_info = profile_info
                 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"socialmedia/scrape_result/{profile_name}_tiktoks_{timestamp}.json"
+        
+        # Ensure output directory exists
+        output_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        json_filename = os.path.join(output_dir, f"{profile_name}_tiktoks_{timestamp}.json")
+        
+        # Save with profile info
+        output_data = {
+            "profile_info": profile_info,
+            "posts": posts_data
+        }
         with open(json_filename, "w", encoding="utf-8") as jf:
-            json.dump(posts_data, jf, ensure_ascii=False, indent=4)
+            json.dump(output_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all videos to {json_filename}")
+        
         return posts_data
+    
+    def _extract_profile_stats(self, username):
+        """Extract follower, following, and likes counts from profile page."""
+        profile_info = {
+            "username": username,
+            "followers": 0,
+            "following": 0,
+            "likes": 0
+        }
+        
+        try:
+            # TikTok profile stats are in elements with specific data-e2e attributes
+            # Followers: data-e2e="followers-count"
+            # Following: data-e2e="following-count"
+            # Likes: data-e2e="likes-count"
+            
+            selectors = {
+                "followers": "[data-e2e='followers-count']",
+                "following": "[data-e2e='following-count']", 
+                "likes": "[data-e2e='likes-count']"
+            }
+            
+            for key, selector in selectors.items():
+                try:
+                    locator = self.driver.page.locator(selector)
+                    if locator.count() > 0:
+                        text = locator.first.text_content()
+                        profile_info[key] = self._parse_count_text(text)
+                        print(f"  → {key.capitalize()}: {profile_info[key]}")
+                except Exception as e:
+                    print(f"Could not extract {key}: {e}")
+            
+            print(f"Profile stats for @{username}: {profile_info['followers']} followers, {profile_info['following']} following, {profile_info['likes']} likes")
+            
+        except Exception as e:
+            print(f"Error extracting profile stats: {e}")
+        
+        return profile_info
+    
+    def _parse_count_text(self, text):
+        """Parse TikTok count text (e.g., '1.2M', '500K', '10.5K') to integer."""
+        if not text:
+            return 0
+        
+        text = text.strip().upper().replace(",", "")
+        
+        try:
+            if "M" in text:
+                return int(float(text.replace("M", "")) * 1_000_000)
+            elif "K" in text:
+                return int(float(text.replace("K", "")) * 1_000)
+            else:
+                return int(text)
+        except (ValueError, TypeError):
+            return 0
     
     def scrape_video(self, video_url, retries=2):
         """
@@ -349,7 +464,10 @@ class TikTokScraper:
                 print(f"Attempting to scrape video (attempt {attempt + 1}/{retries + 1}): {video_url}")
                 
                 try:
-                    self.driver.get(video_url)
+                    print(f"  → Navigating to video...")
+                    # Use 20 second timeout for video pages
+                    self.driver.get(video_url, timeout=20000)
+                    print(f"  → Navigation complete")
                 except Exception as e:
                     print(f"Error navigating to video: {e}")
                     if attempt < retries:
@@ -357,14 +475,9 @@ class TikTokScraper:
                         continue
                     return None
                 
-                random_delay(3, 5)
-                
-                try:
-                    WebDriverWait(self.driver, 15).until(
-                        lambda d: d.execute_script("return document.readyState") == "complete"
-                    )
-                except TimeoutException:
-                    print("Page didn't load completely, continuing anyway...")
+                # Wait for page to load (reduced delay since we now have proper timeout)
+                print(f"  → Waiting for content...")
+                random_delay(2, 4)
                 
                 video_data = {
                     "url": video_url,
@@ -377,11 +490,14 @@ class TikTokScraper:
                     "shared_count": "",
                     "saved_count": "",
                     "author": "",
+                    "comments": [],  # List of comment objects
                 }
                 
                 success = False
                 
                 try:
+                    print(f"  → Extracting video data...")
+                    
                     # Extract author
                     author_selectors = [
                         "//span[@data-e2e='browse-username']",
@@ -395,7 +511,7 @@ class TikTokScraper:
                             video_data["author"] = elem.text.strip()
                             if video_data["author"]:
                                 break
-                        except NoSuchElementException:
+                        except Exception:
                             continue
                     
                     # Extract description
@@ -471,38 +587,26 @@ class TikTokScraper:
                     except NoSuchElementException:
                         video_data["shared_count"] = ""
                     
-                    # Saved count
+                    # Saved count - use direct element finding (not WebDriverWait)
                     saved_count_selectors = [
                         "//strong[@data-e2e='undefined-count']",
                         "//span[@data-e2e='undefined-icon']/following-sibling::strong",
                         "//strong[contains(@class, 'undefined-count')]",
-                        "//div[contains(@class, 'action-item')]//strong[contains(text(), '')]"
                     ]
                     saved_count_found = False
                     for sel in saved_count_selectors:
                         try:
-                            saved_elem = WebDriverWait(self.driver, 5).until(
-                                EC.presence_of_element_located((By.XPATH, sel))
-                            )
+                            saved_elem = self.driver.find_element(By.XPATH, sel)
                             saved_text = saved_elem.text.strip()
                             if saved_text:
                                 video_data["saved_count"] = parse_shorthand(saved_text)
                                 saved_count_found = True
                                 break
-                        except (NoSuchElementException, TimeoutException):
+                        except (NoSuchElementException, Exception):
                             continue
                     
                     if not saved_count_found:
-                        # Try to find it near the undefined-icon
-                        try:
-                            icon = self.driver.find_element(By.XPATH, "//span[@data-e2e='undefined-icon']")
-                            # Find the next sibling strong element
-                            saved_elem = icon.find_element(By.XPATH, "./following-sibling::strong[@data-e2e='undefined-count']")
-                            saved_text = saved_elem.text.strip()
-                            if saved_text:
-                                video_data["saved_count"] = parse_shorthand(saved_text)
-                        except (NoSuchElementException, TimeoutException):
-                            video_data["saved_count"] = ""
+                        video_data["saved_count"] = ""
 
                     # Video URL
                     try:
@@ -510,6 +614,66 @@ class TikTokScraper:
                         video_data["video_url"] = source.get_attribute("src")
                     except NoSuchElementException:
                         video_data["video_url"] = ""
+                    
+                    # Extract comments (top comments visible on page)
+                    try:
+                        print(f"  → Extracting comments...")
+                        comments = []
+                        # TikTok comment selectors
+                        comment_container_selectors = [
+                            "//div[@data-e2e='comment-item']",
+                            "//div[contains(@class, 'CommentItemContainer')]",
+                            "//div[contains(@class, 'comment-item')]",
+                        ]
+                        
+                        for container_sel in comment_container_selectors:
+                            try:
+                                comment_elements = self.driver.find_elements(By.XPATH, container_sel)
+                                if comment_elements:
+                                    for idx, elem in enumerate(comment_elements[:20]):  # Max 20 comments
+                                        try:
+                                            comment_data = {
+                                                "username": "",
+                                                "text": "",
+                                                "likes": "",
+                                                "timestamp": ""
+                                            }
+                                            
+                                            # Username
+                                            try:
+                                                user_elem = elem.find_element(By.XPATH, ".//span[contains(@data-e2e, 'comment-username')] | .//a[contains(@href, '/@')]//span")
+                                                comment_data["username"] = user_elem.text.strip()
+                                            except:
+                                                pass
+                                            
+                                            # Comment text
+                                            try:
+                                                text_elem = elem.find_element(By.XPATH, ".//span[contains(@data-e2e, 'comment-text')] | .//p | .//span[contains(@class, 'comment-text')]")
+                                                comment_data["text"] = text_elem.text.strip()
+                                            except:
+                                                pass
+                                            
+                                            # Likes on comment
+                                            try:
+                                                likes_elem = elem.find_element(By.XPATH, ".//span[contains(@data-e2e, 'comment-like-count')] | .//span[contains(@class, 'like-count')]")
+                                                comment_data["likes"] = likes_elem.text.strip()
+                                            except:
+                                                pass
+                                            
+                                            if comment_data["text"]:  # Only add if we got text
+                                                comments.append(comment_data)
+                                        except Exception:
+                                            continue
+                                    break  # Found comments, stop trying other selectors
+                            except Exception:
+                                continue
+                        
+                        video_data["comments"] = comments
+                        if comments:
+                            print(f"  → Found {len(comments)} comments")
+                    except Exception as e:
+                        print(f"  → Comment extraction failed: {e}")
+                        video_data["comments"] = []
                     
                     success = True
 
