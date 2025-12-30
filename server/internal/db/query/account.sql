@@ -321,6 +321,16 @@ INSERT INTO user_competitors (user_id, group_id, competitor_id, visibility)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT DO NOTHING;
 
+-- Unlink user from competitor (does NOT delete the competitor, just removes user's access)
+-- name: UnlinkUserFromCompetitor :exec
+DELETE FROM user_competitors
+WHERE user_id = $1 AND competitor_id = $2;
+
+-- Unlink user from competitor in a specific group
+-- name: UnlinkUserFromCompetitorInGroup :exec
+DELETE FROM user_competitors
+WHERE user_id = $1 AND competitor_id = $2 AND group_id = $3;
+
 -- List all competitors for a user
 -- name: ListUserCompetitors :many
 SELECT

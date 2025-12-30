@@ -191,7 +191,7 @@ def force_instagram_scrape(handle: Optional[str] = None) -> Dict[str, Any]:
     log.info("🔄 Starting forced Instagram scrape...")
     
     try:
-        from socialmedia.weekly_scraper import WeeklyInstagramScraper
+        from socialmedia.instagram.scraper.weekly_scheduler import WeeklyInstagramScraper
         
         if handle:
             # Scrape specific competitor
@@ -207,8 +207,8 @@ def force_instagram_scrape(handle: Optional[str] = None) -> Dict[str, Any]:
             log.info("📸 Scraping Instagram profile: @%s", handle)
             
             # Use single-profile scrape with guest mode (no cookies)
-            from socialmedia.instaPage import InstagramScraper
-            from socialmedia.upload_to_db import save_instagram_data_to_db
+            from socialmedia.instagram.scraper.profile_scraper import InstagramScraper
+            from socialmedia.shared.upload_to_db import save_instagram_data_to_db
             
             scraper = InstagramScraper(use_cookies=False)
             if not scraper.login():
@@ -260,7 +260,7 @@ def force_tiktok_scrape(handle: Optional[str] = None) -> Dict[str, Any]:
     log.info("🔄 Starting forced TikTok scrape...")
     
     try:
-        from socialmedia.weekly_tiktok_scraper import WeeklyTikTokScraper
+        from socialmedia.tiktok.scraper.weekly_scheduler import WeeklyTikTokScraper
         
         if handle:
             # Scrape specific competitor
@@ -276,8 +276,8 @@ def force_tiktok_scrape(handle: Optional[str] = None) -> Dict[str, Any]:
             log.info("🎵 Scraping TikTok profile: @%s", handle)
             
             # Use single-profile scrape
-            from socialmedia.tiktok_scraper import TikTokScraper
-            from socialmedia.upload_to_db import save_tiktok_data_to_db
+            from socialmedia.tiktok.scraper.profile_scraper import TikTokScraper
+            from socialmedia.shared.upload_to_db import save_tiktok_data_to_db
             
             scraper = TikTokScraper()
             

@@ -22,6 +22,7 @@ import SocialMedia from "./app/settings/socialMedia/page";
 import MarketingGeneratorPage from "./app/marketing/page";
 import CampaignsPage from "./app/campaigns/page";
 import CampaignInsightsPage from "./app/campaigns/insights/page";
+import RedditPage from "./app/reddit/page";
 
 import { GroupProvider } from "./components/groupContext";
 import { Toaster } from "@/components/ui/toaster";
@@ -75,6 +76,7 @@ function App() {
             <Route path="/dashboard/marketing" element={<MarketingGeneratorPage />} />
             <Route path="/dashboard/campaigns" element={<CampaignsPage />} />
             <Route path="/dashboard/campaigns/:id/insights" element={<CampaignInsightsPage />} />
+            <Route path="/dashboard/reddit" element={<RedditPage />} />
           </Route>
 
           {/* 🔹 Catch-all Route for 404s */}

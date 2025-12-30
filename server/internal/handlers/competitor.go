@@ -243,3 +243,46 @@ func AddProfileToCompetitor(c *gin.Context, queries *db.Queries) {
 		}
 	}()
 }
+
+// DeleteCompetitor removes the current user's link to a competitor
+// This does NOT delete the competitor entity - other users retain access
+func DeleteCompetitor(c *gin.Context, queries *db.Queries) {
+	// Get competitor ID from URL param
+	competitorIDStr := c.Param("id")
+	if competitorIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Competitor ID is required"})
+		return
+	}
+
+	// Parse competitor ID as UUID
+	competitorID, err := utils.ParseUUID(competitorIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid competitor ID format"})
+		return
+	}
+
+	// Get current user ID
+	currentUserID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	// Unlink user from competitor (does NOT delete the competitor entity)
+	err = queries.UnlinkUserFromCompetitor(c.Request.Context(), db.UnlinkUserFromCompetitorParams{
+		UserID:       currentUserID,
+		CompetitorID: competitorID,
+	})
+	if err != nil {
+		log.Printf("❌ Failed to unlink competitor: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove competitor"})
+		return
+	}
+
+	log.Printf("✅ User %d unlinked from competitor %s", currentUserID, competitorIDStr)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Competitor removed successfully",
+		"competitor_id": competitorIDStr,
+	})
+}

@@ -15,7 +15,7 @@ import sys
 import logging
 
 # Import the new driver factory
-from .drivers import get_driver, switch_to_fallback, BotDetectedError
+from ...drivers import get_driver, switch_to_fallback, BotDetectedError
 
 log = logging.getLogger(__name__)
 

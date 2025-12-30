@@ -14,9 +14,9 @@ from typing import List, Dict, Any
 import json
 
 # Add the parent directory to the path to import instaPage
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from socialmedia.instaPage import InstagramScraper
+from socialmedia.instagram.scraper.profile_scraper import InstagramScraper
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://root:secret@localhost:5432/project_monopoly?sslmode=disable")

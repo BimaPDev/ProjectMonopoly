@@ -40,6 +40,11 @@ services:
       CELERY_RESULT_BACKEND: "rpc://"
       CELERY_CONCURRENCY: "4"
       TZ: "UTC"
+      # Reddit Listener LLM config
+      LLM_ENABLED: "true"
+      LLM_PROVIDER: "ollama"
+      OLLAMA_HOST: "http://ollama:11434"
+      OLLAMA_MODEL: "gemma3:latest"
     volumes:
       - ./server/python:/app
       - docs_data:/data/docs

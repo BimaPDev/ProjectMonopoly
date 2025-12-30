@@ -98,6 +98,7 @@ func main() {
 			protected.GET("/competitors/posts", wrap(handlers.ListVisibleCompetitorPosts))
 			protected.GET("/competitors/with-profiles", wrap(handlers.ListCompetitorsWithProfiles))
 			protected.POST("/competitors/:id/profiles", wrap(handlers.AddProfileToCompetitor))
+			protected.DELETE("/competitors/:id", wrap(handlers.DeleteCompetitor))
 
 			// Workshop
 			protected.POST("/workshop/upload", wrap(handlers.WorkshopUploadHandler))
@@ -144,6 +145,14 @@ func main() {
 
 			// Dashboard Analytics
 			protected.GET("/analytics/engagement-trends", handlers.GetEngagementTrendsHandler(queries))
+
+			// ─── Reddit Listener ────────────────────────────────────────────────
+			protected.POST("/reddit/sources", handlers.CreateSourceHandler(queries))
+			protected.GET("/reddit/sources", handlers.ListSourcesHandler(queries))
+			protected.DELETE("/reddit/sources/:id", handlers.DeleteSourceHandler(queries))
+			protected.GET("/reddit/items", handlers.ListItemsHandler(queries))
+			protected.GET("/reddit/cards", handlers.ListStrategyCardsHandler(queries))
+			protected.GET("/reddit/alerts", handlers.ListAlertsHandler(queries))
 		}
 	}
 

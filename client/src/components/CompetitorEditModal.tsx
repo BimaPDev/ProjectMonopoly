@@ -96,6 +96,30 @@ export function CompetitorEditModal({
         }
     };
 
+    const handleDeleteCompetitor = async () => {
+        if (!confirm(`Are you sure you want to remove "${competitorName}" from your tracked competitors? This will not affect other users tracking this competitor.`)) return;
+
+        try {
+            const res = await fetch(`/api/competitors/${competitorId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+            });
+
+            if (res.ok) {
+                onSave(); // Refresh the list
+                onClose();
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to remove competitor");
+            }
+        } catch (e) {
+            console.error("Failed to delete competitor:", e);
+            alert("Failed to remove competitor");
+        }
+    };
+
     const handleClose = () => {
         onSave();
         onClose();
@@ -216,7 +240,15 @@ export function CompetitorEditModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-2 p-4 border-t border-neutral-700">
+                <div className="flex justify-between gap-2 p-4 border-t border-neutral-700">
+                    <Button
+                        variant="destructive"
+                        onClick={handleDeleteCompetitor}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remove Competitor
+                    </Button>
                     <Button variant="outline" onClick={handleClose}>
                         Done
                     </Button>

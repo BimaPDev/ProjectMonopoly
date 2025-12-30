@@ -14,9 +14,9 @@ from typing import List, Dict, Any
 import json
 
 # Add the parent directory to the path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from socialmedia.tiktok_scraper import TikTokScraper
+from socialmedia.tiktok.scraper.profile_scraper import TikTokScraper
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://root:secret@localhost:5432/project_monopoly?sslmode=disable")
@@ -166,7 +166,7 @@ class WeeklyTikTokScraper:
         """
         Upload scraped TikTok posts to the database with analytics.
         """
-        from socialmedia.upload_to_db import upload_tiktok_data_to_db
+        from socialmedia.shared.upload_to_db import upload_tiktok_data_to_db
         
         try:
             return upload_tiktok_data_to_db(

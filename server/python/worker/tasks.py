@@ -540,7 +540,7 @@ def weekly_instagram_scrape(self) -> Dict[str, Any]:
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
         
-        from socialmedia.weekly_scraper import WeeklyInstagramScraper
+        from socialmedia.instagram.scraper.weekly_scheduler import WeeklyInstagramScraper
         
         scraper = WeeklyInstagramScraper()
         result = scraper.run_weekly_scrape()
@@ -609,7 +609,7 @@ def weekly_tiktok_scrape(self) -> Dict[str, Any]:
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
         
-        from socialmedia.weekly_tiktok_scraper import WeeklyTikTokScraper
+        from socialmedia.tiktok.scraper.weekly_scheduler import WeeklyTikTokScraper
         
         scraper = WeeklyTikTokScraper()
         result = scraper.run_weekly_scrape()

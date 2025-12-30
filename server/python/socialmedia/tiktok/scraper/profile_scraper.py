@@ -12,7 +12,7 @@ import random
 import logging
 
 # Import the driver factory for SeleniumBase + Playwright fallback
-from .drivers import get_driver, switch_to_fallback, BotDetectedError
+from ...drivers import get_driver, switch_to_fallback, BotDetectedError
 
 log = logging.getLogger(__name__)
 

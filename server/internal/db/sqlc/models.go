@@ -148,6 +148,13 @@ type GroupItem struct {
 	CookieCreatedAt sql.NullTime    `json:"cookie_created_at"`
 }
 
+type ListenerState struct {
+	ID                 int32        `json:"id"`
+	SourceID           int32        `json:"source_id"`
+	LastSeenCreatedUtc sql.NullTime `json:"last_seen_created_utc"`
+	LastRunAt          sql.NullTime `json:"last_run_at"`
+}
+
 type Post struct {
 	ID              int32        `json:"id"`
 	GroupID         int32        `json:"group_id"`
@@ -185,6 +192,75 @@ type PostMetric struct {
 	Metrics    json.RawMessage `json:"metrics"`
 }
 
+type RedditAlert struct {
+	ID            int32                 `json:"id"`
+	SourceID      int32                 `json:"source_id"`
+	WindowStart   time.Time             `json:"window_start"`
+	WindowEnd     time.Time             `json:"window_end"`
+	Metric        string                `json:"metric"`
+	CurrentValue  float64               `json:"current_value"`
+	PreviousValue float64               `json:"previous_value"`
+	Factor        float64               `json:"factor"`
+	TopItemIds    pqtype.NullRawMessage `json:"top_item_ids"`
+	CreatedAt     sql.NullTime          `json:"created_at"`
+}
+
+type RedditChunk struct {
+	ID        int32         `json:"id"`
+	ItemID    int32         `json:"item_id"`
+	CommentID sql.NullInt32 `json:"comment_id"`
+	ChunkText string        `json:"chunk_text"`
+	ChunkHash string        `json:"chunk_hash"`
+	CreatedAt sql.NullTime  `json:"created_at"`
+}
+
+type RedditComment struct {
+	ID               int32                 `json:"id"`
+	ItemID           int32                 `json:"item_id"`
+	ExternalID       string                `json:"external_id"`
+	ParentExternalID sql.NullString        `json:"parent_external_id"`
+	Body             sql.NullString        `json:"body"`
+	Author           sql.NullString        `json:"author"`
+	AuthorFlair      sql.NullString        `json:"author_flair"`
+	Score            sql.NullInt32         `json:"score"`
+	CreatedUtc       time.Time             `json:"created_utc"`
+	FetchedAt        sql.NullTime          `json:"fetched_at"`
+	Removed          sql.NullBool          `json:"removed"`
+	RawJson          pqtype.NullRawMessage `json:"raw_json"`
+}
+
+type RedditItem struct {
+	ID           int32                 `json:"id"`
+	SourceID     int32                 `json:"source_id"`
+	Platform     sql.NullString        `json:"platform"`
+	Subreddit    string                `json:"subreddit"`
+	ExternalID   string                `json:"external_id"`
+	ExternalUrl  string                `json:"external_url"`
+	Title        sql.NullString        `json:"title"`
+	Body         sql.NullString        `json:"body"`
+	Author       sql.NullString        `json:"author"`
+	AuthorFlair  sql.NullString        `json:"author_flair"`
+	Score        sql.NullInt32         `json:"score"`
+	NumComments  sql.NullInt32         `json:"num_comments"`
+	CreatedUtc   time.Time             `json:"created_utc"`
+	FetchedAt    sql.NullTime          `json:"fetched_at"`
+	QualityScore sql.NullFloat64       `json:"quality_score"`
+	Nsfw         sql.NullBool          `json:"nsfw"`
+	Removed      sql.NullBool          `json:"removed"`
+	RawJson      pqtype.NullRawMessage `json:"raw_json"`
+}
+
+type RedditSource struct {
+	ID        int32          `json:"id"`
+	UserID    int32          `json:"user_id"`
+	GroupID   sql.NullInt32  `json:"group_id"`
+	Type      string         `json:"type"`
+	Value     string         `json:"value"`
+	Subreddit sql.NullString `json:"subreddit"`
+	Enabled   sql.NullBool   `json:"enabled"`
+	CreatedAt sql.NullTime   `json:"created_at"`
+}
+
 type Session struct {
 	ID        uuid.UUID    `json:"id"`
 	UserID    int32        `json:"user_id"`
@@ -200,6 +276,23 @@ type SocialmediaDatum struct {
 	Data      json.RawMessage `json:"data"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
+}
+
+type StrategyCard struct {
+	ID              int32                 `json:"id"`
+	Source          sql.NullString        `json:"source"`
+	ItemID          sql.NullInt32         `json:"item_id"`
+	CommentID       sql.NullInt32         `json:"comment_id"`
+	PlatformTargets []string              `json:"platform_targets"`
+	Niche           sql.NullString        `json:"niche"`
+	Tactic          sql.NullString        `json:"tactic"`
+	Steps           pqtype.NullRawMessage `json:"steps"`
+	Preconditions   pqtype.NullRawMessage `json:"preconditions"`
+	Metrics         pqtype.NullRawMessage `json:"metrics"`
+	Risks           pqtype.NullRawMessage `json:"risks"`
+	Confidence      sql.NullFloat64       `json:"confidence"`
+	Evidence        pqtype.NullRawMessage `json:"evidence"`
+	CreatedAt       sql.NullTime          `json:"created_at"`
 }
 
 type UploadJob struct {

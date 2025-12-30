@@ -49,11 +49,16 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 }
 
 const createCompetitor = `-- name: CreateCompetitor :one
+
 INSERT INTO competitors (display_name)
 VALUES ($1)
 RETURNING id, last_checked, total_posts, display_name
 `
 
+// ============================================================================
+// COMPETITOR MANAGEMENT
+// ============================================================================
+// Create a new competitor
 func (q *Queries) CreateCompetitor(ctx context.Context, displayName sql.NullString) (Competitor, error) {
 	row := q.db.QueryRowContext(ctx, createCompetitor, displayName)
 	var i Competitor
@@ -67,6 +72,7 @@ func (q *Queries) CreateCompetitor(ctx context.Context, displayName sql.NullStri
 }
 
 const createGameContext = `-- name: CreateGameContext :one
+
 INSERT INTO game_contexts (
     user_id, group_id,
     game_title, studio_name, game_summary, platforms, engine_tech,
@@ -81,7 +87,7 @@ VALUES (
     $8, $9, $10, $11, $12, $13,
     $14, $15, $16, $17,
     $18, $19, $20,
-    $21, $22 , $23
+    $21, $22, $23
 )
 RETURNING id, user_id, group_id, game_title, studio_name, game_summary, platforms, engine_tech, primary_genre, subgenre, key_mechanics, playtime_length, art_style, tone, intended_audience, age_range, player_motivation, comparable_games, marketing_objective, key_events_dates, call_to_action, content_restrictions, competitors_to_avoid, additional_info, extraction_method, original_file_name, created_at, updated_at
 `
@@ -112,6 +118,10 @@ type CreateGameContextParams struct {
 	AdditionalInfo      sql.NullString `json:"additional_info"`
 }
 
+// ============================================================================
+// GAME CONTEXT
+// ============================================================================
+// Create game context
 func (q *Queries) CreateGameContext(ctx context.Context, arg CreateGameContextParams) (GameContext, error) {
 	row := q.db.QueryRowContext(ctx, createGameContext,
 		arg.UserID,
@@ -173,6 +183,7 @@ func (q *Queries) CreateGameContext(ctx context.Context, arg CreateGameContextPa
 }
 
 const createGroup = `-- name: CreateGroup :one
+
 INSERT INTO groups (user_id, name, description, created_at, updated_at)
 VALUES ($1, $2, $3, NOW(), NOW())
 RETURNING id, user_id, name, description, created_at, updated_at
@@ -184,6 +195,10 @@ type CreateGroupParams struct {
 	Description sql.NullString `json:"description"`
 }
 
+// ============================================================================
+// GROUP MANAGEMENT
+// ============================================================================
+// Create a new group
 func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
 	row := q.db.QueryRowContext(ctx, createGroup, arg.UserID, arg.Name, arg.Description)
 	var i Group
@@ -245,11 +260,15 @@ func (q *Queries) CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams
 }
 
 const createSession = `-- name: CreateSession :one
+
 INSERT INTO sessions (user_id, expires_at)
 VALUES ($1, NOW() + INTERVAL '24 hours')
 RETURNING id, user_id, created_at, expires_at
 `
 
+// ============================================================================
+// SESSION MANAGEMENT
+// ============================================================================
 // Create a new session with configurable expiration
 func (q *Queries) CreateSession(ctx context.Context, userID int32) (Session, error) {
 	row := q.db.QueryRowContext(ctx, createSession, userID)
@@ -275,7 +294,7 @@ INSERT INTO socialmedia_data (
 )
 VALUES (
   $1,       -- group_id    (INT)
-  $2,      -- platform    (VARCHAR)
+  $2,       -- platform    (VARCHAR)
   $3,       -- type        (VARCHAR)
   $4::jsonb,-- data        (JSONB)
   NOW(),
@@ -290,7 +309,10 @@ type CreateSocialMediaDataParams struct {
 	Column4  json.RawMessage `json:"column_4"`
 }
 
-// uploding group items
+// ============================================================================
+// SOCIAL MEDIA DATA
+// ============================================================================
+// Create social media data entry
 func (q *Queries) CreateSocialMediaData(ctx context.Context, arg CreateSocialMediaDataParams) error {
 	_, err := q.db.ExecContext(ctx, createSocialMediaData,
 		arg.GroupID,
@@ -316,10 +338,9 @@ INSERT INTO upload_jobs (
   group_id,
   created_at,
   updated_at
-
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9,$10, $11,NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
 )
 RETURNING id, user_id, platform, video_path, storage_type, file_url, status, user_title, user_hashtags, created_at, updated_at, group_id
 `
@@ -353,6 +374,7 @@ type CreateUploadJobRow struct {
 	GroupID      sql.NullInt32  `json:"group_id"`
 }
 
+// Create a new upload job
 func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams) (CreateUploadJobRow, error) {
 	row := q.db.QueryRowContext(ctx, createUploadJob,
 		arg.ID,
@@ -386,6 +408,7 @@ func (q *Queries) CreateUploadJob(ctx context.Context, arg CreateUploadJobParams
 }
 
 const createUserWithPassword = `-- name: CreateUserWithPassword :one
+
 INSERT INTO users (username, email, password_hash, created_at, updated_at)
 VALUES ($1, $2, $3, NOW(), NOW())
 RETURNING id, username, email, created_at, updated_at
@@ -405,6 +428,9 @@ type CreateUserWithPasswordRow struct {
 	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
+// ============================================================================
+// USER MANAGEMENT
+// ============================================================================
 // Register a new user with a password
 func (q *Queries) CreateUserWithPassword(ctx context.Context, arg CreateUserWithPasswordParams) (CreateUserWithPasswordRow, error) {
 	row := q.db.QueryRowContext(ctx, createUserWithPassword, arg.Username, arg.Email, arg.PasswordHash)
@@ -434,8 +460,23 @@ DELETE FROM socialmedia_data
 WHERE id = $1
 `
 
+// Delete social media data
 func (q *Queries) DeleteSocialMediaData(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteSocialMediaData, id)
+	return err
+}
+
+const deleteUploadJob = `-- name: DeleteUploadJob :exec
+
+DELETE from upload_jobs where id = $1
+`
+
+// ============================================================================
+// UPLOAD JOBS
+// ============================================================================
+// Delete an existing upload job
+func (q *Queries) DeleteUploadJob(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteUploadJob, id)
 	return err
 }
 
@@ -463,6 +504,7 @@ WHERE id = (
 RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at, scheduled_date
 `
 
+// Fetch next pending job (with lock)
 func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
 	row := q.db.QueryRowContext(ctx, fetchNextPendingJob)
 	var i UploadJob
@@ -499,6 +541,7 @@ type GetCompetitorByPlatformUsernameParams struct {
 	Lower    string `json:"lower"`
 }
 
+// Get competitor by platform and username
 func (q *Queries) GetCompetitorByPlatformUsername(ctx context.Context, arg GetCompetitorByPlatformUsernameParams) (Competitor, error) {
 	row := q.db.QueryRowContext(ctx, getCompetitorByPlatformUsername, arg.Platform, arg.Lower)
 	var i Competitor
@@ -518,6 +561,7 @@ ORDER BY record_date DESC
 LIMIT 1
 `
 
+// Get most recent follower count
 func (q *Queries) GetFollowerByDate(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getFollowerByDate)
 	var follower_count int64
@@ -532,6 +576,7 @@ ORDER BY created_at DESC
 LIMIT 1
 `
 
+// Get game context by group ID
 func (q *Queries) GetGameContextByGroupID(ctx context.Context, groupID sql.NullInt32) (GameContext, error) {
 	row := q.db.QueryRowContext(ctx, getGameContextByGroupID, groupID)
 	var i GameContext
@@ -575,6 +620,7 @@ ORDER BY created_at DESC
 LIMIT 1
 `
 
+// Get game context by user ID
 func (q *Queries) GetGameContextByUserID(ctx context.Context, userID int32) (GameContext, error) {
 	row := q.db.QueryRowContext(ctx, getGameContextByUserID, userID)
 	var i GameContext
@@ -617,6 +663,7 @@ FROM groups
 WHERE id = $1
 `
 
+// Get group by ID
 func (q *Queries) GetGroupByID(ctx context.Context, id int32) (Group, error) {
 	row := q.db.QueryRowContext(ctx, getGroupByID, id)
 	var i Group
@@ -666,6 +713,7 @@ type GetGroupCompetitorsRow struct {
 	PostingFrequency sql.NullString `json:"posting_frequency"`
 }
 
+// Get group competitors (duplicate - consider removing)
 func (q *Queries) GetGroupCompetitors(ctx context.Context, userID int32) ([]GetGroupCompetitorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getGroupCompetitors, userID)
 	if err != nil {
@@ -717,6 +765,7 @@ type GetGroupItemByGroupIDRow struct {
 	UpdatedAt sql.NullTime    `json:"updated_at"`
 }
 
+// Get group items by group ID
 func (q *Queries) GetGroupItemByGroupID(ctx context.Context, groupID int32) ([]GetGroupItemByGroupIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getGroupItemByGroupID, groupID)
 	if err != nil {
@@ -835,9 +884,10 @@ func (q *Queries) GetUploadJob(ctx context.Context, id string) (GetUploadJobRow,
 }
 
 const getUploadJobByGID = `-- name: GetUploadJobByGID :many
- select id, group_id,platform,status, created_at
- from upload_jobs 
- where group_id = $1 order by id
+SELECT id, group_id, platform, status, created_at
+FROM upload_jobs 
+WHERE group_id = $1 
+ORDER BY id
 `
 
 type GetUploadJobByGIDRow struct {
@@ -848,6 +898,7 @@ type GetUploadJobByGIDRow struct {
 	CreatedAt sql.NullTime  `json:"created_at"`
 }
 
+// Get upload jobs by group ID
 func (q *Queries) GetUploadJobByGID(ctx context.Context, groupID sql.NullInt32) ([]GetUploadJobByGIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getUploadJobByGID, groupID)
 	if err != nil {
@@ -947,6 +998,7 @@ type GetUserIDByUsernameEmailParams struct {
 	Email    string `json:"email"`
 }
 
+// Get user ID by username and email
 func (q *Queries) GetUserIDByUsernameEmail(ctx context.Context, arg GetUserIDByUsernameEmailParams) (int32, error) {
 	row := q.db.QueryRowContext(ctx, getUserIDByUsernameEmail, arg.Username, arg.Email)
 	var id int32
@@ -955,12 +1007,13 @@ func (q *Queries) GetUserIDByUsernameEmail(ctx context.Context, arg GetUserIDByU
 }
 
 const insertFollowerCount = `-- name: InsertFollowerCount :exec
-insert into daily_followers(
+
+INSERT INTO daily_followers(
   record_date,
   follower_count
-) values (
+) VALUES (
   $1, -- record_date (INT)
-  $2  -- date           (timestamp)
+  $2  -- follower_count
 )
 `
 
@@ -969,14 +1022,19 @@ type InsertFollowerCountParams struct {
 	FollowerCount int64     `json:"follower_count"`
 }
 
+// ============================================================================
+// FOLLOWER TRACKING
+// ============================================================================
+// Insert daily follower count
 func (q *Queries) InsertFollowerCount(ctx context.Context, arg InsertFollowerCountParams) error {
 	_, err := q.db.ExecContext(ctx, insertFollowerCount, arg.RecordDate, arg.FollowerCount)
 	return err
 }
 
 const insertGroupItemIfNotExists = `-- name: InsertGroupItemIfNotExists :execrows
-INSERT INTO group_items (group_id,platform,data, created_at, updated_at)
-VALUES ($1,$2,$3, NOW(), NOW())
+
+INSERT INTO group_items (group_id, platform, data, created_at, updated_at)
+VALUES ($1, $2, $3, NOW(), NOW())
 ON CONFLICT (group_id, platform) DO NOTHING
 `
 
@@ -986,6 +1044,10 @@ type InsertGroupItemIfNotExistsParams struct {
 	Data     json.RawMessage `json:"data"`
 }
 
+// ============================================================================
+// GROUP ITEMS
+// ============================================================================
+// Insert group item if not exists
 func (q *Queries) InsertGroupItemIfNotExists(ctx context.Context, arg InsertGroupItemIfNotExistsParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, insertGroupItemIfNotExists, arg.GroupID, arg.Platform, arg.Data)
 	if err != nil {
@@ -1007,6 +1069,7 @@ type LinkUserToCompetitorParams struct {
 	Visibility   string        `json:"visibility"`
 }
 
+// Link user to competitor
 func (q *Queries) LinkUserToCompetitor(ctx context.Context, arg LinkUserToCompetitorParams) error {
 	_, err := q.db.ExecContext(ctx, linkUserToCompetitor,
 		arg.UserID,
@@ -1036,6 +1099,7 @@ type ListAvailableCompetitorsToUserRow struct {
 	TotalPosts  sql.NullInt64  `json:"total_posts"`
 }
 
+// List competitors available to add for a user
 func (q *Queries) ListAvailableCompetitorsToUser(ctx context.Context, userID int32) ([]ListAvailableCompetitorsToUserRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAvailableCompetitorsToUser, userID)
 	if err != nil {
@@ -1070,6 +1134,7 @@ WHERE user_id = $1
 ORDER BY created_at DESC
 `
 
+// List all game contexts for a user
 func (q *Queries) ListGameContextsByUser(ctx context.Context, userID int32) ([]GameContext, error) {
 	rows, err := q.db.QueryContext(ctx, listGameContextsByUser, userID)
 	if err != nil {
@@ -1162,6 +1227,7 @@ type ListGroupCompetitorsRow struct {
 	PostingFrequency sql.NullString `json:"posting_frequency"`
 }
 
+// List competitors for a specific group
 func (q *Queries) ListGroupCompetitors(ctx context.Context, arg ListGroupCompetitorsParams) ([]ListGroupCompetitorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listGroupCompetitors, arg.UserID, arg.GroupID)
 	if err != nil {
@@ -1211,6 +1277,7 @@ WHERE user_id = $1
 ORDER BY id
 `
 
+// List all groups for a user
 func (q *Queries) ListGroupsByUser(ctx context.Context, userID int32) ([]Group, error) {
 	rows, err := q.db.QueryContext(ctx, listGroupsByUser, userID)
 	if err != nil {
@@ -1255,6 +1322,7 @@ WHERE group_id = $1
 ORDER BY created_at DESC
 `
 
+// List social media data by group
 func (q *Queries) ListSocialMediaDataByGroup(ctx context.Context, groupID int32) ([]SocialmediaDatum, error) {
 	rows, err := q.db.QueryContext(ctx, listSocialMediaDataByGroup, groupID)
 	if err != nil {
@@ -1321,6 +1389,7 @@ type ListUserCompetitorsRow struct {
 	PostingFrequency sql.NullString `json:"posting_frequency"`
 }
 
+// List all competitors for a user
 func (q *Queries) ListUserCompetitors(ctx context.Context, userID int32) ([]ListUserCompetitorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listUserCompetitors, userID)
 	if err != nil {
@@ -1452,6 +1521,39 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	return items, nil
 }
 
+const unlinkUserFromCompetitor = `-- name: UnlinkUserFromCompetitor :exec
+DELETE FROM user_competitors
+WHERE user_id = $1 AND competitor_id = $2
+`
+
+type UnlinkUserFromCompetitorParams struct {
+	UserID       int32     `json:"user_id"`
+	CompetitorID uuid.UUID `json:"competitor_id"`
+}
+
+// Unlink user from competitor (does NOT delete the competitor, just removes user's access)
+func (q *Queries) UnlinkUserFromCompetitor(ctx context.Context, arg UnlinkUserFromCompetitorParams) error {
+	_, err := q.db.ExecContext(ctx, unlinkUserFromCompetitor, arg.UserID, arg.CompetitorID)
+	return err
+}
+
+const unlinkUserFromCompetitorInGroup = `-- name: UnlinkUserFromCompetitorInGroup :exec
+DELETE FROM user_competitors
+WHERE user_id = $1 AND competitor_id = $2 AND group_id = $3
+`
+
+type UnlinkUserFromCompetitorInGroupParams struct {
+	UserID       int32         `json:"user_id"`
+	CompetitorID uuid.UUID     `json:"competitor_id"`
+	GroupID      sql.NullInt32 `json:"group_id"`
+}
+
+// Unlink user from competitor in a specific group
+func (q *Queries) UnlinkUserFromCompetitorInGroup(ctx context.Context, arg UnlinkUserFromCompetitorInGroupParams) error {
+	_, err := q.db.ExecContext(ctx, unlinkUserFromCompetitorInGroup, arg.UserID, arg.CompetitorID, arg.GroupID)
+	return err
+}
+
 const updateGroupItemData = `-- name: UpdateGroupItemData :exec
 UPDATE group_items
 SET data = $1::jsonb, updated_at = NOW()
@@ -1464,6 +1566,7 @@ type UpdateGroupItemDataParams struct {
 	Platform string          `json:"platform"`
 }
 
+// Update group item data
 func (q *Queries) UpdateGroupItemData(ctx context.Context, arg UpdateGroupItemDataParams) error {
 	_, err := q.db.ExecContext(ctx, updateGroupItemData, arg.Data, arg.GroupID, arg.Platform)
 	return err
@@ -1484,6 +1587,7 @@ type UpdateSocialMediaDataParams struct {
 	Column3  json.RawMessage `json:"column_3"`
 }
 
+// Update social media data
 func (q *Queries) UpdateSocialMediaData(ctx context.Context, arg UpdateSocialMediaDataParams) error {
 	_, err := q.db.ExecContext(ctx, updateSocialMediaData, arg.ID, arg.Platform, arg.Column3)
 	return err
