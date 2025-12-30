@@ -107,7 +107,9 @@ func main() {
 			// Games Context
 			protected.POST("/games/extract", wrap(handlers.ExtractGameContext))
 			protected.POST("/games/input", wrap(handlers.SaveGameContext))
-
+			protected.GET("/games/view/:groupID", wrap(handlers.GetGameContext))
+			protected.DELETE("/games/delete/:gameContextID", wrap(handlers.DeleteGameContext))
+			protected.POST("/games/update/:gameContextID",wrap(handlers.UpdateGameContext))
 			// AI Chat (Protected)
 			protected.POST("/ai/chat", wrap(handlers.DeepSeekHandler))
 

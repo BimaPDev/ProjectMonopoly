@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -232,7 +233,218 @@ func ExtractGameContext(c *gin.Context, queries *db.Queries) {
 
 	c.JSON(http.StatusOK, gameContext)
 }
+func NewNullInt32(value int32) sql.NullInt32 {
+    return sql.NullInt32{Int32: value, Valid: true}
+}
 
+// checks to make sure the group that is passed in is owned by the userID in the token
+func CheckGroupOwnership(c *gin.Context, queries *db.Queries, groupID any) bool{
+	if(groupID == ""){
+		c.JSON(http.StatusNotFound, gin.H{"error": "Group id is required"});
+		return false;
+	}
+	var gid int;
+	switch id := groupID.(type) {
+	case int:
+		gid = id
+	case int32:
+		gid = int(id)
+	case int64:
+		gid = int(id)
+	case float64:
+		gid = int(id)
+	case string:
+		uid, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid groupID"})
+			return false;
+		}
+		gid = uid
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid groupID type"})
+		return false;
+	}
+
+
+	v, exists := c.Get("userID");
+	if(!exists){
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "groupID missing"})
+			return false;
+		}
+	// need to get the type for userID since it is initlally any
+	var userID int
+	switch id := v.(type) {
+	case int:
+		userID = id
+	case int32:
+		userID = int(id)
+	case int64:
+		userID = int(id)
+	case float64:
+		userID = int(id)
+	case string:
+		uid, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid userID"})
+			return false;
+		}
+		userID = uid
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid userID type"})
+		return false;
+	}
+	
+	// check ownership of the group
+	
+	group,err := queries.GetGroupByID(c, int32(gid));
+	if(err != nil){
+		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
+		return false;
+	}
+	if(group.UserID != int32(userID)){
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return false;
+	}
+	return true;
+		
+}
+type UpdateGameContextRequest struct {
+	GroupID             *int32   `json:"group_id,omitempty"`
+	GameTitle           string   `json:"game_title"`
+	StudioName          string   `json:"studio_name"`
+	GameSummary         string   `json:"game_summary"`
+	Platforms           []string `json:"platforms"`
+	EngineTech          string   `json:"engine_tech"`
+	PrimaryGenre        string   `json:"primary_genre"`
+	Subgenre            string   `json:"subgenre"`
+	KeyMechanics        string   `json:"key_mechanics"`
+	PlaytimeLength      string   `json:"playtime_length"`
+	ArtStyle            string   `json:"art_style"`
+	Tone                string   `json:"tone"`
+	IntendedAudience    string   `json:"intended_audience"`
+	AgeRange            string   `json:"age_range"`
+	PlayerMotivation    string   `json:"player_motivation"`
+	ComparableGames     string   `json:"comparable_games"`
+	MarketingObjective  string   `json:"marketing_objective"`
+	KeyEventsDates      string   `json:"key_events_dates"`
+	CallToAction        string   `json:"call_to_action"`
+	ContentRestrictions string   `json:"content_restrictions"`
+	CompetitorsToAvoid  string   `json:"competitors_to_avoid"`
+	AdditionalInfo      string   `json:"additional_info"`
+}
+func UpdateGameContext(c *gin.Context, queries *db.Queries){
+	gcID := c.Param("gameContextID")
+	if(gcID == ""){
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Game Context ID missing"});
+		return;
+	}
+	gcInt, err :=strconv.Atoi(gcID);
+	if(err != nil){
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid game context id"})
+		return;
+	}
+	gc, err := queries.GetGameContextByID(c,int32(gcInt));
+	if(err != nil){
+		c.JSON(http.StatusNotFound, gin.H{"error": "Game Context not found for given ID"});
+		return;
+	}
+	var req UpdateGameContextRequest
+	err = c.ShouldBindJSON(&req);
+	if (err != nil){
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()});
+		return
+	}
+	if(CheckGroupOwnership(c, queries, gc.GroupID.Int32)){
+		err = queries.UpdateGameContextByID(c, db.UpdateGameContextByIDParams{
+			ID: int32(gcInt),
+			GameTitle:           truncateString(req.GameTitle, 255),                 // VARCHAR(255)
+			StudioName:          toNullStringTruncated(req.StudioName, 255),         // VARCHAR(255)
+			GameSummary:         toNullString(req.GameSummary),                      // TEXT - no limit
+			Platforms:           req.Platforms,                                      // TEXT[]
+			EngineTech:          toNullStringTruncated(req.EngineTech, 255),         // VARCHAR(255)
+			PrimaryGenre:        toNullStringTruncated(req.PrimaryGenre, 100),       // VARCHAR(100)
+			Subgenre:            toNullStringTruncated(req.Subgenre, 100),           // VARCHAR(100)
+			KeyMechanics:        toNullString(req.KeyMechanics),                     // TEXT
+			PlaytimeLength:      toNullStringTruncated(req.PlaytimeLength, 100),     // VARCHAR(100)
+			ArtStyle:            toNullStringTruncated(req.ArtStyle, 100),           // VARCHAR(100)
+			Tone:                toNullStringTruncated(req.Tone, 100),               // VARCHAR(100)
+			IntendedAudience:    toNullString(req.IntendedAudience),                 // TEXT
+			AgeRange:            toNullStringTruncated(req.AgeRange, 100),           // VARCHAR(100)
+			PlayerMotivation:    toNullString(req.PlayerMotivation),                 // TEXT
+			ComparableGames:     toNullString(req.ComparableGames),                  // TEXT
+			MarketingObjective:  toNullStringTruncated(req.MarketingObjective, 255), // VARCHAR(255)
+			KeyEventsDates:      toNullString(req.KeyEventsDates),                   // TEXT
+			CallToAction:        toNullStringTruncated(req.CallToAction, 255),       // VARCHAR(255)
+			ContentRestrictions: toNullString(req.ContentRestrictions),              // TEXT
+			CompetitorsToAvoid:  toNullString(req.CompetitorsToAvoid),               // TEXT
+			AdditionalInfo:      toNullString(req.AdditionalInfo),                   // TEXT
+
+		})
+		
+		if(err != nil){
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()});
+			return;
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": "Deleted successfully"});
+		return;
+	}else{
+		return;
+	}
+}
+func DeleteGameContext(c *gin.Context, queries *db.Queries){
+	gcID := c.Param("gameContextID");
+	if(gcID == ""){
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Game Context ID missing"});
+		return;
+	}
+	gcInt, err :=strconv.Atoi(gcID);
+	if(err != nil){
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid game context id"})
+		return;
+	}
+	gc, err := queries.GetGameContextByID(c,int32(gcInt));
+	if(err != nil){
+		c.JSON(http.StatusNotFound, gin.H{"error": "Game Context not found for given ID"});
+		return;
+	}
+	if(CheckGroupOwnership(c, queries, gc.GroupID.Int32)){
+		err = queries.DeleteGameContextByID(c, int32(gcInt));
+		if(err != nil){
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()});
+			return;
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": "Deleted successfully"});
+		return;
+	}else{
+		return;
+	}
+	
+	
+}
+func GetGameContext(c *gin.Context, queries *db.Queries){
+	gidStr := c.Param("groupID");
+	if(gidStr == ""){
+		c.JSON(http.StatusNotFound, gin.H{"error": "Group id is required"});
+		return;
+	}
+	if(CheckGroupOwnership(c, queries, gidStr)){
+		gidInt, err :=strconv.Atoi(gidStr);
+		var dbContexts []db.GameContext;
+		dbContexts, err = queries.GetAllGameContextByGroupID(c, NewNullInt32(int32(gidInt)))
+		if(err != nil){
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, dbContexts)
+	}else{
+		return;
+	}
+	
+	
+}
 type ChunkResult struct {
 	Section string
 	Data    map[string]interface{}
