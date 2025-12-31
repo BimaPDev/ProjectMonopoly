@@ -26,7 +26,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-
+import {
+  EyeClosed,
+  Plus,
+} from "lucide-react";
 
 const models = [
   { id: "Gemini", name: "Gemini" },
@@ -222,7 +225,17 @@ export function AIPage() {
     setMessages([]);
     setMessageSent(false);
   };
-
+  if (!activeGroup) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Card className="p-8 text-center bg-card border-border">
+          <EyeClosed className="w-16 h-16 mx-auto mb-4 text-amber-500" />
+          <h3 className="mb-2 text-xl font-semibold">No Group Selected</h3>
+          <p className="text-muted-foreground">Please select a group from the sidebar to view.</p>
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-black">
       <div className="flex flex-col w-full h-full max-w-6xl p-4 mx-auto md:p-6">

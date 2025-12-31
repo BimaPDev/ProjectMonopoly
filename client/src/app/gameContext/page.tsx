@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,8 +10,14 @@ import { FileText, Loader2, Upload, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useGroup } from "../../components/groupContext";
 import { TriangleAlert } from "lucide-react";
+import {
+    EyeClosed,
+    Plus,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { useRef } from "react";
 import FormField from "@/components/ui/form-field";
+import GameDropdown from "@/components/GameContextItem";
 interface GameContextData {
     group_id?: number;
     game_title: string;
@@ -36,6 +42,33 @@ interface GameContextData {
     competitors_to_avoid: string;
     additional_info: string;
 }
+interface GameContextDataEdit {
+    id: number;
+    group_id?: number;
+    game_title: string;
+    studio_name: string;
+    game_summary: string;
+    platforms: string[];
+    engine_tech: string;
+    primary_genre: string;
+    subgenre: string;
+    key_mechanics: string;
+    playtime_length: string;
+    art_style: string;
+    tone: string;
+    intended_audience: string;
+    age_range: string;
+    player_motivation: string;
+    comparable_games: string;
+    marketing_objective: string;
+    key_events_dates: string;
+    call_to_action: string;
+    content_restrictions: string;
+    competitors_to_avoid: string;
+    additional_info: string;
+    created_at: Date;
+    updated_at: Date
+}
 
 export default function GameContextPage() {
     const [inputMethod, setInputMethod] = useState<"upload" | "manual" | null>(null);
@@ -45,6 +78,10 @@ export default function GameContextPage() {
     const { activeGroup } = useGroup();
     const [extractedData, setExtractedData] = useState<GameContextData | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+    const [groupGameContexts, setGroupGameContexts] = useState<GameContextDataEdit[]>([]);
+    const [selectedGame, setSelectedGame] = useState<GameContextDataEdit | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingGameId, setEditingGameId] = useState<number | null>(null);
     const [formData, setFormData] = useState<GameContextData>({
         game_title: "",
         studio_name: "",
@@ -198,6 +235,9 @@ export default function GameContextPage() {
         });
         setExtractedData(null);
         setFile(null);
+        setIsEditing(false);
+        setEditingGameId(null);
+        setSelectedGame(null);
     }
 
 
@@ -219,49 +259,130 @@ export default function GameContextPage() {
         }
 
         try {
-            // Include group_id from activeGroup
             const payload = {
                 ...formData,
                 group_id: activeGroup?.ID
             };
 
-            const res = await fetch(`/api/games/input`, {
+            const url = isEditing
+                ? `/api/games/update/${editingGameId}`
+                : `/api/games/input`;
+
+            const res = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                },
                 body: JSON.stringify(payload),
             });
+
             const body = await res.json();
 
             if (!res.ok) {
                 toast({
-                    title: "Error to database",
+                    title: "Error",
                     description: `${body}`,
+                    variant: "destructive",
                 });
             } else {
                 toast({
-                    title: "Saved Succesfully",
-                    description: "Your form was saved",
+                    title: isEditing ? "Updated Successfully" : "Saved Successfully",
+                    description: isEditing ? "Game context updated" : "Your form was saved",
                 });
+                fetchGameContexts();
+                if (isEditing) {
+                    setIsEditing(false);
+                    setEditingGameId(null);
+                    setInputMethod(null);
+                    handleReset();
+                }
             }
         } catch (error) {
             toast({
                 title: "Error",
                 description: `${error}`,
+                variant: "destructive",
             });
         }
-
+    };
+    const normalizeString = (value: any): string => {
+        if (value && typeof value === "object" && "Valid" in value) {
+            return value.Valid ? value.String : "";
+        }
+        if (typeof value === "string") {
+            return value;
+        }
+        return "";
+    };
+    const normalizeArray = (value: any): string[] => {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string" && value.length > 0) return [value];
+        return [];
     };
 
+    const fetchGameContexts = async () => {
+        try {
+            if (activeGroup?.ID) {
+                const res = await fetch(`/api/games/view/${activeGroup.ID}`, {
+                    method: "GET",
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                })
+                const body = await res.json();
+                const gameArray = Array.isArray(body) ? body : body ? [body] : [];
+
+                const normalized: GameContextDataEdit[] = gameArray.map((gc: any) => ({
+                    id: gc.id,
+                    game_title: normalizeString(gc.game_title),
+                    studio_name: normalizeString(gc.studio_name),
+                    game_summary: normalizeString(gc.game_summary),
+                    engine_tech: normalizeString(gc.engine_tech),
+                    primary_genre: normalizeString(gc.primary_genre),
+                    subgenre: normalizeString(gc.subgenre),
+                    key_mechanics: normalizeString(gc.key_mechanics),
+                    playtime_length: normalizeString(gc.playtime_length),
+                    art_style: normalizeString(gc.art_style),
+                    tone: normalizeString(gc.tone),
+                    intended_audience: normalizeString(gc.intended_audience),
+                    age_range: normalizeString(gc.age_range),
+                    player_motivation: normalizeString(gc.player_motivation),
+                    comparable_games: normalizeString(gc.comparable_games),
+                    marketing_objective: normalizeString(gc.marketing_objective),
+                    key_events_dates: normalizeString(gc.key_events_dates),
+                    call_to_action: normalizeString(gc.call_to_action),
+                    content_restrictions: normalizeString(gc.content_restrictions),
+                    competitors_to_avoid: normalizeString(gc.competitors_to_avoid),
+                    additional_info: normalizeString(gc.additional_info),
+
+                    platforms: normalizeArray(gc.platforms),
+
+                    created_at: gc.created_at ?? "",
+                    updated_at: gc.updated_at ?? "",
+                }));
+                setGroupGameContexts(normalized);
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    }
+    const handleGoBack = () => {
+        setInputMethod(null);
+        setSelectedGame(null);
+    }
+    const handleContextSelection = (game: GameContextDataEdit) => {
+        setSelectedGame(game);
+    }
+    useEffect(() => {
+        fetchGameContexts();
+    }, [activeGroup])
     if (!activeGroup) {
         return (
-            <div className="flex justify-center w-full h-[45px] text-center">
-                <div className="flex gap-2 p-2 border border-red-500 border-dashed">
-                    <div className=" w-[30px] h-[30px] flex justify-center items-center rounded-lg">
-
-                        <TriangleAlert className="text-yellow-400"></TriangleAlert>
-                    </div>
-                    <h1 className="font-semibold">Please select a group to continue </h1>
-                </div>
+            <div className="flex items-center justify-center h-[400px]">
+                <Card className="p-8 text-center bg-card border-border">
+                    <EyeClosed className="w-16 h-16 mx-auto mb-4 text-amber-500" />
+                    <h3 className="mb-2 text-xl font-semibold">No Group Selected</h3>
+                    <p className="text-muted-foreground">Please select a group from the sidebar to view.</p>
+                </Card>
             </div>
         );
     }
@@ -296,6 +417,43 @@ export default function GameContextPage() {
                             </div>
                         </div>
                     </div>
+
+
+                </div>
+                <div className="flex flex-col items-center justify-center w-full mt-5">
+                    <GameDropdown
+                        gameContexts={groupGameContexts}
+                        selectedGame={selectedGame}
+                        onEdit={(game) => {
+                            setSelectedGame(game);
+                            setIsEditing(true);
+                            setEditingGameId(game.id);
+                            setFormData({
+                                game_title: game.game_title,
+                                studio_name: game.studio_name,
+                                game_summary: game.game_summary,
+                                platforms: game.platforms,
+                                engine_tech: game.engine_tech,
+                                primary_genre: game.primary_genre,
+                                subgenre: game.subgenre,
+                                key_mechanics: game.key_mechanics,
+                                playtime_length: game.playtime_length,
+                                art_style: game.art_style,
+                                tone: game.tone,
+                                intended_audience: game.intended_audience,
+                                age_range: game.age_range,
+                                player_motivation: game.player_motivation,
+                                comparable_games: game.comparable_games,
+                                marketing_objective: game.marketing_objective,
+                                key_events_dates: game.key_events_dates,
+                                call_to_action: game.call_to_action,
+                                content_restrictions: game.content_restrictions,
+                                competitors_to_avoid: game.competitors_to_avoid,
+                                additional_info: game.additional_info,
+                            });
+                            setInputMethod("manual");
+                        }}
+                    />
                 </div>
             </div>
         );
@@ -307,7 +465,7 @@ export default function GameContextPage() {
                 <div className="max-w-2xl mx-auto">
                     <Button
                         variant="ghost"
-                        onClick={() => setInputMethod(null)}
+                        onClick={() => handleGoBack()}
                         className="mb-6 text-gray-400 hover:text-white"
                     >
                         ← Back
@@ -697,10 +855,9 @@ export default function GameContextPage() {
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    className="bg-blue-600 hover:bg-blue-700"
                                     size="lg"
                                 >
-                                    Save Game Context
+                                    {isEditing ? "Update Game Context" : "Save Game Context"}
                                 </Button>
                             </div>
                         </div>

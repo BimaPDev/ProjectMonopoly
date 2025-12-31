@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import {
-  Eye,
+  EyeClosed,
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -311,7 +311,7 @@ export function Dashboard() {
     return (
       <div className="flex items-center justify-center h-[400px]">
         <Card className="p-8 text-center bg-card border-border">
-          <Eye className="w-16 h-16 mx-auto mb-4 text-amber-500" />
+          <EyeClosed className="w-16 h-16 mx-auto mb-4 text-amber-500" />
           <h3 className="mb-2 text-xl font-semibold">No Group Selected</h3>
           <p className="text-muted-foreground">Please select a group from the sidebar to view your dashboard.</p>
         </Card>
@@ -324,7 +324,7 @@ export function Dashboard() {
       case 'active':
         return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30">● Active</Badge>;
       case 'completed':
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30">● Done</Badge>;
+        return <Badge className="text-blue-400 bg-blue-500/20 border-blue-500/30 hover:bg-blue-500/30">● Done</Badge>;
       case 'draft':
         return <Badge className="bg-zinc-500/20 text-zinc-400 border-zinc-500/30 hover:bg-zinc-500/30">● Draft</Badge>;
       case 'paused':
@@ -332,7 +332,7 @@ export function Dashboard() {
       case 'pending':
         return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30">● Pending</Badge>;
       case 'failed':
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30">● Failed</Badge>;
+        return <Badge className="text-red-400 bg-red-500/20 border-red-500/30 hover:bg-red-500/30">● Failed</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -592,7 +592,7 @@ export function Dashboard() {
                             return (
                               <React.Fragment key={competitor.id}>
                                 <TableRow
-                                  className="border-zinc-800 hover:bg-zinc-800/50 cursor-pointer"
+                                  className="cursor-pointer border-zinc-800 hover:bg-zinc-800/50"
                                   onClick={() => toggleExpanded(competitor.id)}
                                 >
                                   <TableCell className="w-8">
@@ -614,7 +614,7 @@ export function Dashboard() {
                                     </span>
                                   </TableCell>
                                   <TableCell>
-                                    <div className="flex gap-1 flex-wrap">
+                                    <div className="flex flex-wrap gap-1">
                                       {competitor.profiles?.map(p => (
                                         <Badge key={p.id} variant="outline" className="text-xs capitalize">
                                           {p.platform}
@@ -630,7 +630,7 @@ export function Dashboard() {
                                       <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">● Processing</Badge>
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right font-medium">
+                                  <TableCell className="font-medium text-right">
                                     {formatNumber(totalFollowers)}
                                   </TableCell>
                                   <TableCell className="text-right">
@@ -651,7 +651,7 @@ export function Dashboard() {
                                     <TableCell>
                                       <div className="flex items-center gap-2 pl-4">
                                         <div className="w-1.5 h-1.5 rounded-full bg-zinc-600"></div>
-                                        <Badge variant="outline" className="capitalize text-xs">
+                                        <Badge variant="outline" className="text-xs capitalize">
                                           {profile.platform}
                                         </Badge>
                                         <span className="text-blue-400">@{profile.handle}</span>
@@ -663,11 +663,11 @@ export function Dashboard() {
                                       </span>
                                     </TableCell>
                                     <TableCell>
-                                      <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
+                                      <Badge className="text-xs text-blue-400 bg-blue-500/20 border-blue-500/30">
                                         ● Tracked
                                       </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right font-medium">
+                                    <TableCell className="font-medium text-right">
                                       {formatNumber(profile.followers)}
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -731,7 +731,7 @@ export function Dashboard() {
                                 <Badge variant="outline" className="text-xs capitalize">{campaign.goal}</Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="flex gap-1 flex-wrap">
+                                <div className="flex flex-wrap gap-1">
                                   {(campaign.cadence?.platforms || []).map((p: string) => (
                                     <Badge key={p} variant="outline" className="text-xs capitalize">{p}</Badge>
                                   ))}

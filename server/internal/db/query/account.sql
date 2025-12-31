@@ -308,7 +308,14 @@ LIMIT 1;
 INSERT INTO competitors (display_name)
 VALUES ($1)
 RETURNING *;
-
+-- Get a competitor from user competitors
+-- name: GetUserCompetitorByCompetitorID :one
+SELECT * FROM user_competitors
+where competitor_id = $1;
+-- Delete an existing competitor
+-- name: DeleteCompetitorByID :exec
+DELETE from competitors 
+where id = $1;
 -- Get competitor by platform and username
 -- name: GetCompetitorByPlatformUsername :one
 SELECT c.* FROM competitors c

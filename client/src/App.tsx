@@ -16,7 +16,7 @@ import LiveFeedPage from "@/app/competitors/live/page";
 import Ai from "@/app/Ai/Ai";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Settings from "./app/settings/page";
-import GameContextPage from "./app/gameContext/page";
+import GameContextPage from "./app/gamecontext/page";
 import LLMTestPage from "./app/llmTest/page";
 import SocialMedia from "./app/settings/socialMedia/page";
 import MarketingGeneratorPage from "./app/marketing/page";

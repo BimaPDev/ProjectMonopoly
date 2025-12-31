@@ -3,6 +3,10 @@
 import * as React from "react";
 import { CalendarIcon, Loader2, Upload, X, Info } from "lucide-react";
 import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
+import {
+  EyeClosed,
+  Plus,
+} from "lucide-react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -12,6 +16,7 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
+import { useGroup } from "./groupContext";
 import {
   Form,
   FormControl,
@@ -61,7 +66,7 @@ export default function UploadPage() {
   const [groups, setGroups] = React.useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = React.useState(false);
   const [groupEmptyErr, setGroupEmptyErr] = useState(false);
-
+  const { activeGroup } = useGroup();
   interface Group {
     ID: number;
     name: string;
@@ -257,6 +262,17 @@ export default function UploadPage() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
+  }
+  if (!activeGroup) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Card className="p-8 text-center bg-card border-border">
+          <EyeClosed className="w-16 h-16 mx-auto mb-4 text-amber-500" />
+          <h3 className="mb-2 text-xl font-semibold">No Group Selected</h3>
+          <p className="text-muted-foreground">Please select a group from the sidebar to view.</p>
+        </Card>
+      </div>
+    );
   }
 
   return (
