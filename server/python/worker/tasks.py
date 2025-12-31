@@ -826,12 +826,87 @@ def scrape_hashtag_trends(self) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        error_msg = str(e)
-        log.exception("❌ Hashtag trends scraping failed: %s", error_msg)
+        log.exception("Hashtag trends scraping task failed")
+        return {"status": "failed", "error": str(e)}
+
+# ---------- Instagram Hashtag Scraping Task ----------
+@app.task(name="worker.tasks.scrape_instagram_hashtag", queue="celery")
+def scrape_instagram_hashtag(hashtag, max_posts=50):
+    log.info(f"Starting Instagram hashtag scraping task for #{hashtag}")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        from socialmedia.instagram.scraper.profile_scraper import InstagramScraper
+        
+        # Get credentials from environment variables
+        username = os.getenv("INSTAGRAM_USERNAME")
+        password = os.getenv("INSTAGRAM_PASSWORD")
+        
+        scraper = InstagramScraper(username, password)
+        
+        # Attempt to login (which will handle guest mode if no creds)
+        if not scraper.login():
+            log.error("Failed to login to Instagram (even guest mode failed)")
+            scraper.close()
+            return {"status": "failed", "error": "Failed to login to Instagram"}
+        
+        # Scrape the hashtag
+        posts_data = scraper.scrape_hashtag(hashtag, max_posts=max_posts)
+        
+        scraper.close()
+        
+        log.info(f"Instagram hashtag scraping completed: {len(posts_data)} posts scraped for #{hashtag}")
         return {
-            "status": "failed",
-            "error": error_msg
+            "status": "success",
+            "hashtag": hashtag,
+            "posts_scraped": len(posts_data),
+            "message": f"Successfully scraped {len(posts_data)} posts for #{hashtag}"
         }
+        
+    except Exception as e:
+        log.exception(f"Instagram hashtag scraping failed for #{hashtag}")
+        return {"status": "failed", "hashtag": hashtag, "error": str(e)}
+
+# ---------- Hashtag Discovery Task ----------
+@app.task(name="worker.tasks.discover_and_scrape_hashtags", queue="celery")
+def discover_and_scrape_hashtags(user_id=None, group_id=None, max_hashtags=10, max_posts_per_hashtag=50, recursive=False, max_iterations=3):
+    """
+    Task to discover and scrape hashtags from competitor posts.
+    """
+    log.info("Starting hashtag discovery and scraping task")
+    
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        
+        from socialmedia.hashtag.hashtag_discovery import HashtagDiscovery
+        
+        discovery = HashtagDiscovery(
+            user_id=user_id,
+            group_id=group_id,
+            max_posts_per_hashtag=max_posts_per_hashtag
+        )
+        
+        if recursive:
+            log.info(f"Running recursive discovery (max_iterations={max_iterations})")
+            results = discovery.discover_and_scrape_recursive(
+                max_iterations=max_iterations,
+                max_hashtags_per_iteration=max_hashtags
+            )
+            log.info(f"Recursive discovery completed: {results['total_hashtags_scraped']} hashtags scraped across {results['iterations']} iterations, {results['total_posts_scraped']} total posts")
+        else:
+            results = discovery.scrape_new_hashtags(max_hashtags=max_hashtags)
+            log.info(f"Hashtag discovery completed: {results['hashtags_scraped']} hashtags scraped, {results['total_posts_scraped']} total posts")
+        
+        return results
+        
+    except Exception as e:
+        log.exception("Hashtag discovery task failed")
+        return {"status": "failed", "error": str(e)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -845,4 +920,6 @@ __all__ = [
     'scrape_followers',
     'ai_web_scrape',
     'scrape_hashtag_trends',
+    'scrape_instagram_hashtag',
+    'discover_and_scrape_hashtags',
 ]

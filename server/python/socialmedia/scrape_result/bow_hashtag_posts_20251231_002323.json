@@ -1,0 +1,83 @@
+{
+    "hashtag_info": {
+        "hashtag": "bow",
+        "posts_count": 5,
+        "scraped_at": "20251231_002323"
+    },
+    "posts": [
+        {
+            "url": "https://www.instagram.com/p/C0okA7ROcbw/",
+            "timestamp": "2025-12-31 00:23:02",
+            "post_date": "2023-12-09T13:22:18.000Z",
+            "caption": "Gave the ducks a break. Let's see if I can get something with my homemade bow! Glad to be back in a tree.",
+            "hashtags": [],
+            "likes": "63",
+            "comments_count": "2",
+            "media_urls": [],
+            "source_hashtag": "bow"
+        },
+        {
+            "url": "https://www.instagram.com/p/DOs0NEkgNnr/",
+            "timestamp": "2025-12-31 00:23:07",
+            "post_date": "2025-09-17T10:36:59.000Z",
+            "caption": "\"🩷🤍❤️💜💛\n#viral \n#bow \n#bows \n#cheerbows \n#cheerbow \n#cheerleading \n#handmade\n#cheerbowsforsale\n#sassytimebowsfamily \n#sassytimebows\"",
+            "hashtags": [
+                "viral",
+                "bow",
+                "bows",
+                "cheerbows",
+                "cheerbow",
+                "cheerleading",
+                "handmade",
+                "cheerbowsforsale",
+                "sassytimebowsfamily",
+                "sassytimebows"
+            ],
+            "likes": "56",
+            "comments_count": "2",
+            "media_urls": [],
+            "source_hashtag": "bow"
+        },
+        {
+            "url": "https://www.instagram.com/p/DIG5FiyNfHy/",
+            "timestamp": "2025-12-31 00:23:12",
+            "post_date": "2025-04-06T14:00:08.000Z",
+            "caption": "Beau and I are getting Mommy’s bow set up before I have to head up to New York so she can practice while I’m gone. 2 more events and it will be time to chase some white-tails!",
+            "hashtags": [],
+            "likes": "237",
+            "comments_count": "0",
+            "media_urls": [],
+            "source_hashtag": "bow"
+        },
+        {
+            "url": "https://www.instagram.com/p/DETWSj-PpM2/",
+            "timestamp": "2025-12-31 00:23:17",
+            "post_date": "2025-01-02T00:01:15.000Z",
+            "caption": "\"Coming soon to a bow shop near you..\n\n#bowtech #bowtecharchery #refusetofollow\"",
+            "hashtags": [
+                "bowtech",
+                "bowtecharchery",
+                "refusetofollow"
+            ],
+            "likes": "1345",
+            "comments_count": "59",
+            "media_urls": [],
+            "source_hashtag": "bow"
+        },
+        {
+            "url": "https://www.instagram.com/p/C17wdyZpMOU/",
+            "timestamp": "2025-12-31 00:23:22",
+            "post_date": "2024-01-10T20:48:04.000Z",
+            "caption": "\"Time to get it done late season bow hunting \n\n#illinois #mathewsarchery #huntingseason\"",
+            "hashtags": [
+                "illinois",
+                "mathewsarchery",
+                "huntingseason"
+            ],
+            "likes": "227",
+            "comments_count": "5",
+            "media_urls": [],
+            "source_hashtag": "bow"
+        }
+    ]
+}

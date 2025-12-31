@@ -46,7 +46,7 @@ def prefix_words_with_hash(caption: str) -> str:
     return " ".join(f"{tok}" for tok in tokens if tok.strip())
 
 class InstagramScraper:
-    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl", use_cookies=True):
+    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl", use_cookies=True, headless=None):
         """
         Initialize Instagram scraper.
         
@@ -55,6 +55,7 @@ class InstagramScraper:
             password: Instagram password for login (optional)
             cookies_path: Path to save/load cookies
             use_cookies: If True, use cookies/login. If False, run in pure guest mode.
+            headless: Deprecated - kept for backward compatibility. Use HEADLESS env var instead.
         """
         self.username = username
         self.password = password
@@ -70,7 +71,9 @@ class InstagramScraper:
         print("Setting up scraper driver (SeleniumBase with Playwright fallback)...")
         
         try:
-            self._raw_driver, self.driver_type = get_driver(headless=True)
+            # Determine headless mode from environment or default to True
+            headless_mode = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
+            self._raw_driver, self.driver_type = get_driver(headless=headless_mode)
             
             # For compatibility with existing code, expose the underlying Selenium driver
             # SeleniumBase exposes .driver, Playwright uses .page
@@ -146,7 +149,6 @@ class InstagramScraper:
         # If captcha solving didn't work, try switching to fallback driver
         return self._switch_to_fallback()
     
-    
     def save_cookies(self):
         os.makedirs(os.path.dirname(self.cookies_path) or '.', exist_ok=True)
         pickle.dump(self.driver.get_cookies(), open(self.cookies_path, "wb"))
@@ -155,6 +157,15 @@ class InstagramScraper:
     def load_cookies(self):
         if os.path.exists(self.cookies_path):
             cookies = pickle.load(open(self.cookies_path, "rb"))
+            # Verify window is still open before navigating
+            try:
+                if not self.driver.window_handles:
+                    print("Browser window closed, cannot load cookies")
+                    return False
+            except Exception as e:
+                print(f"Error checking window handles: {e}")
+                return False
+            
             self.driver.get("https://www.instagram.com")
             time.sleep(2)
             for cookie in cookies:
@@ -887,6 +898,122 @@ class InstagramScraper:
             except Exception as e:
                 print(f"Error scraping post {post_url}: {e}")
                 return None
+    
+    def scrape_hashtag(self, hashtag, max_posts=None):
+        """
+        Scrape posts from an Instagram hashtag page. 
+        """
+        # Normalize hashtag (remove # if present)
+        hashtag = hashtag.lstrip('#').strip()
+        hashtag_url = f" https://www.instagram.com/explore/search/keyword/?q=%{hashtag}"
+        
+        print(f"Navigating to hashtag page: {hashtag_url}")
+        self.driver.get(hashtag_url)
+        time.sleep(3)
+        
+        posts_data = []
+        post_links = set()
+        
+        target_count = max_posts if max_posts else "all"
+        print(f"Finding posts for #{hashtag} (target: {target_count} posts)...")
+        last_height = self.driver.execute_script("return document.body.scrollHeight")
+        
+        # Scroll to load posts
+        while True:
+            try:
+                # Find post links (both /p/ and /reel/)
+                post_elements = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_all_elements_located((By.XPATH, "//a[contains(@href, '/p/') or contains(@href, '/reel/')]"))
+                )
+                for el in post_elements:
+                    href = el.get_attribute("href")
+                    if href:
+                        post_links.add(href)
+                        
+                print(f"Found {len(post_links)} posts so far...")
+                
+                if max_posts and len(post_links) >= max_posts:
+                    break
+                    
+                # Scroll down
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                
+                new_height = self.driver.execute_script("return document.body.scrollHeight")
+                if new_height == last_height:
+                    # Try scrolling again after a delay
+                    time.sleep(2)
+                    new_height2 = self.driver.execute_script("return document.body.scrollHeight")
+                    if new_height2 == last_height:
+                        break
+                    else:
+                        last_height = new_height2
+                else:
+                    last_height = new_height
+            except Exception as e:
+                print(f"Error while scrolling hashtag page: {e}")
+                break
+                
+        post_links = list(post_links)
+        if max_posts:
+            post_links = post_links[:max_posts]
+        print(f"Found {len(post_links)} posts for #{hashtag}.")
+        
+        # Scrape each post
+        for idx, post_url in enumerate(post_links, start=1):
+            try:
+                print(f"Processing post {idx}/{len(post_links)}: {post_url}")
+                data = self.scrape_post(post_url)
+                if data:
+                    # Add hashtag metadata to the post data
+                    data['source_hashtag'] = hashtag
+                    posts_data.append(data)
+                time.sleep(1)  # Be respectful with rate limiting
+            except Exception as e:
+                print(f"Error processing {post_url}: {e}")
+                
+        # Save to JSON file (similar to scrape_profile)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        scrape_result_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
+        os.makedirs(scrape_result_dir, exist_ok=True)
+        json_filename = os.path.join(scrape_result_dir, f"{hashtag}_hashtag_posts_{timestamp}.json")
+        
+        export_data = {
+            "hashtag_info": {
+                "hashtag": hashtag,
+                "posts_count": len(posts_data),
+                "scraped_at": timestamp
+            },
+            "posts": posts_data
+        }
+        
+        with open(json_filename, "w", encoding="utf-8") as jf:
+            json.dump(export_data, jf, ensure_ascii=False, indent=4)
+        print(f"Saved all posts to {json_filename}\n")
+        
+        # Auto-upload if enabled (similar to scrape_profile)
+        try:
+            if os.getenv("UPLOAD_AFTER_SCRAPE", "1") in ("1", "true", "True"):
+                env = os.environ.copy()
+                dburl = os.getenv("DATABASE_URL")
+                if dburl:
+                    env["DATABASE_URL"] = dburl
+                
+                uploader = os.path.join(os.path.dirname(__file__), "hashtag", "upload_hashtag_posts_to_db.py")
+                if os.path.exists(uploader):
+                    print(f"Auto-upload enabled — running uploader for {json_filename}")
+                    cmd = [sys.executable, uploader, json_filename]
+                    proc = subprocess.run(cmd, env=env)
+                    if proc.returncode == 0:
+                        print("Auto-upload completed successfully")
+                    else:
+                        print(f"Auto-upload failed with exit code {proc.returncode}")
+                else:
+                    print(f"Hashtag uploader script not found at {uploader}; skipping auto-upload")
+        except Exception as e:
+            print(f"Error during optional auto-upload: {e}")
+        
+        return posts_data
     
     def close(self):
         if self._raw_driver:

@@ -130,6 +130,28 @@ CREATE TABLE competitor_posts (
   UNIQUE (platform, post_id)
 );
 
+CREATE TABLE hashtag_posts (
+  id SERIAL PRIMARY KEY,
+  hashtag TEXT NOT NULL,
+  platform VARCHAR(50) NOT NULL,
+  post_id VARCHAR(100) NOT NULL,
+  username TEXT,
+  content TEXT,
+  media JSONB DEFAULT '{}'::jsonb,
+  posted_at TIMESTAMP,
+  likes BIGINT DEFAULT 0,
+  comments_count BIGINT DEFAULT 0,
+  hashtags TEXT[] DEFAULT '{}',
+  scraped_at TIMESTAMP DEFAULT NOW(),
+  caption_hash TEXT,
+  UNIQUE (platform, post_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_hashtag_posts_hashtag ON hashtag_posts(hashtag);
+CREATE INDEX IF NOT EXISTS idx_hashtag_posts_posted_at ON hashtag_posts(posted_at);
+CREATE INDEX IF NOT EXISTS idx_hashtag_posts_platform ON hashtag_posts(platform);
+CREATE INDEX IF NOT EXISTS idx_hashtag_posts_username ON hashtag_posts(username);
+
 
 --socialmeiad data, id PK, groupsid FK, type, data, created, upadted
 CREATE TABLE socialmedia_data (

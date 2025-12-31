@@ -1,0 +1,80 @@
+{
+    "hashtag_info": {
+        "hashtag": "CFC",
+        "posts_count": 5,
+        "scraped_at": "20251231_002730"
+    },
+    "posts": [
+        {
+            "url": "https://www.instagram.com/p/DST9nmiiR_L/",
+            "timestamp": "2025-12-31 00:27:07",
+            "post_date": "2025-12-16T05:03:49.000Z",
+            "caption": "//tinyurl.com/yes4te9r\"",
+            "hashtags": [],
+            "likes": "41000",
+            "comments_count": "741",
+            "media_urls": [],
+            "source_hashtag": "CFC"
+        },
+        {
+            "url": "https://www.instagram.com/p/DDqgF0IMBpL/",
+            "timestamp": "2025-12-31 00:27:12",
+            "post_date": "2024-12-17T03:17:24.000Z",
+            "caption": "\"Grateful for this moment. Congratulations to the CNA C/O 2024🎉🖤🌹❤️🏩🎊🖤\n\nLife has been definitely lifn! 2021-2024 has been the worst years for my training center, but I don’t fold under pressure! It just makes this comeback even better! \n\n#gratitude #grateful🙏 #thesoulofmedicinetrainingcenter  #CNA #GNA\"",
+            "hashtags": [
+                "gratitude",
+                "grateful",
+                "thesoulofmedicinetrainingcenter",
+                "CNA",
+                "GNA"
+            ],
+            "likes": "91",
+            "comments_count": "8",
+            "media_urls": [],
+            "source_hashtag": "CFC"
+        },
+        {
+            "url": "https://www.instagram.com/p/CCBgmwXhAS1/",
+            "timestamp": "2025-12-31 00:27:19",
+            "post_date": "2020-06-29T15:13:59.000Z",
+            "caption": "#blueface c walk♿",
+            "hashtags": [
+                "blueface"
+            ],
+            "likes": "787",
+            "comments_count": "11",
+            "media_urls": [],
+            "source_hashtag": "CFC"
+        },
+        {
+            "url": "https://www.instagram.com/p/B_nzjjqJArw/",
+            "timestamp": "2025-12-31 00:27:24",
+            "post_date": "2020-08-17T14:23:07.000Z",
+            "caption": "\"MASTER OF A C C O U N T A N C Y✔️ #MAcc #gradschoolgraduate #uvugrad #uvualumni\ngettin my grad pics done this weekend so here’s a throwback from my bachelors graduation last year\"",
+            "hashtags": [
+                "MAcc",
+                "gradschoolgraduate",
+                "uvugrad",
+                "uvualumni"
+            ],
+            "likes": "321",
+            "comments_count": "39",
+            "media_urls": [],
+            "source_hashtag": "CFC"
+        },
+        {
+            "url": "https://www.instagram.com/p/BtB6UXZjlVm/",
+            "timestamp": "2025-12-31 00:27:29",
+            "post_date": "2019-01-24T19:57:50.000Z",
+            "caption": "T H I S  I S  C H E S S  N O T  C H E C K E R S 👑 #QCTheLabel #SolidFoundationMGMT⚒",
+            "hashtags": [
+                "QCTheLabel",
+                "SolidFoundationMGMT"
+            ],
+            "likes": "47000",
+            "comments_count": "331",
+            "media_urls": [],
+            "source_hashtag": "CFC"
+        }
+    ]
+}
