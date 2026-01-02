@@ -438,8 +438,38 @@ class HashtagDiscovery:
                     for scrape_attempt in range(1, max_scrape_retries + 1):
                         try:
                             posts_data = scraper.scrape_hashtag(hashtag, max_posts=self.max_posts_per_hashtag)
-                            if posts_data:
-                                break  # Success
+                            if posts_data and len(posts_data) > 0:
+                                break  # Success - got actual data
+                            else:
+                                # Empty results - likely proxy failure (page didn't load)
+                                log.warning(f"Scrape attempt {scrape_attempt}/{max_scrape_retries} returned 0 results (proxy may have failed)")
+                                
+                                if scrape_attempt < max_scrape_retries:
+                                    log.info("Empty results - reinitializing scraper with new proxy...")
+                                    try:
+                                        scraper.close()
+                                    except:
+                                        pass
+                                    
+                                    # Get a new proxy
+                                    try:
+                                        from socialmedia.drivers.proxy_manager import proxy_manager
+                                        new_proxy = proxy_manager.get_working_proxy()
+                                        if new_proxy:
+                                            log.info(f"Switched to proxy: {new_proxy}")
+                                        else:
+                                            log.warning("No more proxies, trying direct connection")
+                                            new_proxy = None
+                                    except Exception as pe:
+                                        log.warning(f"Failed to get new proxy: {pe}")
+                                        new_proxy = None
+                                    
+                                    # Reinitialize scraper with new proxy
+                                    from socialmedia.tiktok.scraper.profile_scraper import TikTokScraper
+                                    headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
+                                    scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=new_proxy)
+                                    continue
+                                    
                         except Exception as scrape_error:
                             error_msg = str(scrape_error).lower()
                             # Detect proxy-related failures: timeout, aborted, context destroyed, connection errors
@@ -454,8 +484,6 @@ class HashtagDiscovery:
                             log.warning(f"Scrape attempt {scrape_attempt}/{max_scrape_retries} failed: {scrape_error}")
                             
                             if scrape_attempt < max_scrape_retries and is_proxy_failure:
-
-
                                 log.info("Proxy failure detected - reinitializing scraper with new proxy...")
                                 try:
                                     scraper.close()
@@ -481,7 +509,8 @@ class HashtagDiscovery:
                                 scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=new_proxy)
                                 continue
                             else:
-                                raise scrape_error  # Re-raise if not timeout or out of retries
+                                raise scrape_error  # Re-raise if not proxy failure or out of retries
+
 
                 
                 # Restore upload setting
