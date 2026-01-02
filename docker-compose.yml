@@ -49,6 +49,8 @@ services:
       OLLAMA_MODEL: "gemma3:latest"
       # Scraping interval (0.5 days = 12 hours)
       WEEKLY_SCRAPE_INTERVAL: "0.5"
+      PROXY_URL: "${PROXY_URL}"
+      HASHTAG_DISCOVERY_INTERVAL: "${HASHTAG_DISCOVERY_INTERVAL:-5.0}"
     volumes:
       - ./server/python:/app
       - docs_data:/data/docs
