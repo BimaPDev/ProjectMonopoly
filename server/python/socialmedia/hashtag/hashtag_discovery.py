@@ -39,9 +39,13 @@ class HashtagDiscovery:
         self.proxy = proxy
         self.seed_hashtags = seed_hashtags or []
         
+        # Handle special "DIRECT" value - means skip proxy entirely
+        if self.proxy == "DIRECT":
+            log.info("Direct connection mode enabled (no proxy)")
+            self.proxy = None
         # If no explicit proxy provided, try to get one from ProxyManager
         # This is for scraping only - Docker/general app does not use proxies
-        if not self.proxy:
+        elif not self.proxy:
             try:
                 # Add parent path to allow relative imports when run as script
                 import sys
@@ -64,6 +68,7 @@ class HashtagDiscovery:
                     log.warning("ProxyManager found no working proxies. Scraping will use direct connection.")
             except Exception as e:
                 log.warning(f"Failed to get proxy from ProxyManager: {e}. Scraping will use direct connection.")
+
 
         
     def get_competitor_hashtags(self, limit: int = 100) -> List[Dict[str, Any]]:
@@ -432,8 +437,10 @@ class HashtagDiscovery:
                     posts_data = scraper.scrape_hashtag(hashtag, max_posts=self.max_posts_per_hashtag)
                 elif self.platform == 'tiktok':
                     # Smart retry with proxy rotation for TikTok
+                    # Free proxies have low success rate on TikTok, so we try many
                     posts_data = None
-                    max_scrape_retries = 3
+                    max_scrape_retries = 10  # Try up to 10 different proxies
+
                     
                     for scrape_attempt in range(1, max_scrape_retries + 1):
                         try:
@@ -752,11 +759,17 @@ def main():
         help="Proxy URL (e.g. http://user:pass@host:port)"
     )
     parser.add_argument(
+        "--no-proxy",
+        action="store_true",
+        help="Disable automatic proxy selection (use direct connection)"
+    )
+    parser.add_argument(
         "--seed",
         type=str,
         default=None,
         help="Seed hashtags (comma-separated, e.g. 'indiegame,gamedev')"
     )
+
     
     args = parser.parse_args()
     
@@ -769,15 +782,22 @@ def main():
     seed_hashtags = []
     if args.seed:
         seed_hashtags = [t.strip() for t in args.seed.split(',')]
+    
+    # Handle --no-proxy flag: use special value to disable auto-proxy
+    proxy_value = args.proxy
+    if args.no_proxy:
+        proxy_value = "DIRECT"  # Special value to indicate direct connection
+        log.info("--no-proxy flag set: Using direct connection (no proxy)")
         
     discovery = HashtagDiscovery(
         user_id=args.user_id,
         group_id=args.group_id,
         max_posts_per_hashtag=args.max_posts,
         platform=args.platform,
-        proxy=args.proxy,
+        proxy=proxy_value,
         seed_hashtags=seed_hashtags
     )
+
     
     if args.recursive:
         results = discovery.discover_and_scrape_recursive(
