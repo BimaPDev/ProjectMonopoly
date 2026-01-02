@@ -77,21 +77,16 @@ class PlaywrightStealthDriver(BaseScraper):
             self.page = self.context.new_page()
             
             # Apply stealth mode - handle both old and new API versions
-            # Apply stealth mode - handle both old and new API versions
+            # Apply stealth mode - verified API for v2.0+
             try:
-                # New API (playwright_stealth v2.0.0+)
                 from playwright_stealth import Stealth
                 stealth = Stealth()
-                stealth.apply(self.page)
-                log.info("Applied stealth using new API (Stealth().apply())")
-            except (ImportError, AttributeError, Exception) as e1:
-                try:
-                    # Alternative API (just 'stealth')
-                    from playwright_stealth import stealth
-                    stealth(self.page)
-                    log.info("Applied stealth using alternative API (stealth())")
-                except (ImportError, Exception) as e2:
-                    log.warning(f"playwright_stealth failed to apply: {e1}, {e2}")
+                # Based on dir() inspection: apply_stealth_sync is the method
+                stealth.apply_stealth_sync(self.page)
+                log.info("Applied stealth using verified API (Stealth().apply_stealth_sync())")
+            except Exception as e:
+                log.warning(f"playwright_stealth failed to apply: {e}")
+
 
             
             self._is_setup = True
