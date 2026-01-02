@@ -250,6 +250,19 @@ class WeeklyTikTokScraper:
             except Exception as e:
                 log.warning(f"⚠️ Failed to clear verified proxies: {e}")
             
+            # Clean up scrape_result JSON files
+            try:
+                import glob
+                scrape_result_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
+                if os.path.exists(scrape_result_dir):
+                    json_files = glob.glob(os.path.join(scrape_result_dir, "*.json"))
+                    for f in json_files:
+                        os.remove(f)
+                    if json_files:
+                        log.info(f"🗑️ Cleaned up {len(json_files)} TikTok scrape result JSON files")
+            except Exception as e:
+                log.warning(f"⚠️ Failed to clean up scrape results: {e}")
+            
             return {
                 "status": "success",
                 "message": "Weekly TikTok scraping completed",
