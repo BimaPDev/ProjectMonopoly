@@ -311,8 +311,15 @@ class HashtagDiscovery:
             username = os.getenv("INSTAGRAM_USERNAME")
             password = os.getenv("INSTAGRAM_PASSWORD")
             
+            # Check for placeholder values and treat them as empty
+            if username and (username.lower() in ["your_username", "string", "user"] or "username" in username.lower()):
+                username = None
+            if password and (password.lower() in ["your_password", "string", "pass"] or "password" in password.lower()):
+                password = None
+            
             # Use headless mode unless explicitly disabled (for local testing, set HEADLESS=false)
             headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
+
             
             # Check if we have credentials - if not, use guest mode
             use_login = username and password
