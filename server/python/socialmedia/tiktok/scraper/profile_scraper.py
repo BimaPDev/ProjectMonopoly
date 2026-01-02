@@ -832,9 +832,37 @@ class TikTokScraper:
                         self.driver.get(hashtag_url)
                         random_delay(5, 8)
                 else:
-                    raise Exception("TikTok returned 'Something went wrong' after refresh retries - possibly bot detected")
+                    print("Refresh failed. triggering fallback to Stealthy Playwright driver...")
+                    # Switch to fallback driver (Playwright with stealth plugin)
+                    try:
+                        self._raw_driver, self.driver_type = switch_to_fallback(
+                            self._raw_driver, 
+                            headless=os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no"),
+                            proxy=self.proxy
+                        )
+                        
+                        # Update driver reference
+                        if self.driver_type == 'seleniumbase':
+                            self.driver = self._raw_driver.driver
+                        else:
+                            self.driver = self._raw_driver
+                            
+                        print(f"Switched to driver: {self.driver_type}")
+                        
+                        # Retry navigation with new driver
+                        self.driver.get(hashtag_url)
+                        random_delay(3, 5)
+                        
+                        # Check one last time
+                        page_source = self.driver.page_source.lower() if hasattr(self.driver, 'page_source') else ""
+                        if "something went wrong" in page_source:
+                            raise Exception("TikTok returned 'Something went wrong' even with Stealthy Playwright driver")
+                            
+                    except Exception as fallback_err:
+                        raise Exception(f"Failed to switch/use fallback driver: {fallback_err}")
             else:
                 break  # Page loaded successfully
+
 
 
         

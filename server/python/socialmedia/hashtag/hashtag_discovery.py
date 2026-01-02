@@ -314,6 +314,9 @@ class HashtagDiscovery:
             # Use headless mode unless explicitly disabled (for local testing, set HEADLESS=false)
             headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
             
+            # Check if we have credentials - if not, use guest mode
+            use_login = username and password
+            
             for attempt in range(1, max_retries + 1):
                 try:
                     if attempt > 1:
@@ -326,18 +329,30 @@ class HashtagDiscovery:
                             except:
                                 pass
                     
-                    scraper = InstagramScraper(username, password, headless=headless, proxy=self.proxy)
+                    # Use guest mode (no cookies/login) if no credentials
+                    scraper = InstagramScraper(
+                        username=username if use_login else None, 
+                        password=password if use_login else None, 
+                        headless=headless, 
+                        proxy=self.proxy,
+                        use_cookies=use_login  # Only use cookies if we have login credentials
+                    )
                     
-                    if not scraper.login():
-                        log.error("Failed to login to Instagram")
-                        if scraper:
-                            scraper.close()
-                        if attempt < max_retries:
-                            continue  # Retry
-                        return {"status": "failed", "error": "Failed to login"}
+                    # Only attempt login if we have credentials
+                    if use_login:
+                        if not scraper.login():
+                            log.error("Failed to login to Instagram")
+                            if scraper:
+                                scraper.close()
+                            if attempt < max_retries:
+                                continue  # Retry
+                            return {"status": "failed", "error": "Failed to login"}
+                    else:
+                        log.info("Running Instagram scraper in guest mode (no login)")
                     
                     # Success, exit retry loop
                     break
+
                     
                 except Exception as e:
                     # Generic error handling primarily for window closed exceptions
