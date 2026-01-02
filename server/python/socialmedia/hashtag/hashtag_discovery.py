@@ -439,7 +439,8 @@ class HashtagDiscovery:
                     # Smart retry with proxy rotation for TikTok
                     # Free proxies have low success rate on TikTok, so we try many
                     posts_data = None
-                    max_scrape_retries = 10  # Try up to 10 different proxies
+                    max_scrape_retries = 25  # Try up to 25 different proxies
+
 
                     
                     for scrape_attempt in range(1, max_scrape_retries + 1):
@@ -495,13 +496,25 @@ class HashtagDiscovery:
                                 'timeout', 'timed_out', 'err_timed_out', 'err_aborted',
                                 'context was destroyed', 'navigation', 'net::err_',
                                 'connection refused', 'connection reset', 'proxy',
-                                'properties of null', 'scrollheight', 'typeerror'
+                                'properties of null', 'scrollheight', 'typeerror',
+                                'something went wrong'  # TikTok error page
                             ])
+
                             
                             log.warning(f"Scrape attempt {scrape_attempt}/{max_scrape_retries} failed: {scrape_error}")
                             
+                            # Take screenshot to see what's happening
+                            try:
+                                screenshot_path = f"/app/screenshots/exception_{scrape_attempt}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                                os.makedirs("/app/screenshots", exist_ok=True)
+                                scraper.driver.save_screenshot(screenshot_path)
+                                log.info(f"Screenshot saved to: {screenshot_path}")
+                            except Exception as ss_err:
+                                log.warning(f"Failed to save screenshot: {ss_err}")
+                            
                             if scrape_attempt < max_scrape_retries and is_proxy_failure:
                                 log.info("Proxy failure detected - reinitializing scraper with new proxy...")
+
                                 try:
                                     scraper.close()
                                 except:

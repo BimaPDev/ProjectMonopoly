@@ -40,21 +40,57 @@ services:
         limits:
           memory: 512M
 
+  # VPN container for scraping traffic (only Python routes through this)
+  vpn:
+    image: ghcr.io/qdm12/gluetun:latest
+    container_name: vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # VPN Provider: surfshark (or protonvpn)
+      - VPN_SERVICE_PROVIDER=${VPN_PROVIDER:-surfshark}
+      # VPN Type: wireguard (faster) or openvpn
+      - VPN_TYPE=${VPN_TYPE:-wireguard}
+      # For WireGuard: use your Surfshark private key and address
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES:-10.14.0.2/16}
+      # For OpenVPN: use email/password instead
+      - OPENVPN_USER=${VPN_USER:-}
+      - OPENVPN_PASSWORD=${VPN_PASSWORD:-}
+      - SERVER_COUNTRIES=${VPN_COUNTRY:-United States}
+
+    ports:
+      - "8888:8888" # HTTP proxy (optional)
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "/gluetun-entrypoint", "healthcheck" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s # Give VPN time to connect
+
   python:
     build: ./server/python
     shm_size: '2gb'
+    # Route all Python traffic through VPN container
+    network_mode: "service:vpn"
     environment:
       DOCS_DIR: /data/docs
       INSTAGRAM_USERNAME: ${INSTAGRAM_USERNAME}
       INSTAGRAM_PASSWORD: ${INSTAGRAM_PASSWORD}
+      # VPN container is on default network, so we can use container names
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       CELERY_BROKER_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
       CELERY_RESULT_BACKEND: rpc://
-      HASHTAG_DISCOVERY_INTERVAL: ${HASHTAG_DISCOVERY_INTERVAL:-5.0} # Default 5 hours
+      HASHTAG_DISCOVERY_INTERVAL: ${HASHTAG_DISCOVERY_INTERVAL:-5.0}
     volumes:
       - docs_data:/data/docs
       - docs_data:/app/uploads/docs
     depends_on:
+      vpn:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       rabbitmq:

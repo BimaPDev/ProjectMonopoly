@@ -117,18 +117,95 @@ class SeleniumBaseDriver(BaseScraper):
             self.context = self.browser.contexts[0]
             self.page = self.context.pages[0]
             
-            # Set viewport to look like a real desktop browser
-            self.page.set_viewport_size({"width": 1920, "height": 1080})
+            # Randomize viewport to look like different real desktop browsers
+            import random
+            viewports = [
+                {"width": 1920, "height": 1080},
+                {"width": 1536, "height": 864},
+                {"width": 1440, "height": 900},
+                {"width": 1366, "height": 768},
+                {"width": 1280, "height": 720},
+            ]
+            viewport = random.choice(viewports)
+            self.page.set_viewport_size(viewport)
+            log.info(f"Using randomized viewport: {viewport['width']}x{viewport['height']}")
+            
+            # Apply fingerprint obfuscation
+            self._apply_fingerprint_obfuscation()
             
             self._is_setup = True
             log.info("SeleniumBase CDP + Playwright driver initialized successfully")
+
             
         except Exception as e:
             log.error(f"Failed to initialize SeleniumBase CDP driver: {e}")
             self._cleanup()
             raise
     
+    def _apply_fingerprint_obfuscation(self):
+        """Apply JavaScript to obfuscate browser fingerprint and evade bot detection."""
+        try:
+            # Add fingerprint obfuscation script that runs on every page load
+            fingerprint_script = """
+                // Override webdriver detection
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+                
+                // Override Chrome detection
+                window.chrome = {
+                    runtime: {},
+                    loadTimes: function() {},
+                    csi: function() {},
+                    app: {}
+                };
+                
+                // Override permissions
+                const originalQuery = window.navigator.permissions.query;
+                window.navigator.permissions.query = (parameters) => (
+                    parameters.name === 'notifications' ?
+                        Promise.resolve({ state: Notification.permission }) :
+                        originalQuery(parameters)
+                );
+                
+                // Randomize canvas fingerprint slightly
+                const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+                HTMLCanvasElement.prototype.toDataURL = function(type) {
+                    if (type === 'image/png') {
+                        const context = this.getContext('2d');
+                        if (context) {
+                            const noise = Math.random() * 0.01;
+                            const imageData = context.getImageData(0, 0, this.width, this.height);
+                            for (let i = 0; i < imageData.data.length; i += 4) {
+                                imageData.data[i] += Math.floor(Math.random() * noise * 255);
+                            }
+                            context.putImageData(imageData, 0, 0);
+                        }
+                    }
+                    return originalToDataURL.apply(this, arguments);
+                };
+                
+                // Override plugins to look like a real browser
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+                
+                // Override languages
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en']
+                });
+                
+                console.log('Fingerprint obfuscation applied');
+            """
+            
+            self.context.add_init_script(fingerprint_script)
+            log.info("Fingerprint obfuscation script injected")
+            
+        except Exception as e:
+            log.warning(f"Failed to apply fingerprint obfuscation: {e}")
+    
     def _cleanup(self):
+
         """Internal cleanup helper."""
         try:
             if self.page:

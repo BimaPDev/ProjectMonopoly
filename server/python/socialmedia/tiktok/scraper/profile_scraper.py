@@ -800,10 +800,49 @@ class TikTokScraper:
         self.driver.get(hashtag_url)
         random_delay(3, 5)
         
+        # Check if TikTok returned an error page and try clicking Refresh
+        max_refresh_retries = 3
+        for refresh_attempt in range(max_refresh_retries):
+            page_source = self.driver.page_source.lower() if hasattr(self.driver, 'page_source') else ""
+            if "something went wrong" in page_source or "page not available" in page_source:
+                print(f"TikTok showing 'Something went wrong' - attempting refresh ({refresh_attempt + 1}/{max_refresh_retries})")
+                
+                # Take screenshot for debugging
+                try:
+                    import os
+                    from datetime import datetime
+                    screenshot_path = f"/app/screenshots/tiktok_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                    os.makedirs("/app/screenshots", exist_ok=True)
+                    self.driver.save_screenshot(screenshot_path)
+                    print(f"Screenshot saved to: {screenshot_path}")
+                except Exception as ss_err:
+                    print(f"Failed to save screenshot: {ss_err}")
+                
+                if refresh_attempt < max_refresh_retries - 1:
+                    # Try clicking the Refresh button
+                    try:
+                        from selenium.webdriver.common.by import By
+                        refresh_btn = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Refresh')]")
+                        refresh_btn.click()
+                        print("Clicked Refresh button, waiting...")
+                        random_delay(5, 8)  # Wait longer after refresh
+                    except Exception as click_err:
+                        print(f"Could not click Refresh: {click_err}")
+                        # Try page refresh instead
+                        self.driver.get(hashtag_url)
+                        random_delay(5, 8)
+                else:
+                    raise Exception("TikTok returned 'Something went wrong' after refresh retries - possibly bot detected")
+            else:
+                break  # Page loaded successfully
+
+
+        
         posts_data = []
         video_links = set()
         
         print(f"Finding videos for hashtag {hashtag}...")
+
         
         # Similar scrolling logic as profile scraping
         last_height = self.driver.execute_script("return document.body.scrollHeight")
