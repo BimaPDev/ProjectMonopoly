@@ -142,6 +142,10 @@ INSTAGRAM_PASSWORD = os.getenv('INSTAGRAM_PASSWORD', '')
 # Chrome/Selenium settings
 SELENIUM_HEADLESS = os.getenv('SELENIUM_HEADLESS', 'true').lower() in ('true', '1', 'yes')
 SELENIUM_TIMEOUT = int(os.getenv('SELENIUM_TIMEOUT', '30'))
+PROXY_URL = os.getenv('PROXY_URL', '')
+
+# Hashtag Discovery
+HASHTAG_DISCOVERY_INTERVAL = float(os.getenv('HASHTAG_DISCOVERY_INTERVAL', '5.0'))  # Hours
 
 
 # ─────────────────────────────────────────────────────────────────────────────

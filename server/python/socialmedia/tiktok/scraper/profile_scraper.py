@@ -570,7 +570,11 @@ class TikTokScraper:
                     # Likes
                     try:
                         like_btn = self.driver.find_element(By.XPATH, "//strong[@data-e2e='like-count']")
-                        likes_text = like_btn.get_attribute("aria-label").split()[0]
+                        aria_label = like_btn.get_attribute("aria-label")
+                        if aria_label:
+                             likes_text = aria_label.split()[0]
+                        else:
+                             likes_text = like_btn.text
                         video_data["likes_count"] = parse_shorthand(likes_text)
                     except NoSuchElementException:
                         video_data["likes_count"] = ""
@@ -853,7 +857,11 @@ class TikTokScraper:
                 print(f"Error processing {video_url}: {e}")
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"socialmedia/scrape_result/{hashtag[1:]}_tiktoks_{timestamp}.json"
+        # Ensure output directory exists (using same logic as scrape_profile)
+        output_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
+        os.makedirs(output_dir, exist_ok=True)
+        json_filename = os.path.join(output_dir, f"{hashtag[1:]}_tiktoks_{timestamp}.json")
+        
         with open(json_filename, "w", encoding="utf-8") as jf:
             json.dump(posts_data, jf, ensure_ascii=False, indent=4)
         print(f"Saved all videos to {json_filename}")

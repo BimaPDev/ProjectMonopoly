@@ -15,7 +15,7 @@ from datetime import datetime
 
 # Set default DATABASE_URL if not already set
 if not os.getenv("DATABASE_URL"):
-    os.environ["DATABASE_URL"] = "postgresql://root:secret@localhost:5432/project_monopoly?sslmode=disable"
+    os.environ["DATABASE_URL"] = "postgresql://root:secret@localhost:5434/project_monopoly?sslmode=disable"
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -30,17 +30,20 @@ class HashtagDiscovery:
     # Hard limit to prevent infinite scraping - cannot be exceeded regardless of input
     MAX_ITERATIONS_LIMIT = 10
     
-    def __init__(self, user_id: int = None, group_id: int = None, max_posts_per_hashtag: int = 50):
+    def __init__(self, user_id: int = None, group_id: int = None, max_posts_per_hashtag: int = 50, platform: str = 'instagram', proxy: str = None, seed_hashtags: List[str] = None):
         self.database_url = DATABASE_URL
         self.user_id = user_id
         self.group_id = group_id
         self.max_posts_per_hashtag = max_posts_per_hashtag
+        self.platform = platform.lower()
+        self.proxy = proxy
+        self.seed_hashtags = seed_hashtags or []
         
     def get_competitor_hashtags(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get hashtags from competitor posts. Returns list of hashtags with their frequency.
         """
-        log.info("Extracting hashtags from competitor posts...")
+        log.info(f"Extracting hashtags from competitor posts (Platform: {self.platform})...")
         
         try:
             with psycopg.connect(self.database_url) as conn:
@@ -60,6 +63,7 @@ class HashtagDiscovery:
                                 WHERE uc.user_id = %s
                                   AND (uc.group_id = %s OR uc.group_id IS NULL)
                                   AND cp.posted_at >= NOW() - INTERVAL '28 days'
+                                  AND cp.platform = %s
                                   AND cp.hashtags IS NOT NULL
                                   AND array_length(cp.hashtags, 1) > 0
                             ) as tags
@@ -67,7 +71,7 @@ class HashtagDiscovery:
                             GROUP BY hashtag
                             ORDER BY frequency DESC
                             LIMIT %s
-                        """, (self.user_id, self.group_id, limit))
+                        """, (self.user_id, self.group_id, self.platform, limit))
                     else:
                         # Get all hashtags from all competitor posts
                         cur.execute("""
@@ -78,6 +82,7 @@ class HashtagDiscovery:
                                 SELECT UNNEST(hashtags) as hashtag
                                 FROM competitor_posts cp
                                 WHERE cp.posted_at >= NOW() - INTERVAL '28 days'
+                                  AND cp.platform = %s
                                   AND cp.hashtags IS NOT NULL
                                   AND array_length(cp.hashtags, 1) > 0
                             ) as tags
@@ -85,7 +90,7 @@ class HashtagDiscovery:
                             GROUP BY hashtag
                             ORDER BY frequency DESC
                             LIMIT %s
-                        """, (limit,))
+                        """, (self.platform, limit,))
                     
                     results = []
                     for row in cur.fetchall():
@@ -107,7 +112,15 @@ class HashtagDiscovery:
         Returns list of hashtags with their frequency.
         This enables recursive discovery - finding new hashtags from already scraped hashtag posts.
         """
-        log.info("Extracting hashtags from hashtag posts...")
+        log.info(f"Extracting hashtags from hashtag posts (Platform: {self.platform})...")
+        results = []
+        # If seed hashtags are provided, use them
+        if self.seed_hashtags:
+            log.info(f"Using {len(self.seed_hashtags)} seed hashtags: {self.seed_hashtags}")
+            for tag in self.seed_hashtags:
+                results.append({"hashtag": tag.strip('#'), "frequency": 999})
+        
+        # If no seeds or we want more, fetch from DB
         try:
             with psycopg.connect(self.database_url) as conn:
                 with conn.cursor() as cur:
@@ -120,6 +133,7 @@ class HashtagDiscovery:
                             SELECT UNNEST(hashtags) as hashtag
                             FROM hashtag_posts hp
                             WHERE hp.posted_at >= NOW() - INTERVAL '28 days'
+                              AND hp.platform = %s
                               AND hp.hashtags IS NOT NULL
                               AND array_length(hp.hashtags, 1) > 0
                         ) as tags
@@ -127,9 +141,9 @@ class HashtagDiscovery:
                         GROUP BY hashtag
                         ORDER BY frequency DESC
                         LIMIT %s
-                    """, (limit,))
+                    """, (self.platform, limit,))
                     
-                    results = []
+                    # results = [] # Removed to preserve seed hashtags
                     for row in cur.fetchall():
                         results.append({
                             'hashtag': row[0],
@@ -141,13 +155,13 @@ class HashtagDiscovery:
                     
         except Exception as e:
             log.error(f"Error extracting hashtag posts hashtags: {e}")
-            return []
+            return results  # Return what we have (e.g. seeds) even if DB fails
     
     def get_scraped_hashtags(self) -> Set[str]:
         """
         Get set of hashtags we've already scraped.
         """
-        log.info("Checking which hashtags have already been scraped...")
+        log.info(f"Checking which hashtags have already been scraped for {self.platform}...")
         
         try:
             with psycopg.connect(self.database_url) as conn:
@@ -155,8 +169,8 @@ class HashtagDiscovery:
                     cur.execute("""
                         SELECT DISTINCT hashtag
                         FROM hashtag_posts
-                        WHERE platform = 'instagram'
-                    """)
+                        WHERE platform = %s
+                    """, (self.platform,))
                     
                     scraped = {row[0].lower() for row in cur.fetchall()}
                     log.info(f"Found {len(scraped)} already scraped hashtags")
@@ -231,7 +245,7 @@ class HashtagDiscovery:
             Dictionary with scraping results
         """
         log.info("=" * 60)
-        log.info("Starting Hashtag Discovery Process")
+        log.info(f"Starting Hashtag Discovery Process (Platform: {self.platform})")
         log.info("=" * 60)
         
         # Get unscraped hashtags (from both competitor posts and hashtag_posts)
@@ -249,65 +263,54 @@ class HashtagDiscovery:
         for ht in unscraped[:5]:  # Show first 5
             log.info(f"  - #{ht['hashtag']} (frequency: {ht['frequency']})")
         
-        # Import scraper
+        # Import scraper based on platform
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        from socialmedia.instagram.scraper.profile_scraper import InstagramScraper
-        from socialmedia.hashtag.upload_hashtag_posts_to_db import upload_hashtag_posts_to_db
-        from selenium.common.exceptions import NoSuchWindowException
-        
-        # Initialize scraper with retry logic for browser window closing issues
-        username = os.getenv("INSTAGRAM_USERNAME")
-        password = os.getenv("INSTAGRAM_PASSWORD")
-        
-        # Use headless mode unless explicitly disabled (for local testing, set HEADLESS=false)
-        headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
         
         scraper = None
         max_retries = 3
         import time
+        from socialmedia.hashtag.upload_hashtag_posts_to_db import upload_hashtag_posts_to_db
         
-        for attempt in range(1, max_retries + 1):
-            try:
-                if attempt > 1:
-                    log.info(f"Retry attempt {attempt}/{max_retries} for scraper initialization...")
-                    time.sleep(3)  # Wait before retrying
-                    # Clean up previous scraper if it exists
-                    if scraper:
-                        try:
+        if self.platform == 'instagram':
+            from socialmedia.instagram.scraper.profile_scraper import InstagramScraper
+            from selenium.common.exceptions import NoSuchWindowException
+            
+            # Initialize scraper with retry logic for browser window closing issues
+            username = os.getenv("INSTAGRAM_USERNAME")
+            password = os.getenv("INSTAGRAM_PASSWORD")
+            
+            # Use headless mode unless explicitly disabled (for local testing, set HEADLESS=false)
+            headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
+            
+            for attempt in range(1, max_retries + 1):
+                try:
+                    if attempt > 1:
+                        log.info(f"Retry attempt {attempt}/{max_retries} for scraper initialization...")
+                        time.sleep(3)  # Wait before retrying
+                        # Clean up previous scraper if it exists
+                        if scraper:
+                            try:
+                                scraper.close()
+                            except:
+                                pass
+                    
+                    scraper = InstagramScraper(username, password, headless=headless, proxy=self.proxy)
+                    
+                    if not scraper.login():
+                        log.error("Failed to login to Instagram")
+                        if scraper:
                             scraper.close()
-                        except:
-                            pass
-                
-                scraper = InstagramScraper(username, password, headless=headless)
-                
-                if not scraper.login():
-                    log.error("Failed to login to Instagram")
-                    if scraper:
-                        scraper.close()
-                    if attempt < max_retries:
-                        continue  # Retry
-                    return {"status": "failed", "error": "Failed to login"}
-                
-                # Success, exit retry loop
-                break
-                
-            except NoSuchWindowException as e:
-                # Browser window closed unexpectedly - retry
-                log.warning(f"Browser window closed unexpectedly (attempt {attempt}/{max_retries})")
-                if scraper:
-                    try:
-                        scraper.close()
-                    except:
-                        pass
-                if attempt < max_retries:
-                    continue  # Retry
-                else:
-                    return {"status": "failed", "error": f"Browser window closed after {max_retries} attempts"}
-            except Exception as e:
-                error_msg = str(e)
-                # Check if it's a window-related error even if not NoSuchWindowException
-                if "no such window" in error_msg.lower() or "target window already closed" in error_msg.lower():
-                    log.warning(f"Browser window closed unexpectedly (attempt {attempt}/{max_retries})")
+                        if attempt < max_retries:
+                            continue  # Retry
+                        return {"status": "failed", "error": "Failed to login"}
+                    
+                    # Success, exit retry loop
+                    break
+                    
+                except Exception as e:
+                    # Generic error handling primarily for window closed exceptions
+                    error_msg = str(e)
+                    log.warning(f"Error initializing scraper (possibly window closed): {e} (attempt {attempt}/{max_retries})")
                     if scraper:
                         try:
                             scraper.close()
@@ -316,16 +319,24 @@ class HashtagDiscovery:
                     if attempt < max_retries:
                         continue  # Retry
                     else:
-                        return {"status": "failed", "error": f"Browser window closed after {max_retries} attempts"}
-                else:
-                    # Different error, don't retry
-                    log.error(f"Error initializing scraper: {e}")
-                    if scraper:
-                        try:
-                            scraper.close()
-                        except:
-                            pass
-                    return {"status": "failed", "error": str(e)}
+                        return {"status": "failed", "error": f"Scraper initialization failed after {max_retries} attempts: {e}"}
+
+        elif self.platform == 'tiktok':
+            from socialmedia.tiktok.scraper.profile_scraper import TikTokScraper
+            
+            # TikTok usually doesn't need login for public hashtag access
+            # But we can pass headless param
+            headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
+            
+            try:
+                scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=self.proxy)
+            except Exception as e:
+                log.error(f"Failed to initialize TikTok scraper: {e}")
+                return {"status": "failed", "error": f"TikTok scraper init failed: {e}"}
+        
+        else:
+            return {"status": "failed", "error": f"Unsupported platform: {self.platform}"}
+            
         
         if not scraper:
             return {"status": "failed", "error": "Failed to initialize scraper"}
@@ -349,7 +360,12 @@ class HashtagDiscovery:
                 os.environ["UPLOAD_AFTER_SCRAPE"] = "0"
                 
                 # Scrape the hashtag
-                posts_data = scraper.scrape_hashtag(hashtag, max_posts=self.max_posts_per_hashtag)
+                if self.platform == 'instagram':
+                    posts_data = scraper.scrape_hashtag(hashtag, max_posts=self.max_posts_per_hashtag)
+                elif self.platform == 'tiktok':
+                    # TikTok scraper's scrape_hashtag needs to be checked if it returns data directly OR just saves to file
+                    # Based on my check, it returns posts_data
+                    posts_data = scraper.scrape_hashtag(hashtag, max_posts=self.max_posts_per_hashtag)
                 
                 # Restore upload setting
                 os.environ["UPLOAD_AFTER_SCRAPE"] = original_upload
@@ -358,8 +374,32 @@ class HashtagDiscovery:
                     # Find the JSON file that was just created
                     import glob
                     scrape_result_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scrape_result")
-                    json_files = glob.glob(os.path.join(scrape_result_dir, f"{hashtag}_hashtag_posts_*.json"))
                     
+                    if self.platform == 'instagram':
+                         json_files = glob.glob(os.path.join(scrape_result_dir, f"{hashtag}_hashtag_posts_*.json"))
+                    elif self.platform == 'tiktok':
+                        # Pattern likely: {hashtag}_tiktoks_{timestamp}.json or similar depending on implementation
+                        # But wait, scrape_hashtag in tiktok wasn't saving to file in the snippet I saw?
+                        # Let's assume it might not save to file OR saves with different name.
+                        # Actually standard practice here is to save manually if not saved, but upload script takes a file path.
+                        # So we MUST save it to a temp file if it wasn't saved.
+                        # However, let's look for any recently modified json files if we are unsure.
+                        # Or better, save it right here to be safe.
+                        
+                        # Just in case the scraper didn't save it (or used a hard-to-guess name), let's save it ourselves to be deterministic
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        filename = f"{hashtag}_tiktoks_{timestamp}.json"
+                        filepath = os.path.join(scrape_result_dir, filename)
+                        
+                        # TikTok scraper might have saved it, but let's overwrite/create new one to be sure for upload
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            json.dump({
+                                "hashtag_info": {"hashtag": hashtag, "platform": "tiktok"},
+                                "posts": posts_data
+                            }, f, default=str)
+                        
+                        json_files = [filepath]
+
                     if json_files:
                         # Get the most recent file
                         latest_file = max(json_files, key=os.path.getctime)
@@ -385,6 +425,7 @@ class HashtagDiscovery:
                             })
                     else:
                         log.warning(f"Could not find JSON file for #{hashtag}")
+                        # Fallback: try to upload from memory if we had logic for it, but upload_hashtag_posts_to_db takes file path
                         results["hashtags_failed"] += 1
                 else:
                     log.warning(f"No posts found for #{hashtag}")
@@ -408,7 +449,14 @@ class HashtagDiscovery:
                     "error": str(e)
                 })
         
-        scraper.close()
+        # Close scraper
+        try:
+            if hasattr(scraper, 'close'):
+                scraper.close()
+            elif hasattr(scraper, 'driver') and hasattr(scraper.driver, 'quit'):
+                scraper.driver.quit()
+        except:
+            pass
         
         log.info("\n" + "=" * 60)
         log.info("Hashtag Discovery Complete")
@@ -443,7 +491,7 @@ class HashtagDiscovery:
             max_iterations = self.MAX_ITERATIONS_LIMIT
         
         log.info("=" * 60)
-        log.info("Starting RECURSIVE Hashtag Discovery Process")
+        log.info(f"Starting RECURSIVE Hashtag Discovery Process (Platform: {self.platform})")
         log.info(f"Max iterations: {max_iterations} (hard limit: {self.MAX_ITERATIONS_LIMIT})")
         log.info("=" * 60)
         
@@ -506,6 +554,7 @@ class HashtagDiscovery:
 def main():
     # for testing
     import argparse
+    import json
     
     parser = argparse.ArgumentParser(description="Discover and scrape hashtags from competitor posts")
     parser.add_argument(
@@ -543,13 +592,45 @@ def main():
         default=3,
         help="Maximum iterations for recursive discovery (default: 3)"
     )
+    parser.add_argument(
+        "--platform",
+        type=str,
+        default="instagram",
+        choices=["instagram", "tiktok"],
+        help="Platform to scrape (instagram or tiktok)"
+    )
+    parser.add_argument(
+        "--proxy",
+        type=str,
+        default=None,
+        help="Proxy URL (e.g. http://user:pass@host:port)"
+    )
+    parser.add_argument(
+        "--seed",
+        type=str,
+        default=None,
+        help="Seed hashtags (comma-separated, e.g. 'indiegame,gamedev')"
+    )
     
     args = parser.parse_args()
     
+    # User requested top 10 iteration, so if platform is tiktok and max_posts wasn't explicitly set (it defaults to 50),
+    # let's respect that request if the user implies default behavior should be 10 for tiktok.
+    # But cli args override defaults. So we'll trust the caller to pass --max-posts 10.
+    
+    
+    # Parse seed hashtags if provided (comma-separated CLI arg)
+    seed_hashtags = []
+    if args.seed:
+        seed_hashtags = [t.strip() for t in args.seed.split(',')]
+        
     discovery = HashtagDiscovery(
         user_id=args.user_id,
         group_id=args.group_id,
-        max_posts_per_hashtag=args.max_posts
+        max_posts_per_hashtag=args.max_posts,
+        platform=args.platform,
+        proxy=args.proxy,
+        seed_hashtags=seed_hashtags
     )
     
     if args.recursive:

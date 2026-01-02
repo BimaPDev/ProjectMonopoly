@@ -14,20 +14,20 @@ log = logging.getLogger("verify_system")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def test_proxy_manager():
-    log.info("🔹 Testing Proxy Manager...")
+    log.info("Testing Proxy Manager...")
     try:
-        proxy_manager.refresh_proxies(force=True)
+        proxy_manager.validate_all_proxies()
         count = len(proxy_manager.proxies)
-        log.info(f"   ✅ Proxy Fetch Successful. Count: {count}")
+        log.info(f"   Proxy Fetch Successful. Count: {count}")
         
         proxy = proxy_manager.get_working_proxy()
         if proxy:
-            log.info(f"   ✅ Got working proxy: {proxy}")
+            log.info(f"   Got working proxy: {proxy}")
         else:
-            log.warning("   ⚠️ No working proxy available (expected if all blocked/down)")
+            log.warning("   No working proxy available (expected if all blocked/down)")
             
     except Exception as e:
-        log.error(f"   ❌ Proxy Manager Failed: {e}")
+        log.error(f"   Proxy Manager Failed: {e}")
 
 def verify_niche_brain():
     log.info("\n🧠 Verifying Global Niche Brain (Cross-Group Sharing)...")
@@ -165,6 +165,6 @@ if __name__ == "__main__":
     log.addHandler(ch)
     
     print("="*60)
-    # test_proxy_manager() # Skip proxy to ensure we see Niche Brain output without truncation
-    verify_niche_brain()
+    test_proxy_manager() 
+    # verify_niche_brain() # Skip niche brain to focus on proxy
     print("="*60)

@@ -926,7 +926,7 @@ def refresh_proxies_and_scheduled_scrape(self) -> Dict[str, Any]:
         # 1. Force refresh proxies
         log.info("1️⃣ forcing proxy refresh...")
         try:
-            proxy_manager.refresh_proxies(force=True)
+            proxy_manager.validate_all_proxies()
             proxy_count = len(proxy_manager.proxies)
             log.info(f"   → Proxy refresh complete. Available: {proxy_count}")
 
@@ -1042,14 +1042,15 @@ def scrape_instagram_hashtag(hashtag, max_posts=50):
 MAX_ITERATIONS_LIMIT = 10
 
 @app.task(name="worker.tasks.discover_and_scrape_hashtags", queue="celery")
-def discover_and_scrape_hashtags(user_id=None, group_id=None, max_hashtags=10, max_posts_per_hashtag=50, recursive=False, max_iterations=3):
+def discover_and_scrape_hashtags(user_id=None, group_id=None, max_hashtags=10, max_posts_per_hashtag=50, recursive=False, max_iterations=3, platform='instagram'):
     """
     Task to discover and scrape hashtags from competitor posts.
     
     Note:
         max_iterations is capped at 10 to prevent infinite scraping loops.
     """
-    log.info("Starting hashtag discovery and scraping task")
+    platform = platform.lower()
+    log.info(f"Starting hashtag discovery and scraping task (platform={platform})")
     
     # Enforce hard limit at task level (defense in depth)
     if max_iterations > MAX_ITERATIONS_LIMIT:
@@ -1062,11 +1063,14 @@ def discover_and_scrape_hashtags(user_id=None, group_id=None, max_hashtags=10, m
         sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
         
         from socialmedia.hashtag.hashtag_discovery import HashtagDiscovery
+        from .config import PROXY_URL
         
         discovery = HashtagDiscovery(
             user_id=user_id,
             group_id=group_id,
-            max_posts_per_hashtag=max_posts_per_hashtag
+            max_posts_per_hashtag=max_posts_per_hashtag,
+            platform=platform,
+            proxy=PROXY_URL if PROXY_URL else None
         )
         
         if recursive:

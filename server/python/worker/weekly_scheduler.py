@@ -29,9 +29,11 @@ Last Updated: 2025-12-27
 
 import os
 import logging
+from datetime import timedelta
 from celery.schedules import crontab
 
 from .celery_app import app
+from .config import HASHTAG_DISCOVERY_INTERVAL
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging Configuration
@@ -114,6 +116,26 @@ BEAT_SCHEDULES = {
             'priority': 2,
         },
         'description': 'Evening hashtag trends scraping - 8 PM UTC'
+    },
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Recursive Hashtag Discovery (TikTok)
+    # Runs every X hours (default 5)
+    # ─────────────────────────────────────────────────────────────────────────
+    'hashtag-discovery-tiktok-recursive': {
+        'task': 'worker.tasks.discover_and_scrape_hashtags',
+        'schedule': timedelta(hours=HASHTAG_DISCOVERY_INTERVAL),
+        'kwargs': {
+            'platform': 'tiktok',
+            'recursive': True,
+            'max_iterations': 3,
+            'max_posts_per_hashtag': 10
+        },
+        'options': {
+            'queue': 'celery',
+            'priority': 4,
+        },
+        'description': f'Recursive TikTok hashtag discovery - Every {HASHTAG_DISCOVERY_INTERVAL} hours'
     },
 }
 
