@@ -146,11 +146,41 @@ func CreateCompetitor(c *gin.Context, queries *db.Queries) {
 	}()
 }
 
+
+
+func DeleteCompetitorByID(c *gin.Context, queries *db.Queries){
+	cid := c.Param("competitorID");
+	competitorID, err := utils.ParseUUID(cid)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid competitor ID format"})
+		return
+	}
+	competitor, err := queries.GetUserCompetitorByCompetitorID(c, competitorID);
+	if(err != nil){
+		c.JSON(http.StatusNotFound, gin.H{"error": "could not find competitor in user competitors by given id"})
+		return
+	}
+	if(CheckGroupOwnership(c, queries, competitor.GroupID.Int32)){
+		err = queries.DeleteCompetitorByID(c,competitorID);
+		if(err != nil){
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error deleting competitor"})	
+			return;
+		}else{
+			c.JSON(http.StatusOK, gin.H{"success": "competitor deleted successfully"});
+			return;
+		}
+
+	}
+	
+
+}
+
 // AddProfileToCompetitorRequest represents the request body for adding a profile
 type AddProfileToCompetitorRequest struct {
 	Handle   string `json:"handle"`
 	Platform string `json:"platform"`
 }
+
 
 // AddProfileToCompetitor adds a new platform profile to an existing competitor
 func AddProfileToCompetitor(c *gin.Context, queries *db.Queries) {

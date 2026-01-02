@@ -16,7 +16,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
+import {
+  EyeClosed,
+  Plus,
+} from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 import { useEffect, useState } from "react";
@@ -24,6 +28,7 @@ import { useGroup } from "./groupContext";
 import { TriangleAlert } from "lucide-react";
 import { socialPlatforms } from "@/components/socialPlatforms";
 
+import { toast } from "@/hooks/use-toast";
 interface Profile {
   id: string;
   platform: string;
@@ -150,6 +155,48 @@ export function CompetitorsPage() {
     document.addEventListener('mousemove', doDrag);
     document.addEventListener('mouseup', stopDrag);
   }
+
+  const deleteCompetitor = async (competitorID: string, competitorName: string) => {
+    let conf = confirm(`Are you sure you want to delete ${competitorName}?`)
+
+    if (conf) {
+      //  toast({
+      //           title: "No file selected",
+      //           description: "Please select a file to upload",
+      //           variant: "destructive",
+      //       });
+      try {
+        const res = await fetch(`/api/groups/competitors/${competitorID}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` },
+
+        })
+
+        const body = await res.json();
+        if (!res.ok) {
+          toast({
+            title: "Error deleting competitor",
+            description: body.error,
+            variant: "default",
+          });
+          return;
+        }
+        toast({
+          title: `${competitorName} was deleted successfully`,
+          variant: "default",
+        });
+        fetchCompetitors();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        toast({
+          title: "Error deleting competitor",
+          description: message,
+          variant: "default",
+        });
+      }
+    }
+  }
   const fetchCompetitors = async () => {
     try {
       // Try new API first with group_id, fallback to legacy
@@ -160,7 +207,7 @@ export function CompetitorsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        console.log("API Response:", JSON.stringify(data, null, 2));
+        //console.log("API Response:", JSON.stringify(data, null, 2));
         const normalized: Competitors[] = (data || []).map((competitor: any) => ({
           id: competitor.id,
           display_name: competitor.display_name || 'Unknown',
@@ -178,7 +225,7 @@ export function CompetitorsPage() {
             last_checked: p.last_checked ? new Date(p.last_checked).toLocaleDateString() : null,
           })),
         }));
-        console.log("Normalized data:", JSON.stringify(normalized, null, 2));
+        //console.log("Normalized data:", JSON.stringify(normalized, null, 2));
         setCompetitors(normalized);
       } else {
         // Fallback to legacy endpoint
@@ -205,7 +252,7 @@ export function CompetitorsPage() {
           }],
         }));
         setCompetitors(normalized);
-        console.log("COMPETITOR", competitors)
+        // console.log("COMPETITOR", competitors)
       }
     } catch (e: any) {
       console.error("Could not fetch competitors:", e);
@@ -220,14 +267,12 @@ export function CompetitorsPage() {
 
   if (!activeGroup) {
     return (
-      <div className="flex justify-center w-full h-[45px] text-center">
-        <div className="flex gap-2 p-2 border border-red-500 border-dashed">
-          <div className=" w-[30px] h-[30px] flex justify-center items-center rounded-lg">
-
-            <TriangleAlert className="text-yellow-400"></TriangleAlert>
-          </div>
-          <h1 className="font-semibold">Please select a group to continue </h1>
-        </div>
+      <div className="flex items-center justify-center h-[400px]">
+        <Card className="p-8 text-center bg-card border-border">
+          <EyeClosed className="w-16 h-16 mx-auto mb-4 text-amber-500" />
+          <h3 className="mb-2 text-xl font-semibold">No Group Selected</h3>
+          <p className="text-muted-foreground">Please select a group from the sidebar to view.</p>
+        </Card>
       </div>
     );
   }
@@ -413,6 +458,12 @@ export function CompetitorsPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => deleteCompetitor(competitor.id, competitor.display_name)}
+                            className="p-2 text-red-400 transition-colors rounded-lg hover:bg-red-500/20 hover:text-red-300"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                           <Button
                             variant="outline"
                             size="sm"

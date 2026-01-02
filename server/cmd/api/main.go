@@ -100,6 +100,7 @@ func main() {
 			protected.GET("/groups/:groupID/competitors", wrap(handlers.ListUserCompetitors))
 			protected.POST("/groups/competitors", wrap(handlers.CreateCompetitor))
 			protected.GET("/groups/competitors", wrap(handlers.ListUserCompetitors))
+			protected.DELETE("/groups/competitors/:competitorID", wrap(handlers.DeleteCompetitorByID))
 			protected.GET("/competitors/posts", wrap(handlers.ListVisibleCompetitorPosts))
 			protected.GET("/competitors/with-profiles", wrap(handlers.ListCompetitorsWithProfiles))
 			protected.POST("/competitors/:id/profiles", wrap(handlers.AddProfileToCompetitor))
@@ -113,7 +114,9 @@ func main() {
 			// Games Context
 			protected.POST("/games/extract", wrap(handlers.ExtractGameContext))
 			protected.POST("/games/input", wrap(handlers.SaveGameContext))
-
+			protected.GET("/games/view/:groupID", wrap(handlers.GetGameContext))
+			protected.DELETE("/games/delete/:gameContextID", wrap(handlers.DeleteGameContext))
+			protected.POST("/games/update/:gameContextID",wrap(handlers.UpdateGameContext))
 			// AI Chat (Protected)
 			protected.POST("/ai/chat", wrap(handlers.DeepSeekHandler))
 

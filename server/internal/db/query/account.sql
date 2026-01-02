@@ -443,7 +443,14 @@ LIMIT 1;
 INSERT INTO competitors (display_name)
 VALUES ($1)
 RETURNING *;
-
+-- Get a competitor from user competitors
+-- name: GetUserCompetitorByCompetitorID :one
+SELECT * FROM user_competitors
+where competitor_id = $1;
+-- Delete an existing competitor
+-- name: DeleteCompetitorByID :exec
+DELETE from competitors 
+where id = $1;
 -- Get competitor by platform and username
 -- name: GetCompetitorByPlatformUsername :one
 SELECT c.* FROM competitors c
@@ -562,6 +569,27 @@ VALUES (
     $21, $22, $23
 )
 RETURNING *;
+-- Update game context
+-- name: UpdateGameContextByID :exec
+UPDATE game_contexts
+SET game_title = $2, studio_name = $3, game_summary = $4, platforms = $5, engine_tech = $6,
+    primary_genre = $7, subgenre = $8, key_mechanics = $9, playtime_length = $10, art_style = $11, tone = $12,
+    intended_audience = $13, age_range = $14, player_motivation = $15, comparable_games = $16,
+    marketing_objective = $17, key_events_dates = $18, call_to_action = $19,
+    content_restrictions = $20, competitors_to_avoid = $21, additional_info = $22, 
+    updated_at = NOW()
+where id = $1;
+
+-- Delete Game Context
+-- name: DeleteGameContextByID :exec
+DELETE from game_contexts
+where id = $1;
+
+-- Get Game Context by ID
+-- name: GetGameContextByID :one
+SELECT * from game_contexts
+where id = $1
+limit 1;
 
 -- Get game context by group ID
 -- name: GetGameContextByGroupID :one
@@ -569,6 +597,13 @@ SELECT * FROM game_contexts
 WHERE group_id = $1
 ORDER BY created_at DESC
 LIMIT 1;
+
+-- Get all game context by group ID
+-- name: GetAllGameContextByGroupID :many
+SELECT *
+FROM game_contexts
+WHERE group_id = $1
+ORDER BY created_at DESC;
 
 -- Get game context by user ID
 -- name: GetGameContextByUserID :one
