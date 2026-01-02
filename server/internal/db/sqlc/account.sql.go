@@ -572,6 +572,28 @@ func (q *Queries) CreateUserWithPassword(ctx context.Context, arg CreateUserWith
 	return i, err
 }
 
+const deleteCompetitorByID = `-- name: DeleteCompetitorByID :exec
+DELETE from competitors 
+where id = $1
+`
+
+// Delete an existing competitor
+func (q *Queries) DeleteCompetitorByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteCompetitorByID, id)
+	return err
+}
+
+const deleteGameContextByID = `-- name: DeleteGameContextByID :exec
+DELETE from game_contexts
+where id = $1
+`
+
+// Delete Game Context
+func (q *Queries) DeleteGameContextByID(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteGameContextByID, id)
+	return err
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions WHERE id = $1
 `
@@ -667,6 +689,66 @@ func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
 	return i, err
 }
 
+const getAllGameContextByGroupID = `-- name: GetAllGameContextByGroupID :many
+SELECT id, user_id, group_id, game_title, studio_name, game_summary, platforms, engine_tech, primary_genre, subgenre, key_mechanics, playtime_length, art_style, tone, intended_audience, age_range, player_motivation, comparable_games, marketing_objective, key_events_dates, call_to_action, content_restrictions, competitors_to_avoid, additional_info, extraction_method, original_file_name, created_at, updated_at
+FROM game_contexts
+WHERE group_id = $1
+ORDER BY created_at DESC
+`
+
+// Get all game context by group ID
+func (q *Queries) GetAllGameContextByGroupID(ctx context.Context, groupID sql.NullInt32) ([]GameContext, error) {
+	rows, err := q.db.QueryContext(ctx, getAllGameContextByGroupID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GameContext
+	for rows.Next() {
+		var i GameContext
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.GroupID,
+			&i.GameTitle,
+			&i.StudioName,
+			&i.GameSummary,
+			pq.Array(&i.Platforms),
+			&i.EngineTech,
+			&i.PrimaryGenre,
+			&i.Subgenre,
+			&i.KeyMechanics,
+			&i.PlaytimeLength,
+			&i.ArtStyle,
+			&i.Tone,
+			&i.IntendedAudience,
+			&i.AgeRange,
+			&i.PlayerMotivation,
+			&i.ComparableGames,
+			&i.MarketingObjective,
+			&i.KeyEventsDates,
+			&i.CallToAction,
+			&i.ContentRestrictions,
+			&i.CompetitorsToAvoid,
+			&i.AdditionalInfo,
+			&i.ExtractionMethod,
+			&i.OriginalFileName,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCompetitorByPlatformUsername = `-- name: GetCompetitorByPlatformUsername :one
 SELECT c.id, c.last_checked, c.total_posts, c.display_name FROM competitors c
 JOIN competitor_profiles cp ON cp.competitor_id = c.id
@@ -716,6 +798,49 @@ LIMIT 1
 // Get game context by group ID
 func (q *Queries) GetGameContextByGroupID(ctx context.Context, groupID sql.NullInt32) (GameContext, error) {
 	row := q.db.QueryRowContext(ctx, getGameContextByGroupID, groupID)
+	var i GameContext
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.GameTitle,
+		&i.StudioName,
+		&i.GameSummary,
+		pq.Array(&i.Platforms),
+		&i.EngineTech,
+		&i.PrimaryGenre,
+		&i.Subgenre,
+		&i.KeyMechanics,
+		&i.PlaytimeLength,
+		&i.ArtStyle,
+		&i.Tone,
+		&i.IntendedAudience,
+		&i.AgeRange,
+		&i.PlayerMotivation,
+		&i.ComparableGames,
+		&i.MarketingObjective,
+		&i.KeyEventsDates,
+		&i.CallToAction,
+		&i.ContentRestrictions,
+		&i.CompetitorsToAvoid,
+		&i.AdditionalInfo,
+		&i.ExtractionMethod,
+		&i.OriginalFileName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getGameContextByID = `-- name: GetGameContextByID :one
+SELECT id, user_id, group_id, game_title, studio_name, game_summary, platforms, engine_tech, primary_genre, subgenre, key_mechanics, playtime_length, art_style, tone, intended_audience, age_range, player_motivation, comparable_games, marketing_objective, key_events_dates, call_to_action, content_restrictions, competitors_to_avoid, additional_info, extraction_method, original_file_name, created_at, updated_at from game_contexts
+where id = $1
+limit 1
+`
+
+// Get Game Context by ID
+func (q *Queries) GetGameContextByID(ctx context.Context, id int32) (GameContext, error) {
+	row := q.db.QueryRowContext(ctx, getGameContextByID, id)
 	var i GameContext
 	err := row.Scan(
 		&i.ID,
@@ -1161,6 +1286,26 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 		&i.Email,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserCompetitorByCompetitorID = `-- name: GetUserCompetitorByCompetitorID :one
+SELECT id, user_id, group_id, competitor_id, visibility, added_at FROM user_competitors
+where competitor_id = $1
+`
+
+// Get a competitor from user competitors
+func (q *Queries) GetUserCompetitorByCompetitorID(ctx context.Context, competitorID uuid.UUID) (UserCompetitor, error) {
+	row := q.db.QueryRowContext(ctx, getUserCompetitorByCompetitorID, competitorID)
+	var i UserCompetitor
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.CompetitorID,
+		&i.Visibility,
+		&i.AddedAt,
 	)
 	return i, err
 }
@@ -1906,6 +2051,71 @@ type UnlinkUserFromCompetitorInGroupParams struct {
 // Unlink user from competitor in a specific group
 func (q *Queries) UnlinkUserFromCompetitorInGroup(ctx context.Context, arg UnlinkUserFromCompetitorInGroupParams) error {
 	_, err := q.db.ExecContext(ctx, unlinkUserFromCompetitorInGroup, arg.UserID, arg.CompetitorID, arg.GroupID)
+	return err
+}
+
+const updateGameContextByID = `-- name: UpdateGameContextByID :exec
+UPDATE game_contexts
+SET game_title = $2, studio_name = $3, game_summary = $4, platforms = $5, engine_tech = $6,
+    primary_genre = $7, subgenre = $8, key_mechanics = $9, playtime_length = $10, art_style = $11, tone = $12,
+    intended_audience = $13, age_range = $14, player_motivation = $15, comparable_games = $16,
+    marketing_objective = $17, key_events_dates = $18, call_to_action = $19,
+    content_restrictions = $20, competitors_to_avoid = $21, additional_info = $22, 
+    updated_at = NOW()
+where id = $1
+`
+
+type UpdateGameContextByIDParams struct {
+	ID                  int32          `json:"id"`
+	GameTitle           string         `json:"game_title"`
+	StudioName          sql.NullString `json:"studio_name"`
+	GameSummary         sql.NullString `json:"game_summary"`
+	Platforms           []string       `json:"platforms"`
+	EngineTech          sql.NullString `json:"engine_tech"`
+	PrimaryGenre        sql.NullString `json:"primary_genre"`
+	Subgenre            sql.NullString `json:"subgenre"`
+	KeyMechanics        sql.NullString `json:"key_mechanics"`
+	PlaytimeLength      sql.NullString `json:"playtime_length"`
+	ArtStyle            sql.NullString `json:"art_style"`
+	Tone                sql.NullString `json:"tone"`
+	IntendedAudience    sql.NullString `json:"intended_audience"`
+	AgeRange            sql.NullString `json:"age_range"`
+	PlayerMotivation    sql.NullString `json:"player_motivation"`
+	ComparableGames     sql.NullString `json:"comparable_games"`
+	MarketingObjective  sql.NullString `json:"marketing_objective"`
+	KeyEventsDates      sql.NullString `json:"key_events_dates"`
+	CallToAction        sql.NullString `json:"call_to_action"`
+	ContentRestrictions sql.NullString `json:"content_restrictions"`
+	CompetitorsToAvoid  sql.NullString `json:"competitors_to_avoid"`
+	AdditionalInfo      sql.NullString `json:"additional_info"`
+}
+
+// Update game context
+func (q *Queries) UpdateGameContextByID(ctx context.Context, arg UpdateGameContextByIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateGameContextByID,
+		arg.ID,
+		arg.GameTitle,
+		arg.StudioName,
+		arg.GameSummary,
+		pq.Array(arg.Platforms),
+		arg.EngineTech,
+		arg.PrimaryGenre,
+		arg.Subgenre,
+		arg.KeyMechanics,
+		arg.PlaytimeLength,
+		arg.ArtStyle,
+		arg.Tone,
+		arg.IntendedAudience,
+		arg.AgeRange,
+		arg.PlayerMotivation,
+		arg.ComparableGames,
+		arg.MarketingObjective,
+		arg.KeyEventsDates,
+		arg.CallToAction,
+		arg.ContentRestrictions,
+		arg.CompetitorsToAvoid,
+		arg.AdditionalInfo,
+	)
 	return err
 }
 

@@ -148,6 +148,22 @@ type GroupItem struct {
 	CookieCreatedAt sql.NullTime    `json:"cookie_created_at"`
 }
 
+type HashtagPost struct {
+	ID            int32                 `json:"id"`
+	Hashtag       string                `json:"hashtag"`
+	Platform      string                `json:"platform"`
+	PostID        string                `json:"post_id"`
+	Username      sql.NullString        `json:"username"`
+	Content       sql.NullString        `json:"content"`
+	Media         pqtype.NullRawMessage `json:"media"`
+	PostedAt      sql.NullTime          `json:"posted_at"`
+	Likes         sql.NullInt64         `json:"likes"`
+	CommentsCount sql.NullInt64         `json:"comments_count"`
+	Hashtags      []string              `json:"hashtags"`
+	ScrapedAt     sql.NullTime          `json:"scraped_at"`
+	CaptionHash   sql.NullString        `json:"caption_hash"`
+}
+
 type ListenerState struct {
 	ID                 int32        `json:"id"`
 	SourceID           int32        `json:"source_id"`
@@ -295,6 +311,25 @@ type StrategyCard struct {
 	CreatedAt       sql.NullTime          `json:"created_at"`
 }
 
+type TaskLock struct {
+	TaskName  string         `json:"task_name"`
+	LockedAt  time.Time      `json:"locked_at"`
+	LockedBy  sql.NullString `json:"locked_by"`
+	ExpiresAt time.Time      `json:"expires_at"`
+}
+
+type UnifiedPost struct {
+	SourceTable string         `json:"source_table"`
+	SourceID    int32          `json:"source_id"`
+	Username    sql.NullString `json:"username"`
+	Platform    string         `json:"platform"`
+	Content     sql.NullString `json:"content"`
+	PostedAt    sql.NullTime   `json:"posted_at"`
+	Likes       interface{}    `json:"likes"`
+	Comments    interface{}    `json:"comments"`
+	Views       interface{}    `json:"views"`
+}
+
 type UploadJob struct {
 	ID             string         `json:"id"`
 	UserID         int32          `json:"user_id"`
@@ -343,6 +378,24 @@ type UserCompetitor struct {
 	CompetitorID uuid.UUID     `json:"competitor_id"`
 	Visibility   string        `json:"visibility"`
 	AddedAt      sql.NullTime  `json:"added_at"`
+}
+
+type ViralOutlier struct {
+	ID               int32                 `json:"id"`
+	SourceTable      string                `json:"source_table"`
+	SourceID         int32                 `json:"source_id"`
+	Multiplier       int32                 `json:"multiplier"`
+	MedianEngagement int64                 `json:"median_engagement"`
+	ActualEngagement int64                 `json:"actual_engagement"`
+	AvailableCount   int32                 `json:"available_count"`
+	SupportCount     int32                 `json:"support_count"`
+	Hook             sql.NullString        `json:"hook"`
+	Cta              sql.NullString        `json:"cta"`
+	Platform         sql.NullString        `json:"platform"`
+	Username         sql.NullString        `json:"username"`
+	AnalyzedAt       sql.NullTime          `json:"analyzed_at"`
+	ExpiresAt        time.Time             `json:"expires_at"`
+	AiAnalysis       pqtype.NullRawMessage `json:"ai_analysis"`
 }
 
 type WorkshopChunk struct {
