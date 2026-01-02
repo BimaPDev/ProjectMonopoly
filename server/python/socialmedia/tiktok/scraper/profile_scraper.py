@@ -819,6 +819,26 @@ class TikTokScraper:
                     print(f"Failed to save screenshot: {ss_err}")
                 
                 if refresh_attempt < max_refresh_retries - 1:
+                    # Special handling for SeleniumBase - try built-in captcha/verify tools
+                    if self.driver_type == 'seleniumbase' and hasattr(self._raw_driver, 'sb'):
+                        try:
+                            # If we have access to the raw sb object
+                            print("Attempting SeleniumBase verification/captcha solver...")
+                            sb = self._raw_driver.sb
+                            
+                            # Try general verification
+                            if hasattr(sb, 'verify_success'):
+                                sb.verify_success() 
+                                
+                            # Try captcha solving (works on some challenges)
+                            # Note: TikTok 'Something went wrong' isn't always a captcha, but this might help
+                            # if it's a hidden verify page
+                            # sb.uc_gui_click_captcha() # Only if captcha is visible
+                            
+                            random_delay(2, 4)
+                        except Exception as sb_err:
+                            print(f"SeleniumBase verify failed: {sb_err}")
+
                     # Try clicking the Refresh button
                     try:
                         from selenium.webdriver.common.by import By
@@ -828,6 +848,7 @@ class TikTokScraper:
                         random_delay(5, 8)  # Wait longer after refresh
                     except Exception as click_err:
                         print(f"Could not click Refresh: {click_err}")
+
                         # Try page refresh instead
                         self.driver.get(hashtag_url)
                         random_delay(5, 8)
