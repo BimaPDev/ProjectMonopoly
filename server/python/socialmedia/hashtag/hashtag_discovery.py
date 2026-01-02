@@ -451,12 +451,22 @@ class HashtagDiscovery:
                                 # Empty results - likely proxy failure (page didn't load)
                                 log.warning(f"Scrape attempt {scrape_attempt}/{max_scrape_retries} returned 0 results (proxy may have failed)")
                                 
+                                # Take screenshot to see what's happening
+                                try:
+                                    screenshot_path = f"/app/screenshots/proxy_fail_{scrape_attempt}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                                    os.makedirs("/app/screenshots", exist_ok=True)
+                                    scraper.driver.save_screenshot(screenshot_path)
+                                    log.info(f"Screenshot saved to: {screenshot_path}")
+                                except Exception as ss_err:
+                                    log.warning(f"Failed to save screenshot: {ss_err}")
+                                
                                 if scrape_attempt < max_scrape_retries:
                                     log.info("Empty results - reinitializing scraper with new proxy...")
                                     try:
                                         scraper.close()
                                     except:
                                         pass
+
                                     
                                     # Get a new proxy
                                     try:
