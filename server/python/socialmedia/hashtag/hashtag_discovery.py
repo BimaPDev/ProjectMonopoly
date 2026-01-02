@@ -443,15 +443,18 @@ class HashtagDiscovery:
                         except Exception as scrape_error:
                             error_msg = str(scrape_error).lower()
                             # Detect proxy-related failures: timeout, aborted, context destroyed, connection errors
+                            # Also detect page-load failures (null properties = page didn't load)
                             is_proxy_failure = any(pattern in error_msg for pattern in [
                                 'timeout', 'timed_out', 'err_timed_out', 'err_aborted',
                                 'context was destroyed', 'navigation', 'net::err_',
-                                'connection refused', 'connection reset', 'proxy'
+                                'connection refused', 'connection reset', 'proxy',
+                                'properties of null', 'scrollheight', 'typeerror'
                             ])
                             
                             log.warning(f"Scrape attempt {scrape_attempt}/{max_scrape_retries} failed: {scrape_error}")
                             
                             if scrape_attempt < max_scrape_retries and is_proxy_failure:
+
 
                                 log.info("Proxy failure detected - reinitializing scraper with new proxy...")
                                 try:
