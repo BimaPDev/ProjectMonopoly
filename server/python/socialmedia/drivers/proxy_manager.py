@@ -175,3 +175,8 @@ class ProxyManager:
 # Singleton instance
 proxy_manager = ProxyManager()
 
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    print("Running ProxyManager independently...")
+    proxy_manager.validate_all_proxies()
+

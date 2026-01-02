@@ -50,7 +50,6 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       CELERY_BROKER_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
       CELERY_RESULT_BACKEND: rpc://
-      PROXY_URL: ${PROXY_URL}
       HASHTAG_DISCOVERY_INTERVAL: ${HASHTAG_DISCOVERY_INTERVAL:-5.0} # Default 5 hours
     volumes:
       - docs_data:/data/docs

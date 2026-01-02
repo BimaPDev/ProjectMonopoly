@@ -39,6 +39,33 @@ class HashtagDiscovery:
         self.proxy = proxy
         self.seed_hashtags = seed_hashtags or []
         
+        # If no explicit proxy provided, try to get one from ProxyManager
+        # This is for scraping only - Docker/general app does not use proxies
+        if not self.proxy:
+            try:
+                # Add parent path to allow relative imports when run as script
+                import sys
+                import os
+                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+                from socialmedia.drivers.proxy_manager import proxy_manager
+                
+                # First, try to get a proxy from existing verified list
+                self.proxy = proxy_manager.get_working_proxy()
+                
+                # If no verified proxies exist, trigger a fresh validation
+                if not self.proxy:
+                    log.info("No verified proxies found. Fetching and validating fresh proxy list...")
+                    proxy_manager.validate_all_proxies()
+                    self.proxy = proxy_manager.get_working_proxy()
+                
+                if self.proxy:
+                    log.info(f"Using auto-selected proxy from ProxyManager: {self.proxy}")
+                else:
+                    log.warning("ProxyManager found no working proxies. Scraping will use direct connection.")
+            except Exception as e:
+                log.warning(f"Failed to get proxy from ProxyManager: {e}. Scraping will use direct connection.")
+
+        
     def get_competitor_hashtags(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get hashtags from competitor posts. Returns list of hashtags with their frequency.
