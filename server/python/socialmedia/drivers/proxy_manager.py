@@ -3,125 +3,175 @@ import requests
 import random
 import logging
 import time
+import json
+import os
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 log = logging.getLogger(__name__)
 
+# Path to store verified proxies
+VERIFIED_PROXIES_FILE = os.path.join(os.path.dirname(__file__), '..', '..', 'verified_proxies.json')
+
 class ProxyManager:
     """
-    Manages fetching, validating, and rotating free proxies from GitHub lists.
-    Supports HTTP, SOCKS4, and SOCKS5.
+    Manages fetching, validating, and rotating free proxies.
+    
+    Workflow:
+        1. Every 3 hours, `validate_all_proxies()` checks ALL proxies and saves working ones.
+        2. `get_working_proxy()` reads from the verified list only.
     """
     
     PROXY_SOURCES = {
         'http': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/http/data.txt',
         'https': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/https/data.txt',
         'socks4': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt',
-        'socks5': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt'
+        'socks5': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt',
+        'proxyscrape': 'https://api.proxyscrape.com/v4/free-proxy-list/get?request=get_proxies&protocol=http&proxy_format=protocolipport&format=text&timeout=20000'
     }
     
     def __init__(self):
         self.proxies: List[str] = []
-        self.last_fetch_time: Optional[datetime] = None
-        self.cache_duration = timedelta(hours=1)
-        self.test_url = "http://httpbin.org/ip" # Lightweight endpoint for validation
-        self.timeout = 5 # Seconds
+        self.test_url = "http://httpbin.org/ip"
+        self.timeout = 5  # Seconds per proxy check
+        self.max_workers = 50  # Parallel workers for validation
         
-    def refresh_proxies(self, force: bool = False) -> None:
-        """
-        Fetch proxies from all sources.
-        
-        Args:
-            force: If True, bypass cache duration and force fresh fetch.
-        """
-        if not force and self.proxies and self.last_fetch_time and (datetime.now() - self.last_fetch_time < self.cache_duration):
-            return
-
-        log.info("🔄 Fetching fresh proxy lists...")
-        fetched_proxies = []
+    def fetch_all_proxies(self) -> List[str]:
+        """Fetch proxies from all sources."""
+        log.info("🔄 Fetching proxy lists from all sources...")
+        fetched = []
         
         for protocol, url in self.PROXY_SOURCES.items():
             try:
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=15)
                 if response.status_code == 200:
                     lines = response.text.strip().split('\n')
-                    # Format: ip:port (raw list usually just has ip:port)
-                    # We need to prepend protocol for requests/selenium usage
-                    # e.g. 1.2.3.4:8080 -> http://1.2.3.4:8080 or socks5://1.2.3.4:1080
                     
                     for line in lines:
                         line = line.strip()
                         if line and ':' in line:
-                            # Add protocol prefix
-                            if protocol in ['http', 'https']:
-                                # HTTP/HTTPS proxies both use http:// scheme for connection in most libs (requests/selenium)
-                                fetched_proxies.append(f"http://{line}")
+                            if protocol == 'proxyscrape' or line.startswith('http'):
+                                fetched.append(line)
+                            elif protocol in ['http', 'https']:
+                                fetched.append(f"http://{line}")
                             else:
-                                fetched_proxies.append(f"{protocol}://{line}")
+                                fetched.append(f"{protocol}://{line}")
                                 
                     log.info(f"  → Fetched {len(lines)} {protocol.upper()} proxies")
-                else:
-                    log.warning(f"  ❌ Failed to fetch {protocol.upper()} list: Status {response.status_code}")
             except Exception as e:
                 log.error(f"  ❌ Error fetching {protocol.upper()} list: {e}")
                 
-        self.proxies = list(set(fetched_proxies)) # Deduplicate
-        self.last_fetch_time = datetime.now()
-        log.info(f"✅ Total unique proxies available: {len(self.proxies)}")
+        self.proxies = list(set(fetched))
+        log.info(f"✅ Total unique proxies: {len(self.proxies)}")
+        return self.proxies
 
-    def check_proxy(self, proxy_url: str) -> bool:
-        """
-        Validate a proxy by making a request to a test endpoint.
-        Returns True if connection succeeds within timeout.
-        """
+    def check_proxy(self, proxy_url: str) -> Optional[str]:
+        """Test a single proxy. Returns the proxy URL if working, else None."""
         try:
-            proxies = {
-                "http": proxy_url,
-                "https": proxy_url
-            }
-            # verify=False to avoid SSL cert issues with free proxies
+            proxies = {"http": proxy_url, "https": proxy_url}
             response = requests.get(self.test_url, proxies=proxies, timeout=self.timeout, verify=False)
             if response.status_code == 200:
-                log.debug(f"  ✅ Proxy working: {proxy_url}")
-                return True
+                return proxy_url
         except Exception:
-            pass # Silent failure for invalid proxies
-            
-        return False
+            pass
+        return None
 
-    def get_working_proxy(self, max_retries: int = 3) -> Optional[str]:
+    def validate_all_proxies(self) -> List[str]:
         """
-        Get a verified working proxy.
-        Tries random proxies from the list up to max_retries times.
-        Returns None if no working proxy is found (caller should fallback to local).
+        Check ALL proxies in parallel and save working ones to file.
+        This should be called every 3 hours by a scheduled task.
         """
-        self.refresh_proxies()
+        log.info("🔍 Starting FULL proxy validation (this may take a few minutes)...")
+        
+        # Fetch fresh list
+        self.fetch_all_proxies()
         
         if not self.proxies:
-            log.warning("⚠️ No proxies available in list.")
-            return None
+            log.warning("⚠️ No proxies to validate.")
+            return []
+        
+        working = []
+        total = len(self.proxies)
+        start_time = time.time()
+        
+        log.info(f"   Testing {total} proxies with {self.max_workers} parallel workers...")
+        
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {executor.submit(self.check_proxy, p): p for p in self.proxies}
             
-        log.info(f"🔍 Searching for a working proxy (max {max_retries} attempts)...")
-        
-        # shuffle to ensure randomness
-        candidates = random.sample(self.proxies, min(len(self.proxies), max_retries * 2)) 
-        
-        attempts = 0
-        for proxy in candidates:
-            if attempts >= max_retries:
-                break
+            completed = 0
+            for future in as_completed(futures):
+                completed += 1
+                result = future.result()
+                if result:
+                    working.append(result)
                 
-            if self.check_proxy(proxy):
-                # Double check: remove from strict rotation? 
-                # For now we keep it in the pool but randomness handles rotation.
-                log.info(f"🚀 Selected proxy: {proxy}")
-                return proxy
-            
-            attempts += 1
-            
-        log.warning("❌ All proxy attempts failed. Falling back to local IP.")
+                # Progress logging every 500
+                if completed % 500 == 0:
+                    elapsed = time.time() - start_time
+                    log.info(f"   Progress: {completed}/{total} checked, {len(working)} working ({elapsed:.1f}s)")
+        
+        elapsed = time.time() - start_time
+        log.info(f"✅ Validation complete: {len(working)}/{total} working ({len(working)/total*100:.1f}%) in {elapsed:.1f}s")
+        
+        # Save to file
+        self._save_verified_proxies(working)
+        
+        return working
+    
+    def _save_verified_proxies(self, proxies: List[str]) -> None:
+        """Save verified proxies to JSON file."""
+        try:
+            data = {
+                "verified_at": datetime.now().isoformat(),
+                "count": len(proxies),
+                "proxies": proxies
+            }
+            with open(VERIFIED_PROXIES_FILE, 'w') as f:
+                json.dump(data, f, indent=2)
+            log.info(f"💾 Saved {len(proxies)} verified proxies to {VERIFIED_PROXIES_FILE}")
+        except Exception as e:
+            log.error(f"❌ Failed to save verified proxies: {e}")
+    
+    def _load_verified_proxies(self) -> List[str]:
+        """Load verified proxies from JSON file."""
+        try:
+            if os.path.exists(VERIFIED_PROXIES_FILE):
+                with open(VERIFIED_PROXIES_FILE, 'r') as f:
+                    data = json.load(f)
+                    proxies = data.get("proxies", [])
+                    verified_at = data.get("verified_at", "unknown")
+                    log.info(f"📋 Loaded {len(proxies)} verified proxies (from {verified_at})")
+                    return proxies
+        except Exception as e:
+            log.error(f"❌ Failed to load verified proxies: {e}")
+        return []
+
+    def get_working_proxy(self) -> Optional[str]:
+        """
+        Get a random proxy from the verified list.
+        If no verified proxies exist, returns None (fallback to local IP).
+        """
+        verified = self._load_verified_proxies()
+        
+        if verified:
+            proxy = random.choice(verified)
+            log.info(f"🚀 Selected proxy: {proxy} (from {len(verified)} verified)")
+            return proxy
+        
+        log.warning("⚠️ No verified proxies available. Falling back to local IP.")
         return None
+    
+    def clear_verified_proxies(self) -> None:
+        """Delete the verified proxies file after scraping is complete."""
+        try:
+            if os.path.exists(VERIFIED_PROXIES_FILE):
+                os.remove(VERIFIED_PROXIES_FILE)
+                log.info("🗑️ Cleared verified_proxies.json (will refresh on next validation)")
+        except Exception as e:
+            log.error(f"❌ Failed to clear verified proxies: {e}")
 
 # Singleton instance
 proxy_manager = ProxyManager()
+

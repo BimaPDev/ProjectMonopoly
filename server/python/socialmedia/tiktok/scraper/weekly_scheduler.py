@@ -242,6 +242,13 @@ class WeeklyTikTokScraper:
                     failed_scrapes += 1
             
             log.info(f"📊 Weekly TikTok scraping completed: {successful_scrapes} successful, {failed_scrapes} failed")
+        
+            # Clear verified proxies after scraping is done
+            try:
+                from socialmedia.drivers.proxy_manager import proxy_manager
+                proxy_manager.clear_verified_proxies()
+            except Exception as e:
+                log.warning(f"⚠️ Failed to clear verified proxies: {e}")
             
             return {
                 "status": "success",

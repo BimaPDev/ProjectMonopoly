@@ -25,6 +25,7 @@ import os
 import sys
 import logging
 import hashlib
+import json
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date
 
@@ -863,8 +864,41 @@ def update_last_scrape_time() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Proxy Refresh & Scheduled Scrape Task
+# Full Proxy Validation Task (runs every 3 hours at :00)
 # ─────────────────────────────────────────────────────────────────────────────
+@app.task(
+    name="worker.tasks.validate_all_proxies_task",
+    queue="celery",
+    bind=True,
+    max_retries=1,
+    acks_late=True,
+)
+def validate_all_proxies_task(self) -> Dict[str, Any]:
+    """
+    Validates ALL proxies from all sources and stores working ones to a file.
+    This is called every 3 hours by the beat scheduler.
+    The scraper task (at :30) will then only pick from the verified list.
+    """
+    log.info("🔍 Starting scheduled FULL proxy validation...")
+    
+    try:
+        from socialmedia.drivers.proxy_manager import proxy_manager
+        
+        working = proxy_manager.validate_all_proxies()
+        
+        return {
+            "status": "success",
+            "total_checked": len(proxy_manager.proxies),
+            "working_count": len(working),
+            "success_rate": f"{len(working)/max(len(proxy_manager.proxies),1)*100:.1f}%"
+        }
+    except Exception as e:
+        log.exception("Full proxy validation failed")
+        return {"status": "failed", "error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Proxy Refresh & Scheduled Scrape Task
 @app.task(
     name="worker.tasks.refresh_proxies_and_scheduled_scrape",
     queue="celery",
@@ -936,6 +970,8 @@ def refresh_proxies_and_scheduled_scrape(self) -> Dict[str, Any]:
                 
                 # Update state
                 update_last_scrape_time()
+                
+                # Note: Proxy cleanup is now handled by the individual scrapers after they complete
 
                 return {
                     "status": "success",
