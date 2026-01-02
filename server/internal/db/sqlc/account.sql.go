@@ -15,6 +15,21 @@ import (
 	"github.com/lib/pq"
 )
 
+const cancelJob = `-- name: CancelJob :exec
+UPDATE upload_jobs
+SET status = 'canceled',
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+// Cancel a job
+func (q *Queries) CancelJob(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, cancelJob, id)
+	return err
+}
+
 const checkEmailExists = `-- name: CheckEmailExists :one
 SELECT COUNT(*) > 0 AS exists
 FROM users
@@ -46,6 +61,118 @@ func (q *Queries) CheckUsernameOrEmailExists(ctx context.Context, arg CheckUsern
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const claimQueuedJob = `-- name: ClaimQueuedJob :one
+
+WITH next AS (
+    SELECT id FROM upload_jobs
+    WHERE status = 'queued'
+    ORDER BY created_at
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE upload_jobs
+SET status = 'generating',
+    locked_at = NOW(),
+    locked_by = $1
+FROM next
+WHERE upload_jobs.id = next.id
+RETURNING upload_jobs.id, upload_jobs.user_id, upload_jobs.group_id, upload_jobs.platform, upload_jobs.video_path, upload_jobs.storage_type, upload_jobs.file_url, upload_jobs.status, upload_jobs.caption, upload_jobs.user_title, upload_jobs.user_hashtags, upload_jobs.ai_title, upload_jobs.ai_hashtags, upload_jobs.ai_post_time, upload_jobs.created_at, upload_jobs.updated_at, upload_jobs.scheduled_date, upload_jobs.ai_hook, upload_jobs.retry_count, upload_jobs.max_retries, upload_jobs.error_message, upload_jobs.error_at, upload_jobs.posted_url, upload_jobs.platform_post_id, upload_jobs.locked_at, upload_jobs.locked_by, upload_jobs.needs_reauth
+`
+
+// ============================================================================
+// ATOMIC JOB CLAIMING (State Machine)
+// ============================================================================
+// Claim next queued job for AI generation (atomic)
+func (q *Queries) ClaimQueuedJob(ctx context.Context, lockedBy sql.NullString) (UploadJob, error) {
+	row := q.db.QueryRowContext(ctx, claimQueuedJob, lockedBy)
+	var i UploadJob
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.Platform,
+		&i.VideoPath,
+		&i.StorageType,
+		&i.FileUrl,
+		&i.Status,
+		&i.Caption,
+		&i.UserTitle,
+		pq.Array(&i.UserHashtags),
+		&i.AiTitle,
+		pq.Array(&i.AiHashtags),
+		&i.AiPostTime,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ScheduledDate,
+		&i.AiHook,
+		&i.RetryCount,
+		&i.MaxRetries,
+		&i.ErrorMessage,
+		&i.ErrorAt,
+		&i.PostedUrl,
+		&i.PlatformPostID,
+		&i.LockedAt,
+		&i.LockedBy,
+		&i.NeedsReauth,
+	)
+	return i, err
+}
+
+const claimScheduledJob = `-- name: ClaimScheduledJob :one
+WITH next AS (
+    SELECT id FROM upload_jobs
+    WHERE status = 'scheduled' 
+      AND scheduled_date <= NOW()
+      AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '10 minutes')
+    ORDER BY scheduled_date
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE upload_jobs
+SET status = 'posting',
+    locked_at = NOW(),
+    locked_by = $1
+FROM next
+WHERE upload_jobs.id = next.id
+RETURNING upload_jobs.id, upload_jobs.user_id, upload_jobs.group_id, upload_jobs.platform, upload_jobs.video_path, upload_jobs.storage_type, upload_jobs.file_url, upload_jobs.status, upload_jobs.caption, upload_jobs.user_title, upload_jobs.user_hashtags, upload_jobs.ai_title, upload_jobs.ai_hashtags, upload_jobs.ai_post_time, upload_jobs.created_at, upload_jobs.updated_at, upload_jobs.scheduled_date, upload_jobs.ai_hook, upload_jobs.retry_count, upload_jobs.max_retries, upload_jobs.error_message, upload_jobs.error_at, upload_jobs.posted_url, upload_jobs.platform_post_id, upload_jobs.locked_at, upload_jobs.locked_by, upload_jobs.needs_reauth
+`
+
+// Claim next scheduled job for posting (atomic)
+func (q *Queries) ClaimScheduledJob(ctx context.Context, lockedBy sql.NullString) (UploadJob, error) {
+	row := q.db.QueryRowContext(ctx, claimScheduledJob, lockedBy)
+	var i UploadJob
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.Platform,
+		&i.VideoPath,
+		&i.StorageType,
+		&i.FileUrl,
+		&i.Status,
+		&i.Caption,
+		&i.UserTitle,
+		pq.Array(&i.UserHashtags),
+		&i.AiTitle,
+		pq.Array(&i.AiHashtags),
+		&i.AiPostTime,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ScheduledDate,
+		&i.AiHook,
+		&i.RetryCount,
+		&i.MaxRetries,
+		&i.ErrorMessage,
+		&i.ErrorAt,
+		&i.PostedUrl,
+		&i.PlatformPostID,
+		&i.LockedAt,
+		&i.LockedBy,
+		&i.NeedsReauth,
+	)
+	return i, err
 }
 
 const createCompetitor = `-- name: CreateCompetitor :one
@@ -501,7 +628,7 @@ WHERE id = (
     LIMIT 1
     FOR UPDATE SKIP LOCKED
 )
-RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at, scheduled_date
+RETURNING id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at, scheduled_date, ai_hook, retry_count, max_retries, error_message, error_at, posted_url, platform_post_id, locked_at, locked_by, needs_reauth
 `
 
 // Fetch next pending job (with lock)
@@ -526,6 +653,16 @@ func (q *Queries) FetchNextPendingJob(ctx context.Context) (UploadJob, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ScheduledDate,
+		&i.AiHook,
+		&i.RetryCount,
+		&i.MaxRetries,
+		&i.ErrorMessage,
+		&i.ErrorAt,
+		&i.PostedUrl,
+		&i.PlatformPostID,
+		&i.LockedAt,
+		&i.LockedBy,
+		&i.NeedsReauth,
 	)
 	return i, err
 }
@@ -928,6 +1065,48 @@ func (q *Queries) GetUploadJobByGID(ctx context.Context, groupID sql.NullInt32) 
 	return items, nil
 }
 
+const getUploadJobFull = `-- name: GetUploadJobFull :one
+SELECT id, user_id, group_id, platform, video_path, storage_type, file_url, status, caption, user_title, user_hashtags, ai_title, ai_hashtags, ai_post_time, created_at, updated_at, scheduled_date, ai_hook, retry_count, max_retries, error_message, error_at, posted_url, platform_post_id, locked_at, locked_by, needs_reauth
+FROM upload_jobs
+WHERE id = $1
+`
+
+// Get full upload job by ID (includes AI content and scheduling fields)
+func (q *Queries) GetUploadJobFull(ctx context.Context, id string) (UploadJob, error) {
+	row := q.db.QueryRowContext(ctx, getUploadJobFull, id)
+	var i UploadJob
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.Platform,
+		&i.VideoPath,
+		&i.StorageType,
+		&i.FileUrl,
+		&i.Status,
+		&i.Caption,
+		&i.UserTitle,
+		pq.Array(&i.UserHashtags),
+		&i.AiTitle,
+		pq.Array(&i.AiHashtags),
+		&i.AiPostTime,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ScheduledDate,
+		&i.AiHook,
+		&i.RetryCount,
+		&i.MaxRetries,
+		&i.ErrorMessage,
+		&i.ErrorAt,
+		&i.PostedUrl,
+		&i.PlatformPostID,
+		&i.LockedAt,
+		&i.LockedBy,
+		&i.NeedsReauth,
+	)
+	return i, err
+}
+
 const getUserByEmailWithPassword = `-- name: GetUserByEmailWithPassword :one
 SELECT id, username, email, password_hash, created_at, updated_at
 FROM users
@@ -1264,6 +1443,69 @@ func (q *Queries) ListGroupCompetitors(ctx context.Context, arg ListGroupCompeti
 	return items, nil
 }
 
+const listGroupPendingJobs = `-- name: ListGroupPendingJobs :many
+SELECT id, platform, status, ai_title, ai_hook, ai_hashtags, scheduled_date, error_message, created_at, updated_at
+FROM upload_jobs
+WHERE group_id = $1
+  AND user_id = $2
+  AND status NOT IN ('posted', 'canceled')
+ORDER BY created_at DESC
+LIMIT 50
+`
+
+type ListGroupPendingJobsParams struct {
+	GroupID sql.NullInt32 `json:"group_id"`
+	UserID  int32         `json:"user_id"`
+}
+
+type ListGroupPendingJobsRow struct {
+	ID            string         `json:"id"`
+	Platform      string         `json:"platform"`
+	Status        string         `json:"status"`
+	AiTitle       sql.NullString `json:"ai_title"`
+	AiHook        sql.NullString `json:"ai_hook"`
+	AiHashtags    []string       `json:"ai_hashtags"`
+	ScheduledDate sql.NullTime   `json:"scheduled_date"`
+	ErrorMessage  sql.NullString `json:"error_message"`
+	CreatedAt     sql.NullTime   `json:"created_at"`
+	UpdatedAt     sql.NullTime   `json:"updated_at"`
+}
+
+// List pending jobs for a group (tenant-safe: requires group_id AND user_id)
+func (q *Queries) ListGroupPendingJobs(ctx context.Context, arg ListGroupPendingJobsParams) ([]ListGroupPendingJobsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listGroupPendingJobs, arg.GroupID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupPendingJobsRow
+	for rows.Next() {
+		var i ListGroupPendingJobsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Platform,
+			&i.Status,
+			&i.AiTitle,
+			&i.AiHook,
+			pq.Array(&i.AiHashtags),
+			&i.ScheduledDate,
+			&i.ErrorMessage,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGroupsByUser = `-- name: ListGroupsByUser :many
 SELECT
   id,
@@ -1521,6 +1763,119 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	return items, nil
 }
 
+const markJobGenerationFailed = `-- name: MarkJobGenerationFailed :exec
+UPDATE upload_jobs
+SET status = CASE WHEN retry_count >= max_retries THEN 'failed' ELSE 'queued' END,
+    error_message = $2,
+    error_at = NOW(),
+    retry_count = retry_count + 1,
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type MarkJobGenerationFailedParams struct {
+	ID           string         `json:"id"`
+	ErrorMessage sql.NullString `json:"error_message"`
+}
+
+// Mark job generation as failed with retry tracking
+func (q *Queries) MarkJobGenerationFailed(ctx context.Context, arg MarkJobGenerationFailedParams) error {
+	_, err := q.db.ExecContext(ctx, markJobGenerationFailed, arg.ID, arg.ErrorMessage)
+	return err
+}
+
+const markJobNeedsReauth = `-- name: MarkJobNeedsReauth :exec
+UPDATE upload_jobs
+SET status = 'needs_reauth',
+    needs_reauth = true,
+    error_message = $2,
+    error_at = NOW(),
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type MarkJobNeedsReauthParams struct {
+	ID           string         `json:"id"`
+	ErrorMessage sql.NullString `json:"error_message"`
+}
+
+// Mark job as needing re-authentication
+func (q *Queries) MarkJobNeedsReauth(ctx context.Context, arg MarkJobNeedsReauthParams) error {
+	_, err := q.db.ExecContext(ctx, markJobNeedsReauth, arg.ID, arg.ErrorMessage)
+	return err
+}
+
+const markJobPosted = `-- name: MarkJobPosted :exec
+UPDATE upload_jobs
+SET status = 'posted',
+    posted_url = $2,
+    platform_post_id = $3,
+    error_message = NULL,
+    error_at = NULL,
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type MarkJobPostedParams struct {
+	ID             string         `json:"id"`
+	PostedUrl      sql.NullString `json:"posted_url"`
+	PlatformPostID sql.NullString `json:"platform_post_id"`
+}
+
+// Mark job as posted
+func (q *Queries) MarkJobPosted(ctx context.Context, arg MarkJobPostedParams) error {
+	_, err := q.db.ExecContext(ctx, markJobPosted, arg.ID, arg.PostedUrl, arg.PlatformPostID)
+	return err
+}
+
+const markJobPostingFailed = `-- name: MarkJobPostingFailed :exec
+UPDATE upload_jobs
+SET status = CASE WHEN retry_count >= max_retries THEN 'failed' ELSE 'scheduled' END,
+    error_message = $2,
+    error_at = NOW(),
+    retry_count = retry_count + 1,
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type MarkJobPostingFailedParams struct {
+	ID           string         `json:"id"`
+	ErrorMessage sql.NullString `json:"error_message"`
+}
+
+// Mark job posting as failed with retry tracking
+func (q *Queries) MarkJobPostingFailed(ctx context.Context, arg MarkJobPostingFailedParams) error {
+	_, err := q.db.ExecContext(ctx, markJobPostingFailed, arg.ID, arg.ErrorMessage)
+	return err
+}
+
+const scheduleJob = `-- name: ScheduleJob :exec
+UPDATE upload_jobs
+SET status = 'scheduled',
+    scheduled_date = $2,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type ScheduleJobParams struct {
+	ID            string       `json:"id"`
+	ScheduledDate sql.NullTime `json:"scheduled_date"`
+}
+
+// Schedule approved job
+func (q *Queries) ScheduleJob(ctx context.Context, arg ScheduleJobParams) error {
+	_, err := q.db.ExecContext(ctx, scheduleJob, arg.ID, arg.ScheduledDate)
+	return err
+}
+
 const unlinkUserFromCompetitor = `-- name: UnlinkUserFromCompetitor :exec
 DELETE FROM user_competitors
 WHERE user_id = $1 AND competitor_id = $2
@@ -1569,6 +1924,39 @@ type UpdateGroupItemDataParams struct {
 // Update group item data
 func (q *Queries) UpdateGroupItemData(ctx context.Context, arg UpdateGroupItemDataParams) error {
 	_, err := q.db.ExecContext(ctx, updateGroupItemData, arg.Data, arg.GroupID, arg.Platform)
+	return err
+}
+
+const updateJobAIContent = `-- name: UpdateJobAIContent :exec
+UPDATE upload_jobs
+SET ai_title = $2,
+    ai_hook = $3,
+    ai_hashtags = $4,
+    ai_post_time = $5,
+    status = 'needs_review',
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateJobAIContentParams struct {
+	ID         string         `json:"id"`
+	AiTitle    sql.NullString `json:"ai_title"`
+	AiHook     sql.NullString `json:"ai_hook"`
+	AiHashtags []string       `json:"ai_hashtags"`
+	AiPostTime sql.NullTime   `json:"ai_post_time"`
+}
+
+// Update job with AI-generated content
+func (q *Queries) UpdateJobAIContent(ctx context.Context, arg UpdateJobAIContentParams) error {
+	_, err := q.db.ExecContext(ctx, updateJobAIContent,
+		arg.ID,
+		arg.AiTitle,
+		arg.AiHook,
+		pq.Array(arg.AiHashtags),
+		arg.AiPostTime,
+	)
 	return err
 }
 

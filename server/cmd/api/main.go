@@ -81,6 +81,11 @@ func main() {
 			protected.GET("/UploadItemsByGroupID", wrap(handlers.GetUploadItemsByGroupID))
 			protected.DELETE("/upload/:jobID", wrap(handlers.DeleteUploadVideo))
 
+			// Upload Scheduler (Automated Content Pipeline)
+			protected.GET("/uploads/pending", wrap(handlers.ListPendingUploads))
+			protected.POST("/uploads/:id/approve", wrap(handlers.ApproveUpload))
+			protected.POST("/uploads/:id/cancel", wrap(handlers.CancelUpload))
+
 			// Group Items
 			protected.POST("/AddGroupItem", wrap(handlers.AddOrUpdateGroupItem))
 			protected.GET("/GroupItem", wrap(handlers.GetGroupItems))

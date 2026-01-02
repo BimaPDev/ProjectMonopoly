@@ -20,58 +20,95 @@ import (
 
 const baseUploadDir = "uploads" // Base upload directory
 
-func DeleteUploadVideo(c *gin.Context, queries *db.Queries){
+func DeleteUploadVideo(c *gin.Context, queries *db.Queries) {
 	// get job id from the url
-	jidStr := c.Param("jobID");
+	jidStr := c.Param("jobID")
 	if jidStr == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "job_id is required"});
+		c.JSON(http.StatusNotFound, gin.H{"error": "job_id is required"})
 		return
 	}
 	// delete the job using the job id string
-	err := queries.DeleteUploadJob(c, jidStr);
+	err := queries.DeleteUploadJob(c, jidStr)
 
 	// if there was an error deleting the job
-	if(err != nil){
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-		return;
+		return
 	}
-	
+
 	// double check if the job is actually deleted
-	_, err = queries.GetUploadJob(c, jidStr )
-	if(err != nil ){
-		// if it's a no row error then it was deleted 
-		if errors.Is(err, sql.ErrNoRows){
-			c.JSON(http.StatusOK, gin.H{"message": "Job was deleted successfully"});
-			return;
-		}else{
+	_, err = queries.GetUploadJob(c, jidStr)
+	if err != nil {
+		// if it's a no row error then it was deleted
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusOK, gin.H{"message": "Job was deleted successfully"})
+			return
+		} else {
 			// if we do get a result then the job is still there
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Job was not deleted"});
-			return;
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Job was not deleted"})
+			return
 		}
 	}
 	// any other error that could pop up
-	c.JSON(http.StatusInternalServerError, gin.H{"error": err});
-	return;
+	c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+	return
 }
 
 func UploadVideoHandler(c *gin.Context, queries *db.Queries) {
-
-	// Gin handles form parsing automatically with maxMemory, or we can explicit parse
-	// c.Request.ParseMultipartForm(50 << 20) is done by c.FormFile internally usually or explicit call
-	// For large files, explicit parse is fine or just relying on c.FormFile
+	// Get authenticated user ID from JWT context (set by AuthMiddleware)
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, ok := userIDVal.(int32)
+	if !ok {
+		// Try float64 (common from JWT claims)
+		if f, ok := userIDVal.(float64); ok {
+			userID = int32(f)
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user context"})
+			return
+		}
+	}
 
 	// Required fields
-	userID := c.PostForm("user_id")
 	platform := c.PostForm("platform")
+	groupIDStr := c.PostForm("group_id")
+
+	if platform == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "platform is required"})
+		return
+	}
+
+	// Parse group_id
+	groupIDInt, err := strconv.Atoi(groupIDStr)
+	if err != nil || groupIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "valid group_id is required"})
+		return
+	}
+
+	// Verify group belongs to this user
+	groups, err := queries.ListGroupsByUser(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify group ownership"})
+		return
+	}
+	groupOwned := false
+	for _, g := range groups {
+		if g.ID == int32(groupIDInt) {
+			groupOwned = true
+			break
+		}
+	}
+	if !groupOwned {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Group does not belong to user"})
+		return
+	}
 
 	// Optional fields
 	title := c.PostForm("title")
 	hashtagsRaw := c.PostForm("hashtags")
-
-	if userID == "" || platform == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id and platform are required"})
-		return
-	}
 
 	// File
 	file, err := c.FormFile("file")
@@ -80,15 +117,8 @@ func UploadVideoHandler(c *gin.Context, queries *db.Queries) {
 		return
 	}
 
-	// Parse user ID
-	userIDInt, err := strconv.Atoi(userID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id format"})
-		return
-	}
-
-	// Create upload directory
-	uploadPath := filepath.Join(baseUploadDir, userID)
+	// Create upload directory under uploads/<userID>/
+	uploadPath := filepath.Join(baseUploadDir, strconv.Itoa(int(userID)))
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
 		return
@@ -105,22 +135,27 @@ func UploadVideoHandler(c *gin.Context, queries *db.Queries) {
 	}
 
 	// Generate Job ID
-	jobID := fmt.Sprintf("%s-%s", userID, uuid.New().String())
-	groupID := c.PostForm("group_id") // returns a string, like "1"
-	groupIDInt, err := strconv.Atoi(groupID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group_id format"})
-		return
-	}
+	jobID := fmt.Sprintf("%d-%s", userID, uuid.New().String())
+
 	// Parse hashtags from raw string to []string
 	hashtags := parseHashtags(hashtagsRaw)
-	layout := "02/01/2006 3.04.05 PM"
-	date, _ := time.Parse(layout, c.PostForm("schedule_date"))
-	// Save job to DB
-	err = saveJobToDB(queries, int32(userIDInt), jobID, int32(groupIDInt), date, platform, fullFilePath, "", "local", title, hashtags)
+
+	// Parse schedule_date if provided (RFC3339 format)
+	var scheduleDate time.Time
+	scheduleDateStr := c.PostForm("schedule_date")
+	if scheduleDateStr != "" {
+		scheduleDate, err = time.Parse(time.RFC3339, scheduleDateStr)
+		if err != nil {
+			// Try alternate format
+			scheduleDate, _ = time.Parse("2006-01-02T15:04:05Z", scheduleDateStr)
+		}
+	}
+
+	// Save job to DB with status='queued'
+	err = saveJobToDB(queries, userID, jobID, int32(groupIDInt), scheduleDate, platform, fullFilePath, "", "local", title, hashtags)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save job to database: %v", err)})
-		fmt.Printf("❌ Upload error: %v\n", err) // Also logs to your terminal
+		fmt.Printf("❌ Upload error: %v\n", err)
 		return
 	}
 
@@ -153,7 +188,7 @@ func saveJobToDB(
 		StorageType:   storageType, // $5
 		FileUrl:       sql.NullString{String: fileURL, Valid: fileURL != ""},
 		ScheduledDate: sql.NullTime{Time: scheduleDate, Valid: !scheduleDate.IsZero()}, // $6
-		Status:        "pending",
+		Status:        "queued",                                                        // Start in queued state for AI content generation
 		UserTitle:     sql.NullString{String: title, Valid: title != ""},
 		UserHashtags:  hashtags,
 		GroupID:       sql.NullInt32{Int32: groupID, Valid: true},
@@ -185,9 +220,9 @@ func parseHashtags(raw string) []string {
 
 type uploadResponse struct {
 	ID       int32     `json:"ID"`
-	platform string    `json:"platform"`
-	status   string    `json:"status"`
-	updated  time.Time `json:"updated"`
+	Platform string    `json:"platform"`
+	Status   string    `json:"status"`
+	Updated  time.Time `json:"updated"`
 }
 
 func GetUploadItemsByGroupID(c *gin.Context, q *db.Queries) {

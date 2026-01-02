@@ -296,23 +296,33 @@ type StrategyCard struct {
 }
 
 type UploadJob struct {
-	ID            string         `json:"id"`
-	UserID        int32          `json:"user_id"`
-	GroupID       sql.NullInt32  `json:"group_id"`
-	Platform      string         `json:"platform"`
-	VideoPath     string         `json:"video_path"`
-	StorageType   string         `json:"storage_type"`
-	FileUrl       sql.NullString `json:"file_url"`
-	Status        string         `json:"status"`
-	Caption       sql.NullString `json:"caption"`
-	UserTitle     sql.NullString `json:"user_title"`
-	UserHashtags  []string       `json:"user_hashtags"`
-	AiTitle       sql.NullString `json:"ai_title"`
-	AiHashtags    []string       `json:"ai_hashtags"`
-	AiPostTime    sql.NullTime   `json:"ai_post_time"`
-	CreatedAt     sql.NullTime   `json:"created_at"`
-	UpdatedAt     sql.NullTime   `json:"updated_at"`
-	ScheduledDate sql.NullTime   `json:"scheduled_date"`
+	ID             string         `json:"id"`
+	UserID         int32          `json:"user_id"`
+	GroupID        sql.NullInt32  `json:"group_id"`
+	Platform       string         `json:"platform"`
+	VideoPath      string         `json:"video_path"`
+	StorageType    string         `json:"storage_type"`
+	FileUrl        sql.NullString `json:"file_url"`
+	Status         string         `json:"status"`
+	Caption        sql.NullString `json:"caption"`
+	UserTitle      sql.NullString `json:"user_title"`
+	UserHashtags   []string       `json:"user_hashtags"`
+	AiTitle        sql.NullString `json:"ai_title"`
+	AiHashtags     []string       `json:"ai_hashtags"`
+	AiPostTime     sql.NullTime   `json:"ai_post_time"`
+	CreatedAt      sql.NullTime   `json:"created_at"`
+	UpdatedAt      sql.NullTime   `json:"updated_at"`
+	ScheduledDate  sql.NullTime   `json:"scheduled_date"`
+	AiHook         sql.NullString `json:"ai_hook"`
+	RetryCount     sql.NullInt32  `json:"retry_count"`
+	MaxRetries     sql.NullInt32  `json:"max_retries"`
+	ErrorMessage   sql.NullString `json:"error_message"`
+	ErrorAt        sql.NullTime   `json:"error_at"`
+	PostedUrl      sql.NullString `json:"posted_url"`
+	PlatformPostID sql.NullString `json:"platform_post_id"`
+	LockedAt       sql.NullTime   `json:"locked_at"`
+	LockedBy       sql.NullString `json:"locked_by"`
+	NeedsReauth    sql.NullBool   `json:"needs_reauth"`
 }
 
 type User struct {

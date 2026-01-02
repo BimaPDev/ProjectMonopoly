@@ -45,6 +45,17 @@ WHERE rs.user_id = $1
 ORDER BY sc.created_at DESC
 LIMIT $2 OFFSET $3;
 
+-- name: GetTopConfidentStrategyCards :many
+SELECT sc.* 
+FROM strategy_cards sc
+JOIN reddit_items ri ON sc.item_id = ri.id
+JOIN reddit_sources rs ON ri.source_id = rs.id
+WHERE rs.user_id = $1
+  AND (sqlc.narg('group_id')::int IS NULL OR rs.group_id = sqlc.narg('group_id')::int)
+  AND sc.confidence >= $2
+ORDER BY sc.confidence DESC, sc.created_at DESC
+LIMIT $3;
+
 -- name: ListRedditAlerts :many
 SELECT ra.* 
 FROM reddit_alerts ra

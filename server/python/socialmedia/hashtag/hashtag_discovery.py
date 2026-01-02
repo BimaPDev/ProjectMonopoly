@@ -26,6 +26,10 @@ class HashtagDiscovery:
     """
     Discovers new hashtags from competitor posts and scrapes them.
     """
+    
+    # Hard limit to prevent infinite scraping - cannot be exceeded regardless of input
+    MAX_ITERATIONS_LIMIT = 10
+    
     def __init__(self, user_id: int = None, group_id: int = None, max_posts_per_hashtag: int = 50):
         self.database_url = DATABASE_URL
         self.user_id = user_id
@@ -426,13 +430,21 @@ class HashtagDiscovery:
         - Extract hashtags from the scraped posts
         - Find new hashtags from those
         - Repeat until max_iterations or no new hashtags found
+        
+        Note:
+            max_iterations is capped at MAX_ITERATIONS_LIMIT (10) to prevent infinite loops.
             
         Returns:
             Dictionary with scraping results across all iterations
         """
+        # Enforce hard limit to prevent infinite scraping
+        if max_iterations > self.MAX_ITERATIONS_LIMIT:
+            log.warning(f"Requested {max_iterations} iterations exceeds limit of {self.MAX_ITERATIONS_LIMIT}. Capping at {self.MAX_ITERATIONS_LIMIT}.")
+            max_iterations = self.MAX_ITERATIONS_LIMIT
+        
         log.info("=" * 60)
         log.info("Starting RECURSIVE Hashtag Discovery Process")
-        log.info(f"Max iterations: {max_iterations}")
+        log.info(f"Max iterations: {max_iterations} (hard limit: {self.MAX_ITERATIONS_LIMIT})")
         log.info("=" * 60)
         
         all_results = {

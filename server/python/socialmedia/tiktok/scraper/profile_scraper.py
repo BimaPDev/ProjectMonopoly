@@ -95,7 +95,7 @@ def random_delay(min_seconds=1, max_seconds=3):
 
 
 class TikTokScraper:
-    def __init__(self, cookies_path="cookies/tiktok_cookies.pkl", use_cookies=False, headless=True):
+    def __init__(self, cookies_path="cookies/tiktok_cookies.pkl", use_cookies=False, headless=True, proxy=None):
         """
         Initialize TikTok scraper.
         
@@ -103,10 +103,12 @@ class TikTokScraper:
             cookies_path: Path to save/load cookies (only used if use_cookies=True)
             use_cookies: If True, use cookies for authenticated scraping. If False, scrape as guest.
             headless: Run browser in headless mode (recommended for server)
+            proxy: Optional proxy string (e.g. "http://1.2.3.4:8080")
         """
         self.cookies_path = cookies_path
         self.use_cookies = use_cookies
         self.headless = headless
+        self.proxy = proxy
         self.driver = None
         self.driver_type = None  # 'seleniumbase' or 'playwright'
         self._raw_driver = None  # The underlying driver object
@@ -114,10 +116,10 @@ class TikTokScraper:
         
     def setup_driver(self):
         """Initialize scraper using SeleniumBase CDP mode with Playwright."""
-        print("Setting up TikTok scraper driver (SeleniumBase CDP + Playwright)...")
+        print(f"Setting up TikTok scraper driver (SeleniumBase CDP + Playwright)... Proxy: {self.proxy if self.proxy else 'None'}")
         
         try:
-            self._raw_driver, self.driver_type = get_driver(headless=self.headless)
+            self._raw_driver, self.driver_type = get_driver(headless=self.headless, proxy=self.proxy)
             
             # The driver now uses Playwright's page object directly
             # All methods like get(), find_element(), page_source work on both
@@ -135,7 +137,7 @@ class TikTokScraper:
         print("Bot detection suspected. Switching to Playwright fallback...")
         
         try:
-            self._raw_driver, self.driver_type = switch_to_fallback(self._raw_driver, headless=self.headless)
+            self._raw_driver, self.driver_type = switch_to_fallback(self._raw_driver, headless=self.headless, proxy=self.proxy)
             
             if self.driver_type == 'seleniumbase':
                 self.driver = self._raw_driver.driver

@@ -42,7 +42,7 @@ app = Celery(
     "worker",
     broker=BROKER,
     backend=BACKEND,
-    include=["worker.tasks", "worker.cookie_prep"]  # Include all task modules
+    include=["worker.tasks", "worker.cookie_prep", "viral.tasks"]  # Include all task modules
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -95,11 +95,25 @@ app.conf.update(
 # ─────────────────────────────────────────────────────────────────────────────
 # Beat Schedule (Periodic Tasks)
 # ─────────────────────────────────────────────────────────────────────────────
+from celery.schedules import crontab
+
 app.conf.beat_schedule = {
-    # Weekly Instagram scraping - runs every 7 days
-    'weekly-instagram-scrape': {
-        'task': 'worker.tasks.weekly_instagram_scrape',
-        'schedule': 60.0 * 60.0 * 24.0 * 7.0,  # Every 7 days (in seconds)
+    # Proxy Refresh & Scrape Coordination - runs every 3 hours
+    'proxy-refresh-and-scrape': {
+        'task': 'worker.tasks.refresh_proxies_and_scheduled_scrape',
+        'schedule': crontab(minute=0, hour='*/3'),  # Every 3 hours
+    },
+    
+    # Viral content scan - runs every hour
+    'viral-content-scan': {
+        'task': 'viral.tasks.scan_viral_content',
+        'schedule': 60.0 * 60.0,  # Every hour
+    },
+    
+    # Cleanup expired outliers - runs daily at 3 AM UTC
+    'cleanup-expired-outliers': {
+        'task': 'viral.tasks.cleanup_expired_outliers',
+        'schedule': crontab(hour=3, minute=0),  # Daily at 3 AM UTC
     },
 }
 

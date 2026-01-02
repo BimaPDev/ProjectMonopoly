@@ -72,31 +72,62 @@ SCRAPE_CHECK_INTERVAL = float(os.getenv("SCRAPE_CHECK_INTERVAL", "60.0"))
 # ─────────────────────────────────────────────────────────────────────────────
 # SQL Queries
 # ─────────────────────────────────────────────────────────────────────────────
-SQL_NEXT_UPLOAD = """
--- Fetch and lock the next pending upload job
--- Uses SKIP LOCKED for concurrent dispatcher safety
+# Legacy upload dispatch is REMOVED - now uses dispatch_scheduled_posting only
+# Uploads go through: queued -> generating -> needs_review -> scheduled -> posting -> posted
+SQL_NEXT_UPLOAD = None  # Deprecated, kept for reference
+
+
+SQL_NEXT_CONTENT_GEN = """
+-- Claim next queued job for AI content generation (atomic)
+-- Includes stale-lock TTL handling: reclaim jobs locked > 10 minutes ago
+WITH next AS (
+    SELECT id, user_id, group_id, platform
+    FROM upload_jobs
+    WHERE status = 'queued'
+      AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '10 minutes')
+    ORDER BY created_at
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE upload_jobs u
+SET status = 'generating', 
+    locked_at = NOW(), 
+    locked_by = 'dispatcher',
+    updated_at = NOW()
+FROM next
+WHERE u.id = next.id
+RETURNING next.id, next.user_id, next.group_id, next.platform;
+"""
+
+SQL_NEXT_SCHEDULED = """
+-- Claim next scheduled job ready for posting (atomic)
 WITH next AS (
     SELECT j.id, j.user_id, j.group_id, j.platform, j.video_path,
-           j.user_hashtags, j.user_title,
+           j.ai_title, j.ai_hashtags, j.ai_hook,
            gi.data->>'token' AS session_token
     FROM upload_jobs j
     JOIN groups g ON g.id = j.group_id AND g.user_id = j.user_id
     JOIN group_items gi
         ON gi.group_id = j.group_id
         AND LOWER(gi.platform) = LOWER(j.platform)
-    WHERE j.status = 'pending'
-        AND gi.data ? 'token' 
-        AND COALESCE(gi.data->>'token', '') <> ''
-    ORDER BY j.created_at
-    FOR UPDATE SKIP LOCKED
+    WHERE j.status = 'scheduled' 
+      AND j.scheduled_date <= NOW()
+      AND (j.locked_at IS NULL OR j.locked_at < NOW() - INTERVAL '10 minutes')
+      AND gi.data ? 'token' 
+      AND COALESCE(gi.data->>'token', '') <> ''
+    ORDER BY j.scheduled_date
     LIMIT 1
+    FOR UPDATE SKIP LOCKED
 )
 UPDATE upload_jobs u
-SET status = 'uploading', updated_at = NOW()
+SET status = 'posting',
+    locked_at = NOW(),
+    locked_by = 'dispatcher',
+    updated_at = NOW()
 FROM next
 WHERE u.id = next.id
 RETURNING next.id, next.user_id, next.group_id, next.platform,
-          next.video_path, next.user_hashtags, next.user_title, next.session_token;
+          next.video_path, next.ai_title, next.ai_hashtags, next.ai_hook, next.session_token;
 """
 
 SQL_NEXT_DOC = """
@@ -305,6 +336,103 @@ def dispatch_upload_job(cur) -> bool:
         return False
 
 
+def dispatch_content_generation(cur) -> bool:
+    """
+    Check for and dispatch queued jobs for AI content generation.
+    
+    Returns:
+        bool: True if a job was dispatched
+    """
+    cur.execute(SQL_NEXT_CONTENT_GEN)
+    row = cur.fetchone()
+    
+    if not row:
+        return False
+    
+    job_id, user_id, group_id, platform = row
+    
+    payload = {
+        "id": job_id,
+        "user_id": user_id,
+        "group_id": group_id,
+        "platform": platform,
+    }
+    
+    try:
+        result = app.send_task(
+            "worker.tasks.process_content_generation",
+            kwargs={"job_data": payload},
+            queue="celery"
+        )
+        log.info("🤖 Content generation dispatched: job_id=%s task_id=%s platform=%s", 
+                job_id, result.id, platform)
+        return True
+    except Exception as e:
+        log.error("Failed to dispatch content generation job %s: %s", job_id, e)
+        # Mark job as failed
+        cur.execute(
+            "UPDATE upload_jobs SET status = 'failed', error_message = %s, updated_at = NOW() WHERE id = %s",
+            (str(e), job_id)
+        )
+        return False
+
+
+def dispatch_scheduled_posting(cur) -> bool:
+    """
+    Check for and dispatch scheduled jobs ready for posting.
+    
+    Returns:
+        bool: True if a job was dispatched
+    """
+    cur.execute(SQL_NEXT_SCHEDULED)
+    row = cur.fetchone()
+    
+    if not row:
+        return False
+    
+    (job_id, user_id, group_id, platform, video_path,
+     ai_title, ai_hashtags, ai_hook, session_token) = row
+    
+    # Combine AI-generated title and hashtags for caption
+    hashtag_str = " ".join(f"#{t}" for t in (ai_hashtags or []))
+    caption = f"{ai_title or ''}\n\n{hashtag_str}".strip()
+    
+    payload = {
+        "id": job_id,
+        "user_id": user_id,
+        "group_id": group_id,
+        "video_path": video_path,
+        "user_title": caption,
+        "user_hashtags": ai_hashtags or [],
+        "platform": platform,
+        "session_id": session_token,
+    }
+    
+    try:
+        result = app.send_task(
+            "worker.tasks.process_upload_job",
+            kwargs={"job_data": payload},
+            queue="celery"
+        )
+        log.info("📤 Scheduled post dispatched: job_id=%s task_id=%s platform=%s", 
+                job_id, result.id, platform)
+        return True
+    except Exception as e:
+        log.error("Failed to dispatch scheduled post %s: %s", job_id, e)
+        # Mark job as failed with retry
+        cur.execute(
+            """UPDATE upload_jobs 
+               SET status = CASE WHEN retry_count >= max_retries THEN 'failed' ELSE 'scheduled' END,
+                   error_message = %s, 
+                   retry_count = retry_count + 1,
+                   locked_at = NULL,
+                   updated_at = NOW() 
+               WHERE id = %s""",
+            (str(e), job_id)
+        )
+        return False
+
+
 def dispatch_document_job(cur) -> bool:
     """
     Check for and dispatch pending document ingest jobs.
@@ -394,7 +522,7 @@ def dispatch_competitor_scrape(cur) -> bool:
         return False
     
     did_dispatch = False
-    interval = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", str(WEEKLY_SCRAPE_INTERVAL)))
+    interval = float(os.getenv("WEEKLY_SCRAPE_INTERVAL", str(WEEKLY_SCRAPE_INTERVAL)))
     
     try:
         # Check for pending Instagram scrapes
@@ -484,13 +612,21 @@ def dispatch_loop():
         try:
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
-                    # Process each job type
-                    if dispatch_upload_job(cur):
+                    # Process each job type (priority order)
+                    
+                    # 1. AI Content Generation (queued -> generating)
+                    if dispatch_content_generation(cur):
                         did_work = True
                     
+                    # 2. Scheduled Posts (scheduled -> posting)
+                    if dispatch_scheduled_posting(cur):
+                        did_work = True
+                    
+                    # 3. Document processing
                     if dispatch_document_job(cur):
                         did_work = True
                     
+                    # 4. Cookie preparation
                     if dispatch_cookie_prep(cur):
                         did_work = True
             

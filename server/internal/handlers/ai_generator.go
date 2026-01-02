@@ -48,10 +48,11 @@ type CompetitorInsights struct {
 	AvgLikes                float64
 	SampleSize              int64
 	HasData                 bool
-	TimeHeuristic           string // Platform-specific time advice
-	Confidence              string // "low", "medium", "high"
-	IsLowConfidence         bool   // Convenience flag
-	DataWindowDays          int    // Analytics window (consistent with DefaultDataWindowDays)
+	TimeHeuristic           string            // Platform-specific time advice
+	Confidence              string            // "low", "medium", "high"
+	IsLowConfidence         bool              // Convenience flag
+	DataWindowDays          int               // Analytics window (consistent with DefaultDataWindowDays)
+	StrategyCards           []db.StrategyCard // Proven tactics from Reddit
 }
 
 // GenerateMarketingStrategyHandler creates the Gin handler for marketing generation
@@ -380,6 +381,7 @@ func fetchCompetitorInsights(ctx context.Context, q *db.Queries, userID, groupID
 		Confidence:              "low",
 		IsLowConfidence:         true,
 		DataWindowDays:          DefaultDataWindowDays, // Consistent window value
+		StrategyCards:           []db.StrategyCard{},
 	}
 
 	// Get posting frequency (uses DefaultDataWindowDays window)
@@ -475,6 +477,30 @@ func fetchCompetitorInsights(ctx context.Context, q *db.Queries, userID, groupID
 	insights.TopHashtags = SanitizeHashtags(rawTags, insights.CompetitorHandles)
 	fmt.Printf("Sanitized hashtags: %v (from raw: %v, window: %d days)\n", insights.TopHashtags, rawTags, insights.DataWindowDays)
 
+	// Fetch high-confidence strategy cards (confidence >= 0.7)
+	cards, err := q.GetTopConfidentStrategyCards(ctx, db.GetTopConfidentStrategyCardsParams{
+		UserID:     userID,
+		GroupID:    sql.NullInt32{Int32: groupID, Valid: true},
+		Confidence: sql.NullFloat64{Float64: 0.7, Valid: true},
+		Limit:      3,
+	})
+	if err == nil && len(cards) > 0 {
+		insights.StrategyCards = cards
+		fmt.Printf("Fetched %d high-confidence strategy cards\n", len(cards))
+	} else {
+		// Fallback: get recent cards with lower threshold if none found
+		cards, err = q.GetTopConfidentStrategyCards(ctx, db.GetTopConfidentStrategyCardsParams{
+			UserID:     userID,
+			GroupID:    sql.NullInt32{Int32: groupID, Valid: true},
+			Confidence: sql.NullFloat64{Float64: 0.5, Valid: true},
+			Limit:      2,
+		})
+		if err == nil && len(cards) > 0 {
+			insights.StrategyCards = cards
+			fmt.Printf("Fetched %d medium-confidence strategy cards (fallback)\n", len(cards))
+		}
+	}
+
 	return insights
 }
 
@@ -523,6 +549,7 @@ func buildStrategyContext(gameCtx db.GameContext, insights CompetitorInsights, r
 		IsLowConfidence:         insights.IsLowConfidence,
 		PostsAnalyzed:           int(insights.SampleSize),
 		BestDay:                 insights.BestDayName,
+		StrategyCards:           insights.StrategyCards,
 	})
 
 	// Build user prompt with analytics data and strict structure requirements

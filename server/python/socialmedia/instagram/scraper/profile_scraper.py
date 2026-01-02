@@ -46,7 +46,7 @@ def prefix_words_with_hash(caption: str) -> str:
     return " ".join(f"{tok}" for tok in tokens if tok.strip())
 
 class InstagramScraper:
-    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl", use_cookies=True, headless=None):
+    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl", use_cookies=True, headless=None, proxy=None):
         """
         Initialize Instagram scraper.
         
@@ -56,11 +56,13 @@ class InstagramScraper:
             cookies_path: Path to save/load cookies
             use_cookies: If True, use cookies/login. If False, run in pure guest mode.
             headless: Deprecated - kept for backward compatibility. Use HEADLESS env var instead.
+            proxy: Optional proxy string (e.g. "http://1.2.3.4:8080")
         """
         self.username = username
         self.password = password
         self.cookies_path = cookies_path
         self.use_cookies = use_cookies
+        self.proxy = proxy
         self.driver = None
         self.driver_type = None  # 'seleniumbase' or 'playwright'
         self._raw_driver = None  # The underlying driver object for direct access
@@ -68,12 +70,12 @@ class InstagramScraper:
 
     def setup_driver(self):
         """Initialize scraper using SeleniumBase (primary) with Playwright fallback."""
-        print("Setting up scraper driver (SeleniumBase with Playwright fallback)...")
+        print(f"Setting up scraper driver (SeleniumBase with Playwright fallback)... Proxy: {self.proxy if self.proxy else 'None'}")
         
         try:
             # Determine headless mode from environment or default to True
             headless_mode = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
-            self._raw_driver, self.driver_type = get_driver(headless=headless_mode)
+            self._raw_driver, self.driver_type = get_driver(headless=headless_mode, proxy=self.proxy)
             
             # For compatibility with existing code, expose the underlying Selenium driver
             # SeleniumBase exposes .driver, Playwright uses .page
@@ -95,7 +97,7 @@ class InstagramScraper:
         print("Bot detection suspected. Switching to Playwright fallback...")
         
         try:
-            self._raw_driver, self.driver_type = switch_to_fallback(self._raw_driver, headless=True)
+            self._raw_driver, self.driver_type = switch_to_fallback(self._raw_driver, headless=True, proxy=self.proxy)
             
             if self.driver_type == 'seleniumbase':
                 self.driver = self._raw_driver.driver

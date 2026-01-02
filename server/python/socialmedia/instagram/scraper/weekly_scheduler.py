@@ -35,7 +35,7 @@ class WeeklyInstagramScraper:
         self.database_url = DATABASE_URL
         self.scraper = None
         self.max_posts_per_profile = int(os.getenv("WEEKLY_MAX_POSTS", "10"))
-        self.scrape_interval_days = int(os.getenv("WEEKLY_SCRAPE_INTERVAL", "7"))
+        self.scrape_interval_days = float(os.getenv("WEEKLY_SCRAPE_INTERVAL", "7"))
         
     def get_competitors_to_scrape(self) -> List[Dict[str, Any]]:
         """
@@ -95,9 +95,23 @@ class WeeklyInstagramScraper:
         try:
             log.info("🔧 Initializing Instagram scraper in guest mode...")
             
+            # --- PROXY INTEGRATION ---
+            # Attempt to get a working proxy from the free list
+            from socialmedia.drivers.proxy_manager import proxy_manager
+            
+            # Try to get a proxy (with retries handled by manager)
+            proxy = proxy_manager.get_working_proxy()
+            
+            if proxy:
+                log.info(f"🌐 Using proxy: {proxy}")
+            else:
+                log.warning("⚠️ No working proxy found. Falling back to local IP (DIRECT connection).")
+            # -------------------------
+            
             # Initialize with use_cookies=False for pure guest mode
             # No credentials needed - Instagram profiles are publicly accessible
-            self.scraper = InstagramScraper(use_cookies=False)
+            self.scraper = InstagramScraper(use_cookies=False, proxy=proxy)
+            
             
             # Attempt to login (which will go straight to guest mode)
             if not self.scraper.login():

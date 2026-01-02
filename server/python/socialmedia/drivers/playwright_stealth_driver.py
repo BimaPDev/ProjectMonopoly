@@ -25,27 +25,45 @@ class PlaywrightStealthDriver(BaseScraper):
         self.page = None
         self._is_setup = False
     
-    def setup(self) -> None:
+    def setup(self, proxy: Optional[str] = None) -> None:
         """Initialize Playwright with stealth mode."""
         try:
             from playwright.sync_api import sync_playwright
             
-            log.info("Initializing Playwright with stealth mode...")
+            log.info(f"Initializing Playwright with stealth mode... (Proxy: {proxy if proxy else 'None'})")
             
             self.playwright = sync_playwright().start()
             
+            launch_args = [
+                '--disable-blink-features=AutomationControlled',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-infobars',
+                '--window-size=1920,1080',
+                '--disable-extensions',
+            ]
+            
+            # Convert proxy string to Playwright dictionary format if present
+            # Format: 'protocol://server:port'
+            pw_proxy = None
+            if proxy:
+               if '://' in proxy:
+                   scheme, rest = proxy.split('://', 1)
+                   server = rest
+               else:
+                   scheme = 'http'
+                   server = proxy
+                   
+               # Playwright expects {server: "ip:port"} or {server: "scheme://ip:port"}
+               # It handles socks5:// prefix natively
+               pw_proxy = {"server": f"{scheme}://{server}"}
+
             # Launch Chromium with stealth-friendly options
             self.browser = self.playwright.chromium.launch(
                 headless=self.headless,
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-dev-shm-usage',
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-infobars',
-                    '--window-size=1920,1080',
-                    '--disable-extensions',
-                ]
+                proxy=pw_proxy,
+                args=launch_args
             )
             
             # Create context with realistic viewport and user agent

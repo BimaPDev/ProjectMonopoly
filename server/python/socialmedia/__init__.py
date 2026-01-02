@@ -3,7 +3,7 @@
 
 # New module structure exports
 from .instagram import InstagramScraper, WeeklyInstagramScraper
-from .tiktok import TikTokScraper, WeeklyTiktokScraper
+from .tiktok import TikTokScraper, WeeklyTikTokScraper
 
 # Legacy aliases for backward compatibility
 # These allow existing code to use:
@@ -18,7 +18,7 @@ __all__ = [
     'InstagramScraper', 
     'WeeklyInstagramScraper',
     'TikTokScraper', 
-    'WeeklyTiktokScraper',
+    'WeeklyTikTokScraper',
     'instaPage',
     'tiktok_scraper',
     'weekly_scraper',

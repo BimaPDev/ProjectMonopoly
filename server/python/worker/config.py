@@ -110,7 +110,7 @@ CELERY_CONCURRENCY = int(os.getenv('CELERY_CONCURRENCY', '4'))
 DISPATCH_SLEEP = float(os.getenv('DISPATCH_SLEEP', '1.0'))
 
 # Weekly scrape interval (days)
-WEEKLY_SCRAPE_INTERVAL = int(os.getenv('WEEKLY_SCRAPE_INTERVAL', '7'))
+WEEKLY_SCRAPE_INTERVAL = float(os.getenv('WEEKLY_SCRAPE_INTERVAL', '7'))
 
 # Maximum task execution time (seconds)
 TASK_TIMEOUT = int(os.getenv('TASK_TIMEOUT', '600'))  # 10 minutes

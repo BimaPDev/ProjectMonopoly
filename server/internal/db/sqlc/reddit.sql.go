@@ -130,6 +130,68 @@ func (q *Queries) GetRedditSource(ctx context.Context, arg GetRedditSourceParams
 	return i, err
 }
 
+const getTopConfidentStrategyCards = `-- name: GetTopConfidentStrategyCards :many
+SELECT sc.id, sc.source, sc.item_id, sc.comment_id, sc.platform_targets, sc.niche, sc.tactic, sc.steps, sc.preconditions, sc.metrics, sc.risks, sc.confidence, sc.evidence, sc.created_at 
+FROM strategy_cards sc
+JOIN reddit_items ri ON sc.item_id = ri.id
+JOIN reddit_sources rs ON ri.source_id = rs.id
+WHERE rs.user_id = $1
+  AND ($4::int IS NULL OR rs.group_id = $4::int)
+  AND sc.confidence >= $2
+ORDER BY sc.confidence DESC, sc.created_at DESC
+LIMIT $3
+`
+
+type GetTopConfidentStrategyCardsParams struct {
+	UserID     int32           `json:"user_id"`
+	Confidence sql.NullFloat64 `json:"confidence"`
+	Limit      int32           `json:"limit"`
+	GroupID    sql.NullInt32   `json:"group_id"`
+}
+
+func (q *Queries) GetTopConfidentStrategyCards(ctx context.Context, arg GetTopConfidentStrategyCardsParams) ([]StrategyCard, error) {
+	rows, err := q.db.QueryContext(ctx, getTopConfidentStrategyCards,
+		arg.UserID,
+		arg.Confidence,
+		arg.Limit,
+		arg.GroupID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StrategyCard
+	for rows.Next() {
+		var i StrategyCard
+		if err := rows.Scan(
+			&i.ID,
+			&i.Source,
+			&i.ItemID,
+			&i.CommentID,
+			pq.Array(&i.PlatformTargets),
+			&i.Niche,
+			&i.Tactic,
+			&i.Steps,
+			&i.Preconditions,
+			&i.Metrics,
+			&i.Risks,
+			&i.Confidence,
+			&i.Evidence,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRedditAlerts = `-- name: ListRedditAlerts :many
 SELECT ra.id, ra.source_id, ra.window_start, ra.window_end, ra.metric, ra.current_value, ra.previous_value, ra.factor, ra.top_item_ids, ra.created_at 
 FROM reddit_alerts ra

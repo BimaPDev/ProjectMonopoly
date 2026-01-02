@@ -26,7 +26,15 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         { title: "Reddit Insights", url: "/dashboard/reddit" }
       ]
     },
-    { title: "Posts", url: "/dashboard/posts", icon: MessageCircle },
+    {
+      title: "Content",
+      url: "/dashboard/posts",
+      icon: MessageCircle,
+      items: [
+        { title: "Posts", url: "/dashboard/posts" },
+        { title: "Upload & Schedule", url: "/dashboard/scheduler" }
+      ]
+    },
     { title: "Competitors", url: "/dashboard/competitors", icon: Users2 },
   ].map(item => ({
     ...item,

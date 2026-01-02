@@ -28,6 +28,7 @@ class DriverFactory:
         headless: bool = True,
         force_playwright: bool = False,
         skip_seleniumbase: bool = False,
+        proxy: Optional[str] = None,
     ) -> Tuple[BaseScraper, str]:
         """
         Create a scraper driver.
@@ -36,6 +37,7 @@ class DriverFactory:
             headless: Run browser in headless mode
             force_playwright: Skip SeleniumBase and use Playwright directly
             skip_seleniumbase: Same as force_playwright (alias)
+            proxy: Optional proxy string (e.g. "http://1.2.3.4:8080")
         
         Returns:
             Tuple of (driver instance, driver type string)
@@ -46,7 +48,7 @@ class DriverFactory:
             try:
                 log.info("Attempting to initialize SeleniumBase driver...")
                 driver = SeleniumBaseDriver(headless=headless)
-                driver.setup()
+                driver.setup(proxy=proxy)
                 log.info("SeleniumBase driver ready")
                 return driver, 'seleniumbase'
             except Exception as e:
@@ -57,7 +59,7 @@ class DriverFactory:
         try:
             log.info("Initializing Playwright stealth driver...")
             driver = PlaywrightStealthDriver(headless=headless)
-            driver.setup()
+            driver.setup(proxy=proxy)
             log.info("Playwright stealth driver ready")
             return driver, 'playwright'
         except Exception as e:
@@ -68,6 +70,7 @@ class DriverFactory:
 def get_driver(
     headless: bool = True,
     force_playwright: bool = False,
+    proxy: Optional[str] = None,
 ) -> Tuple[BaseScraper, str]:
     """
     Convenience function to get a scraper driver.
@@ -75,14 +78,19 @@ def get_driver(
     Args:
         headless: Run browser in headless mode
         force_playwright: Skip SeleniumBase and use Playwright directly
+        proxy: Optional proxy string
     
     Returns:
         Tuple of (driver instance, driver type string)
     """
-    return DriverFactory.create(headless=headless, force_playwright=force_playwright)
+    return DriverFactory.create(headless=headless, force_playwright=force_playwright, proxy=proxy)
 
 
-def switch_to_fallback(current_driver: BaseScraper, headless: bool = True) -> Tuple[BaseScraper, str]:
+def switch_to_fallback(
+    current_driver: BaseScraper, 
+    headless: bool = True,
+    proxy: Optional[str] = None
+) -> Tuple[BaseScraper, str]:
     """
     Switch from current driver to fallback (Playwright).
     Useful when bot detection is triggered mid-scrape.
@@ -90,6 +98,7 @@ def switch_to_fallback(current_driver: BaseScraper, headless: bool = True) -> Tu
     Args:
         current_driver: The current driver to close
         headless: Run new browser in headless mode
+        proxy: Optional proxy to use for fallback
     
     Returns:
         Tuple of (new driver instance, driver type string)
@@ -101,4 +110,4 @@ def switch_to_fallback(current_driver: BaseScraper, headless: bool = True) -> Tu
     except Exception as e:
         log.warning(f"Error closing current driver: {e}")
     
-    return get_driver(headless=headless, force_playwright=True)
+    return get_driver(headless=headless, force_playwright=True, proxy=proxy)

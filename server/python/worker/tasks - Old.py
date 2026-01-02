@@ -156,6 +156,160 @@ def _validate_media_paths(paths: List[str]) -> List[str]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Content Generation Task
+# ─────────────────────────────────────────────────────────────────────────────
+@app.task(
+    name="worker.tasks.process_content_generation",
+    queue="celery",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    acks_late=True,
+)
+def process_content_generation(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate AI content for an upload job.
+    
+    This task:
+    1. Aggregates all context (game, docs, competitors, Reddit)
+    2. Generates caption, hook, and hashtags via LLM
+    3. Calculates optimal posting time
+    4. Updates job with AI content and sets status to needs_review
+    
+    Args:
+        job_data: Job data containing:
+            - id: Job ID
+            - user_id: Owner user ID
+            - group_id: Group ID
+            - platform: Target platform
+            
+    Returns:
+        dict: Result with status and generated content
+    """
+    job_id = job_data.get("id")
+    user_id = job_data.get("user_id")
+    group_id = job_data.get("group_id")
+    platform = (job_data.get("platform") or "instagram").lower()
+    
+    log.info("🤖 Generating AI content: job_id=%s platform=%s", job_id, platform)
+    
+    try:
+        from .context_aggregator import aggregate_context
+        from .ai_content import generate_content
+        
+        # 1. Aggregate all context (tenant-scoped)
+        context = aggregate_context(user_id, group_id, platform)
+        
+        if not context.has_data:
+            raise RuntimeError("No game context available for content generation")
+        
+        # 2. Generate content via LLM
+        content = generate_content(context, platform)
+        
+        if content.error:
+            raise RuntimeError(f"Content generation failed: {content.error}")
+        
+        # 3. Calculate optimal posting time
+        from datetime import datetime, timedelta
+        import pytz
+        
+        # Use best posting day from competitor analysis
+        best_day_map = {
+            "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
+            "Friday": 4, "Saturday": 5, "Sunday": 6
+        }
+        target_dow = best_day_map.get(context.best_posting_day, 2)  # Default Wednesday
+        
+        # Platform-specific times
+        if platform == "instagram":
+            post_hour = 19  # 7 PM
+        elif platform == "tiktok":
+            post_hour = 15  # 3 PM
+        else:
+            post_hour = 18  # 6 PM
+        
+        # Calculate next occurrence of target day
+        now = datetime.now(pytz.UTC)
+        days_ahead = (target_dow - now.weekday()) % 7
+        if days_ahead == 0 and now.hour >= post_hour:
+            days_ahead = 7  # Next week if today's slot passed
+        
+        optimal_time = now.replace(
+            hour=post_hour, minute=0, second=0, microsecond=0
+        ) + timedelta(days=days_ahead)
+        
+        # 4. Update job in database
+        with psycopg.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE upload_jobs
+                    SET ai_title = %s,
+                        ai_hook = %s,
+                        ai_hashtags = %s,
+                        ai_post_time = %s,
+                        status = 'needs_review',
+                        locked_at = NULL,
+                        locked_by = NULL,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (
+                    content.title,
+                    content.hook,
+                    content.hashtags,
+                    optimal_time,
+                    job_id
+                ))
+            conn.commit()
+        
+        log.info(
+            "✅ AI content generated: job_id=%s hook=%s schedule=%s",
+            job_id, content.hook[:30] + "..." if content.hook else "N/A", optimal_time
+        )
+        
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "hook": content.hook,
+            "hashtags": content.hashtags,
+            "scheduled_for": optimal_time.isoformat(),
+            "confidence": content.confidence
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        log.exception("❌ Content generation failed: job_id=%s error=%s", job_id, error_msg)
+        
+        # Update job status to failed
+        try:
+            with psycopg.connect(DATABASE_URL) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE upload_jobs
+                        SET status = CASE WHEN retry_count >= max_retries THEN 'failed' ELSE 'queued' END,
+                            error_message = %s,
+                            error_at = NOW(),
+                            retry_count = retry_count + 1,
+                            locked_at = NULL,
+                            locked_by = NULL,
+                            updated_at = NOW()
+                        WHERE id = %s
+                    """, (error_msg, job_id))
+                conn.commit()
+        except Exception as update_error:
+            log.error("Failed to update job status: %s", update_error)
+        
+        # Retry if within limits
+        if self.request.retries < self.max_retries:
+            raise self.retry(countdown=30 * (self.request.retries + 1))
+        
+        return {
+            "status": "failed",
+            "job_id": job_id,
+            "error": error_msg
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Upload Task
 # ─────────────────────────────────────────────────────────────────────────────
 @app.task(
@@ -174,36 +328,15 @@ def process_upload_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
     This task handles:
     - Single file uploads
     - Multi-file carousel uploads (Instagram)
-    - Caption and hashtag formatting
-    - Platform-specific requirements
+    - Caption building from AI content
+    - Idempotency checks
+    - Proper error state handling
     
     Args:
-        job_data: Job configuration dict containing:
-            - id (int): Job ID in database
-            - user_id (int): Owner user ID
-            - platform (str): Target platform ('instagram', 'tiktok')
-            - media_path (str|list): Path(s) to media file(s)
-            - user_title (str, optional): Post title/caption
-            - user_hashtags (list, optional): Hashtags to include
-            - session_id (str, optional): TikTok session token
-            - headless (bool, optional): Run browser headless (default: True)
+        job_data: Job configuration dict containing job details
     
     Returns:
-        dict: Result containing:
-            - status: 'success' or 'failed'
-            - job_id: The job ID
-            - files_uploaded: Number of files uploaded
-            - error: Error message (if failed)
-    
-    Example:
-        >>> process_upload_job.delay({
-        ...     "id": 123,
-        ...     "user_id": 1,
-        ...     "platform": "instagram",
-        ...     "media_path": "1/video.mp4",
-        ...     "user_title": "Check this out!",
-        ...     "user_hashtags": ["gaming", "indiedev"]
-        ... })
+        dict: Result containing status and upload info
     """
     job_id = job_data.get("id")
     platform = (job_data.get("platform") or "").lower()
@@ -217,8 +350,26 @@ def process_upload_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
         if not platform:
             raise ValueError("job_data must contain 'platform'")
         
-        # Handle media_path - can be single file or list
-        media_paths = job_data.get("media_path") or job_data.get("video_path")
+        # Idempotency check: re-fetch job and verify status is 'posting'
+        with psycopg.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT status, ai_title, ai_hook, ai_hashtags, video_path
+                    FROM upload_jobs WHERE id = %s
+                """, (job_id,))
+                row = cur.fetchone()
+                if not row:
+                    log.warning("Job not found: %s", job_id)
+                    return {"status": "skipped", "job_id": job_id, "reason": "not_found"}
+                
+                current_status, ai_title, ai_hook, ai_hashtags, video_path = row
+                
+                if current_status != "posting":
+                    log.info("Job status is '%s', not 'posting'. Skipping.", current_status)
+                    return {"status": "skipped", "job_id": job_id, "reason": f"status={current_status}"}
+        
+        # Handle media_path
+        media_paths = job_data.get("media_path") or job_data.get("video_path") or video_path
         if not media_paths:
             raise ValueError("media_path or video_path is required")
         
@@ -232,14 +383,22 @@ def process_upload_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
         full_paths = _validate_media_paths(media_paths)
         log.info("Uploading %d file(s): %s", len(full_paths), full_paths)
         
-        # Build caption
-        title = (job_data.get("user_title") or "").strip()
-        hashtags = job_data.get("user_hashtags") or []
-        if not isinstance(hashtags, list):
-            hashtags = []
+        # Build caption: prefer ai_title, fallback to ai_hook, append hashtags
+        caption_parts = []
+        if ai_title:
+            caption_parts.append(ai_title)
+        elif ai_hook:
+            caption_parts.append(ai_hook)
         
-        hashtag_str = " ".join(f"#{t}" for t in hashtags if t)
-        caption = f"{title} {hashtag_str}".strip()
+        # Append hashtags
+        if ai_hashtags and isinstance(ai_hashtags, list):
+            hashtag_str = " ".join(f"#{t}" for t in ai_hashtags if t and not t.startswith("#"))
+            if hashtag_str:
+                caption_parts.append(hashtag_str)
+        
+        caption = " ".join(caption_parts).strip()
+        if not caption:
+            caption = job_data.get("user_title", "") or "Check this out!"
         
         # Headless mode (default True for production)
         headless = job_data.get("headless", True)
@@ -248,15 +407,12 @@ def process_upload_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
         
         # Platform-specific upload
         if platform == "instagram":
-            # Import here to avoid circular imports
             from socialmedia.instagram_post import upload_instagram_media
             
-            # Use single path or list based on file count
             media_arg = full_paths[0] if len(full_paths) == 1 else full_paths
             upload_instagram_media(media_arg, caption, headless=headless)
             
         elif platform == "tiktok":
-            # TikTok only supports single file uploads
             if len(full_paths) > 1:
                 raise ValueError("TikTok uploads support only one file at a time")
             
@@ -264,22 +420,24 @@ def process_upload_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
             if not session_id:
                 raise ValueError("session_id is required for TikTok uploads")
             
-            # TikTok upload is currently disabled
-            # from socialmedia.tiktok import upload_tiktok_video
-            # upload_tiktok_video(session_id, full_paths[0], caption)
-            raise NotImplementedError(
-                "TikTok upload is currently disabled. "
-                "Enable by uncommenting the import and function call."
-            )
+            raise NotImplementedError("TikTok upload is currently disabled.")
         else:
             raise ValueError(f"Unsupported platform: {platform}")
         
-        # Update job status to done
-        update_job_status(job_id, "done", {
-            "title": title,
-            "hashtags": hashtags,
-            "post_time": datetime.now().isoformat()
-        })
+        # Update job status to posted, clear errors
+        with psycopg.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE upload_jobs
+                    SET status = 'posted',
+                        error_message = NULL,
+                        error_at = NULL,
+                        locked_at = NULL,
+                        locked_by = NULL,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (job_id,))
+            conn.commit()
         
         log.info("✅ Upload complete: job_id=%s files=%d", job_id, len(full_paths))
         
@@ -294,13 +452,39 @@ def process_upload_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
         error_msg = str(e)
         log.exception("❌ Upload failed: job_id=%s error=%s", job_id, error_msg)
         
-        # Update job status to failed
+        # Detect auth/cookie errors
+        is_auth_error = any(x in error_msg.lower() for x in ["cookie", "login", "auth", "session", "expired"])
+        
         try:
-            update_job_status(job_id, "failed", {
-                "title": "",
-                "hashtags": [],
-                "post_time": None
-            }, error=error_msg)
+            with psycopg.connect(DATABASE_URL) as conn:
+                with conn.cursor() as cur:
+                    if is_auth_error:
+                        # MarkJobNeedsReauth semantics
+                        cur.execute("""
+                            UPDATE upload_jobs
+                            SET status = 'needs_reauth',
+                                needs_reauth = true,
+                                error_message = %s,
+                                error_at = NOW(),
+                                locked_at = NULL,
+                                locked_by = NULL,
+                                updated_at = NOW()
+                            WHERE id = %s
+                        """, (error_msg, job_id))
+                    else:
+                        # MarkJobPostingFailed: retry to scheduled if retries remain
+                        cur.execute("""
+                            UPDATE upload_jobs
+                            SET status = CASE WHEN retry_count >= max_retries THEN 'failed' ELSE 'scheduled' END,
+                                error_message = %s,
+                                error_at = NOW(),
+                                retry_count = retry_count + 1,
+                                locked_at = NULL,
+                                locked_by = NULL,
+                                updated_at = NOW()
+                            WHERE id = %s
+                        """, (error_msg, job_id))
+                conn.commit()
         except Exception as update_error:
             log.error("Failed to update job status: %s", update_error)
         
@@ -826,229 +1010,12 @@ def scrape_hashtag_trends(self) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        log.exception("Hashtag trends scraping task failed")
-        return {"status": "failed", "error": str(e)}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# State Management for Scheduling
-# ─────────────────────────────────────────────────────────────────────────────
-STATE_FILE = os.path.join(os.path.dirname(__file__), '..', 'scrape_state.json')
-
-def get_last_scrape_time() -> datetime:
-    """Read the last scrape timestamp from the state file."""
-    try:
-        if os.path.exists(STATE_FILE):
-            with open(STATE_FILE, 'r') as f:
-                data = json.load(f)
-                # Handle cases where file might be empty or corrupted
-                if data and 'last_scrape' in data:
-                    return datetime.fromisoformat(data['last_scrape'])
-    except Exception as e:
-        log.error(f"Failed to read scrape state: {e}")
-    
-    # If no file or error, return a time far in the past to ensure first run
-    return datetime.min
-
-def update_last_scrape_time() -> None:
-    """Update the state file with the current timestamp."""
-    try:
-        with open(STATE_FILE, 'w') as f:
-            json.dump({
-                'last_scrape': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }, f)
-    except Exception as e:
-        log.error(f"Failed to update scrape state: {e}")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Proxy Refresh & Scheduled Scrape Task
-# ─────────────────────────────────────────────────────────────────────────────
-@app.task(
-    name="worker.tasks.refresh_proxies_and_scheduled_scrape",
-    queue="celery",
-    bind=True,
-    max_retries=3,
-    acks_late=True,
-)
-def refresh_proxies_and_scheduled_scrape(self) -> Dict[str, Any]:
-    """
-    Smart Scheduling Logic:
-    1. Runs every 3 hours.
-    2. Refreshes proxies.
-    3. TRIGGER LOGIC:
-       - IF proxies available -> Scrape (High Frequency Mode)
-       - IF NO proxies -> Check if 12h passed since last scrape.
-         - YES (>12h) -> Scrape using Local IP (Fallback Mode)
-         - NO (<12h) -> Skip (Safety Mode)
-    """
-    log.info("🔄 Starting proxy refresh and scrape coordination task")
-    
-    try:
-        # Import here to avoid circular dependencies if any
-        from socialmedia.drivers.proxy_manager import proxy_manager
-        
-        # 1. Force refresh proxies
-        log.info("1️⃣ forcing proxy refresh...")
-        try:
-            proxy_manager.refresh_proxies(force=True)
-            proxy_count = len(proxy_manager.proxies)
-            log.info(f"   → Proxy refresh complete. Available: {proxy_count}")
-
-            # 2. Evaluate Trigger Logic
-            should_scrape = False
-            trigger_reason = ""
-            
-            last_scrape = get_last_scrape_time()
-            time_since_scrape = datetime.now() - last_scrape
-            hours_since_scrape = time_since_scrape.total_seconds() / 3600
-            
-            log.info(f"   ⏱️ Time since last scrape: {hours_since_scrape:.2f} hours")
-
-            if proxy_count > 0:
-                should_scrape = True
-                trigger_reason = f"✅ Proxies available ({proxy_count})"
-            elif hours_since_scrape >= 12:
-                should_scrape = True
-                trigger_reason = "⚠️ Fallback: No proxies but >12h since last run"
-                log.warning("   ⚠️ No proxies found. Triggering 12h fallback using LOCAL IP.")
-            else:
-                should_scrape = False
-                trigger_reason = "Skipping: No proxies and <12h since last scrape"
-
-            if should_scrape:
-                log.info(f"2️⃣ Triggering scrapers. Reason: {trigger_reason}")
-                
-                # Trigger Instagram Scrape
-                try:
-                    weekly_instagram_scrape.delay()
-                    log.info("   → Triggered weekly_instagram_scrape")
-                except Exception as e:
-                    log.error(f"   ❌ Failed to trigger Instagram scrape: {e}")
-
-                # Trigger TikTok Scrape
-                try:
-                    weekly_tiktok_scrape.delay()
-                    log.info("   → Triggered weekly_tiktok_scrape")
-                except Exception as e:
-                     log.error(f"   ❌ Failed to trigger TikTok scrape: {e}")
-                
-                # Update state
-                update_last_scrape_time()
-
-                return {
-                    "status": "success",
-                    "message": f"Scrapers triggered: {trigger_reason}",
-                    "proxy_count": proxy_count,
-                    "mode": "proxy" if proxy_count > 0 else "fallback_local"
-                }
-            else:
-                log.warning(f"🛑 {trigger_reason}")
-                return {
-                    "status": "skipped",
-                    "message": trigger_reason,
-                    "proxy_count": 0
-                }
-
-        except Exception as e:
-            log.error(f"❌ Proxy refresh logic failed: {e}")
-            raise
-
-    except Exception as e:
-        log.exception("❌ Proxy refresh task failed: %s", e)
-        # Retry in 5 minutes if it was a network glitch fetching list
-        raise self.retry(countdown=300)
-
-# ---------- Instagram Hashtag Scraping Task ----------
-@app.task(name="worker.tasks.scrape_instagram_hashtag", queue="celery")
-def scrape_instagram_hashtag(hashtag, max_posts=50):
-    log.info(f"Starting Instagram hashtag scraping task for #{hashtag}")
-    
-    try:
-        import sys
-        import os
-        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-        
-        from socialmedia.instagram.scraper.profile_scraper import InstagramScraper
-        
-        # Get credentials from environment variables
-        username = os.getenv("INSTAGRAM_USERNAME")
-        password = os.getenv("INSTAGRAM_PASSWORD")
-        
-        scraper = InstagramScraper(username, password)
-        
-        # Attempt to login (which will handle guest mode if no creds)
-        if not scraper.login():
-            log.error("Failed to login to Instagram (even guest mode failed)")
-            scraper.close()
-            return {"status": "failed", "error": "Failed to login to Instagram"}
-        
-        # Scrape the hashtag
-        posts_data = scraper.scrape_hashtag(hashtag, max_posts=max_posts)
-        
-        scraper.close()
-        
-        log.info(f"Instagram hashtag scraping completed: {len(posts_data)} posts scraped for #{hashtag}")
+        error_msg = str(e)
+        log.exception("❌ Hashtag trends scraping failed: %s", error_msg)
         return {
-            "status": "success",
-            "hashtag": hashtag,
-            "posts_scraped": len(posts_data),
-            "message": f"Successfully scraped {len(posts_data)} posts for #{hashtag}"
+            "status": "failed",
+            "error": error_msg
         }
-        
-    except Exception as e:
-        log.exception(f"Instagram hashtag scraping failed for #{hashtag}")
-        return {"status": "failed", "hashtag": hashtag, "error": str(e)}
-
-# ---------- Hashtag Discovery Task ----------
-# Hard limit for recursive iterations to prevent infinite loops
-MAX_ITERATIONS_LIMIT = 10
-
-@app.task(name="worker.tasks.discover_and_scrape_hashtags", queue="celery")
-def discover_and_scrape_hashtags(user_id=None, group_id=None, max_hashtags=10, max_posts_per_hashtag=50, recursive=False, max_iterations=3):
-    """
-    Task to discover and scrape hashtags from competitor posts.
-    
-    Note:
-        max_iterations is capped at 10 to prevent infinite scraping loops.
-    """
-    log.info("Starting hashtag discovery and scraping task")
-    
-    # Enforce hard limit at task level (defense in depth)
-    if max_iterations > MAX_ITERATIONS_LIMIT:
-        log.warning(f"Requested {max_iterations} iterations exceeds limit of {MAX_ITERATIONS_LIMIT}. Capping at {MAX_ITERATIONS_LIMIT}.")
-        max_iterations = MAX_ITERATIONS_LIMIT
-    
-    try:
-        import sys
-        import os
-        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-        
-        from socialmedia.hashtag.hashtag_discovery import HashtagDiscovery
-        
-        discovery = HashtagDiscovery(
-            user_id=user_id,
-            group_id=group_id,
-            max_posts_per_hashtag=max_posts_per_hashtag
-        )
-        
-        if recursive:
-            log.info(f"Running recursive discovery (max_iterations={max_iterations}, hard_limit={MAX_ITERATIONS_LIMIT})")
-            results = discovery.discover_and_scrape_recursive(
-                max_iterations=max_iterations,
-                max_hashtags_per_iteration=max_hashtags
-            )
-            log.info(f"Recursive discovery completed: {results['total_hashtags_scraped']} hashtags scraped across {results['iterations']} iterations, {results['total_posts_scraped']} total posts")
-        else:
-            results = discovery.scrape_new_hashtags(max_hashtags=max_hashtags)
-            log.info(f"Hashtag discovery completed: {results['hashtags_scraped']} hashtags scraped, {results['total_posts_scraped']} total posts")
-        
-        return results
-        
-    except Exception as e:
-        log.exception("Hashtag discovery task failed")
-        return {"status": "failed", "error": str(e)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1062,7 +1029,4 @@ __all__ = [
     'scrape_followers',
     'ai_web_scrape',
     'scrape_hashtag_trends',
-    'scrape_instagram_hashtag',
-    'discover_and_scrape_hashtags',
-    'refresh_proxies_and_scheduled_scrape',
 ]

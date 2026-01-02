@@ -183,6 +183,12 @@ SELECT id, user_id, platform, video_path, storage_type, file_url, status, create
 FROM upload_jobs
 WHERE id = $1;
 
+-- Get full upload job by ID (includes AI content and scheduling fields)
+-- name: GetUploadJobFull :one
+SELECT *
+FROM upload_jobs
+WHERE id = $1;
+
 -- Get upload jobs by group ID
 -- name: GetUploadJobByGID :many
 SELECT id, group_id, platform, status, created_at
@@ -223,6 +229,135 @@ WHERE id = (
     FOR UPDATE SKIP LOCKED
 )
 RETURNING *;
+
+-- ============================================================================
+-- ATOMIC JOB CLAIMING (State Machine)
+-- ============================================================================
+
+-- Claim next queued job for AI generation (atomic)
+-- name: ClaimQueuedJob :one
+WITH next AS (
+    SELECT id FROM upload_jobs
+    WHERE status = 'queued'
+    ORDER BY created_at
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE upload_jobs
+SET status = 'generating',
+    locked_at = NOW(),
+    locked_by = $1
+FROM next
+WHERE upload_jobs.id = next.id
+RETURNING upload_jobs.*;
+
+-- Claim next scheduled job for posting (atomic)
+-- name: ClaimScheduledJob :one
+WITH next AS (
+    SELECT id FROM upload_jobs
+    WHERE status = 'scheduled' 
+      AND scheduled_date <= NOW()
+      AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '10 minutes')
+    ORDER BY scheduled_date
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE upload_jobs
+SET status = 'posting',
+    locked_at = NOW(),
+    locked_by = $1
+FROM next
+WHERE upload_jobs.id = next.id
+RETURNING upload_jobs.*;
+
+-- Update job with AI-generated content
+-- name: UpdateJobAIContent :exec
+UPDATE upload_jobs
+SET ai_title = $2,
+    ai_hook = $3,
+    ai_hashtags = $4,
+    ai_post_time = $5,
+    status = 'needs_review',
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- Schedule approved job
+-- name: ScheduleJob :exec
+UPDATE upload_jobs
+SET status = 'scheduled',
+    scheduled_date = $2,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- Mark job as posted
+-- name: MarkJobPosted :exec
+UPDATE upload_jobs
+SET status = 'posted',
+    posted_url = $2,
+    platform_post_id = $3,
+    error_message = NULL,
+    error_at = NULL,
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- Mark job generation as failed with retry tracking
+-- name: MarkJobGenerationFailed :exec
+UPDATE upload_jobs
+SET status = CASE WHEN retry_count >= max_retries THEN 'failed' ELSE 'queued' END,
+    error_message = $2,
+    error_at = NOW(),
+    retry_count = retry_count + 1,
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- Mark job posting as failed with retry tracking
+-- name: MarkJobPostingFailed :exec
+UPDATE upload_jobs
+SET status = CASE WHEN retry_count >= max_retries THEN 'failed' ELSE 'scheduled' END,
+    error_message = $2,
+    error_at = NOW(),
+    retry_count = retry_count + 1,
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- Mark job as needing re-authentication
+-- name: MarkJobNeedsReauth :exec
+UPDATE upload_jobs
+SET status = 'needs_reauth',
+    needs_reauth = true,
+    error_message = $2,
+    error_at = NOW(),
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- Cancel a job
+-- name: CancelJob :exec
+UPDATE upload_jobs
+SET status = 'canceled',
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- List pending jobs for a group (tenant-safe: requires group_id AND user_id)
+-- name: ListGroupPendingJobs :many
+SELECT id, platform, status, ai_title, ai_hook, ai_hashtags, scheduled_date, error_message, created_at, updated_at
+FROM upload_jobs
+WHERE group_id = $1
+  AND user_id = $2
+  AND status NOT IN ('posted', 'canceled')
+ORDER BY created_at DESC
+LIMIT 50;
 
 
 -- ============================================================================

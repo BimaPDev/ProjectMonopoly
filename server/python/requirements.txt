@@ -25,6 +25,7 @@ numpy>=2.1.0
 
 # HTTP Requests
 requests>=2.31.0
+PySocks>=1.7.1 # Required for SOCKS proxy support in requests
 
 # AI/ML
 ollama>=0.4.0

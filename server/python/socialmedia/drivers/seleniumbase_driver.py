@@ -75,13 +75,13 @@ class SeleniumBaseDriver(BaseScraper):
         self._is_setup = False
         self._virtual_display = None  # For xvfb on Linux
     
-    def setup(self) -> None:
+    def setup(self, proxy: Optional[str] = None) -> None:
         """Initialize SeleniumBase with CDP mode connected to Playwright."""
         try:
             from seleniumbase import sb_cdp
             from playwright.sync_api import sync_playwright
             
-            log.info("Initializing SeleniumBase CDP mode with Playwright...")
+            log.info(f"Initializing SeleniumBase CDP mode with Playwright... (Proxy: {proxy if proxy else 'None'})")
             
             # Detect OS and set up virtual display for Linux servers
             is_linux = platform.system() == "Linux"
@@ -104,7 +104,9 @@ class SeleniumBaseDriver(BaseScraper):
             # NOTE: TikTok blocks true headless Chrome, always use visible mode
             # On Linux with xvfb, the "visible" browser renders to the virtual display
             print("Starting Chrome browser (visible mode - required for TikTok)")
-            self.sb = sb_cdp.Chrome(headless=False, locale="en")
+            
+            # SeleniumBase sb_cdp.Chrome accepts proxy string directly
+            self.sb = sb_cdp.Chrome(headless=False, locale="en", proxy=proxy)
             
             endpoint_url = self.sb.get_endpoint_url()
             log.info(f"SeleniumBase CDP endpoint: {endpoint_url}")

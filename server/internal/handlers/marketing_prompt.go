@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+
+	db "github.com/BimaPDev/ProjectMonopoly/internal/db/sqlc"
 )
 
 // DefaultDataWindowDays is the analytics window used consistently across UI/logs/prompt
@@ -360,6 +362,7 @@ type StrategyPromptConfig struct {
 	IsLowConfidence         bool
 	PostsAnalyzed           int
 	BestDay                 string
+	StrategyCards           []db.StrategyCard // Proven tactics
 }
 
 // BuildStrategySystemPrompt creates a concise system prompt for high-level strategy tasks
@@ -392,6 +395,27 @@ func BuildStrategySystemPrompt(config StrategyPromptConfig) string {
 	b.WriteString("   - If a detail is not explicitly provided in GAME CONTEXT, keep it generic or omit it.\n")
 	b.WriteString("8) Do NOT make absolute gameplay claims (e.g., \"always\", \"guaranteed\", \"rigged\", \"won by players\").\n")
 	b.WriteString("9) Competitor data is for strategy signals only. Do NOT copy competitor wording or distinctive phrases.\n\n")
+
+	b.WriteString("9) Competitor data is for strategy signals only. Do NOT copy competitor wording or distinctive phrases.\n\n")
+
+	// Inject PROVEN TACTICS from Strategy Cards (if any)
+	if len(config.StrategyCards) > 0 {
+		b.WriteString("PROVEN TACTICS (FROM REDDIT):\n")
+		b.WriteString("Use these high-confidence community tactics as primary inspiration:\n")
+		for i, card := range config.StrategyCards {
+			tactic := ""
+			if card.Tactic.Valid {
+				tactic = card.Tactic.String
+			}
+			steps := ""
+			// Steps is JSONB (pqtype.NullRawMessage)
+			if card.Steps.Valid && len(card.Steps.RawMessage) > 0 {
+				steps = string(card.Steps.RawMessage)
+			}
+			b.WriteString(fmt.Sprintf("%d) %s: %s\n", i+1, tactic, steps))
+		}
+		b.WriteString("(Adapt these tactics to fit the game's specific context)\n\n")
+	}
 
 	// Teaser-specific language rules
 	if config.CampaignType == "Teaser" || config.CTAPolicy == CTAPolicyNone {
