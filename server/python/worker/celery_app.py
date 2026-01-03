@@ -98,18 +98,6 @@ app.conf.update(
 from celery.schedules import crontab
 
 app.conf.beat_schedule = {
-    # FULL Proxy Validation - runs every 3 hours (checks ALL proxies)
-    'validate-all-proxies': {
-        'task': 'worker.tasks.validate_all_proxies_task',
-        'schedule': crontab(minute=0, hour='*/3'),  # Every 3 hours
-    },
-    
-    # Proxy Refresh & Scrape Coordination - runs every 3 hours (offset by 30 min)
-    'proxy-refresh-and-scrape': {
-        'task': 'worker.tasks.refresh_proxies_and_scheduled_scrape',
-        'schedule': crontab(minute=30, hour='*/3'),  # Every 3 hours, at :30
-    },
-    
     # Viral content scan - runs every hour
     'viral-content-scan': {
         'task': 'viral.tasks.scan_viral_content',
