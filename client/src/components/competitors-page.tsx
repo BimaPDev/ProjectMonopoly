@@ -261,8 +261,17 @@ export function CompetitorsPage() {
   }
   useEffect(() => {
     if (activeGroup?.ID) {
+      // Initial fetch
       fetchCompetitors();
       fetchCompetitorsPosts();
+
+      // Poll every 15 seconds to check for updates (e.g. scraping finished)
+      const intervalId = setInterval(() => {
+        fetchCompetitors();
+        fetchCompetitorsPosts();
+      }, 15000);
+
+      return () => clearInterval(intervalId);
     }
   }, [activeGroup]);
 

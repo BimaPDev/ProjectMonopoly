@@ -267,9 +267,19 @@ export function Dashboard() {
 
   useEffect(() => {
     if (activeGroup?.ID) {
+      // Initial fetch
       fetchCompetitors();
       fetchCampaigns();
       fetchGroupItems();
+
+      // Poll every 15 seconds
+      const intervalId = setInterval(() => {
+        fetchCompetitors();
+        fetchCampaigns();
+        fetchGroupItems();
+      }, 15000);
+
+      return () => clearInterval(intervalId);
     }
   }, [activeGroup]);
 
