@@ -10,6 +10,7 @@ import { Loader2, Sparkles, TrendingUp, Calendar, Hash, Zap } from "lucide-react
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useGroup } from "./groupContext";
+import { NoGroupWarning } from "@/components/NoGroupWarning";
 
 interface MarketingStrategyResponse {
     content: string;
@@ -71,6 +72,10 @@ export function MarketingGenerator() {
             setIsLoading(false);
         }
     };
+
+    if (!activeGroup) {
+        return <NoGroupWarning featureName="Marketing Generator" />;
+    }
 
     return (
         <div className="flex flex-col gap-6 h-full overflow-y-auto p-1">

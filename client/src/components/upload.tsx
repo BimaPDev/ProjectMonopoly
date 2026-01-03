@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { socialPlatforms } from "@/components/socialPlatforms";
+import { NoGroupWarning } from "@/components/NoGroupWarning";
 
 // Updated schema to include group selection
 const formSchema = z.object({
@@ -264,15 +265,7 @@ export default function UploadPage() {
     }
   }
   if (!activeGroup) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <Card className="p-8 text-center bg-card border-border">
-          <EyeClosed className="w-16 h-16 mx-auto mb-4 text-amber-500" />
-          <h3 className="mb-2 text-xl font-semibold">No Group Selected</h3>
-          <p className="text-muted-foreground">Please select a group from the sidebar to view.</p>
-        </Card>
-      </div>
-    );
+    return <NoGroupWarning featureName="Post & Upload" />;
   }
 
   return (

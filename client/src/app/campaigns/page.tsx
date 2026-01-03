@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { useGroup } from "@/components/groupContext";
+import { NoGroupWarning } from "@/components/NoGroupWarning";
 import {
   ArrowLeft,
   ArrowRight,
@@ -345,6 +346,10 @@ export default function CampaignsPage() {
   }
 
   // Render based on view
+  if (!activeGroup) {
+    return <NoGroupWarning featureName="Campaigns" />;
+  }
+
   if (view === "list") {
     return (
       <div className="min-h-screen bg-black p-8">

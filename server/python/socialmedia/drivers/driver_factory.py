@@ -1,12 +1,14 @@
 """
 Driver Factory
-Smart factory that tries SeleniumBase first, automatically falls back to Playwright on bot detection.
+Smart factory that supports multiple driver types with automatic fallback.
+Drivers: Undetected Chrome, SeleniumBase, Playwright
 """
 
 import logging
 from typing import Tuple, Optional, Union
 from .seleniumbase_driver import SeleniumBaseDriver
 from .playwright_stealth_driver import PlaywrightStealthDriver
+from .undetected_chrome_driver import UndetectedChromeDriver
 from .base_scraper import BaseScraper
 
 log = logging.getLogger(__name__)
@@ -20,13 +22,18 @@ class BotDetectedError(Exception):
 class DriverFactory:
     """
     Factory for creating scraper drivers with automatic fallback.
-    Tries SeleniumBase first, falls back to Playwright if bot detection occurs.
+    
+    Driver priority:
+    1. Undetected Chrome (if force_undetected=True)
+    2. SeleniumBase (default primary)
+    3. Playwright (fallback)
     """
     
     @staticmethod
     def create(
         headless: bool = True,
         force_playwright: bool = False,
+        force_undetected: bool = False,
         skip_seleniumbase: bool = False,
         proxy: Optional[str] = None,
     ) -> Tuple[BaseScraper, str]:
@@ -35,13 +42,26 @@ class DriverFactory:
         
         Args:
             headless: Run browser in headless mode
-            force_playwright: Skip SeleniumBase and use Playwright directly
+            force_playwright: Skip other drivers and use Playwright directly
+            force_undetected: Use undetected-chromedriver (best for anti-bot sites)
             skip_seleniumbase: Same as force_playwright (alias)
             proxy: Optional proxy string (e.g. "http://1.2.3.4:8080")
         
         Returns:
             Tuple of (driver instance, driver type string)
         """
+        # If undetected browser is requested, try it first
+        if force_undetected:
+            try:
+                log.info("Attempting to initialize Undetected Chrome driver...")
+                driver = UndetectedChromeDriver(headless=headless)
+                driver.setup(proxy=proxy)
+                log.info("Undetected Chrome driver ready")
+                return driver, 'undetected'
+            except Exception as e:
+                log.warning(f"Undetected Chrome failed: {e}")
+                log.info("Falling back to SeleniumBase...")
+        
         use_playwright = force_playwright or skip_seleniumbase
         
         if not use_playwright:
@@ -70,6 +90,7 @@ class DriverFactory:
 def get_driver(
     headless: bool = True,
     force_playwright: bool = False,
+    force_undetected: bool = False,
     proxy: Optional[str] = None,
 ) -> Tuple[BaseScraper, str]:
     """
@@ -77,13 +98,19 @@ def get_driver(
     
     Args:
         headless: Run browser in headless mode
-        force_playwright: Skip SeleniumBase and use Playwright directly
+        force_playwright: Skip other drivers and use Playwright directly
+        force_undetected: Use undetected-chromedriver (best for anti-bot sites)
         proxy: Optional proxy string
     
     Returns:
         Tuple of (driver instance, driver type string)
     """
-    return DriverFactory.create(headless=headless, force_playwright=force_playwright, proxy=proxy)
+    return DriverFactory.create(
+        headless=headless, 
+        force_playwright=force_playwright, 
+        force_undetected=force_undetected,
+        proxy=proxy
+    )
 
 
 def switch_to_fallback(

@@ -46,7 +46,7 @@ def prefix_words_with_hash(caption: str) -> str:
     return " ".join(f"{tok}" for tok in tokens if tok.strip())
 
 class InstagramScraper:
-    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl", use_cookies=True, headless=None, proxy=None):
+    def __init__(self, username=None, password=None, cookies_path="cookies/instagram_cookies.pkl", use_cookies=True, headless=None, proxy=None, driver_type='undetected'):
         """
         Initialize Instagram scraper.
         
@@ -57,6 +57,7 @@ class InstagramScraper:
             use_cookies: If True, use cookies/login. If False, run in pure guest mode.
             headless: Deprecated - kept for backward compatibility. Use HEADLESS env var instead.
             proxy: Optional proxy string (e.g. "http://1.2.3.4:8080")
+            driver_type: Driver to use - 'undetected', 'seleniumbase', or 'playwright'
         """
         self.username = username
         self.password = password
@@ -64,22 +65,34 @@ class InstagramScraper:
         self.use_cookies = use_cookies
         self.proxy = proxy
         self.driver = None
-        self.driver_type = None  # 'seleniumbase' or 'playwright'
+        self.driver_type = None  # Will be set by setup_driver
+        self.preferred_driver = driver_type.lower()  # 'undetected', 'seleniumbase' or 'playwright'
         self._raw_driver = None  # The underlying driver object for direct access
         self.setup_driver()
 
     def setup_driver(self):
-        """Initialize scraper using SeleniumBase (primary) with Playwright fallback."""
-        print(f"Setting up scraper driver (SeleniumBase with Playwright fallback)... Proxy: {self.proxy if self.proxy else 'None'}")
+        """Initialize scraper using the preferred driver type."""
+        driver_name = self.preferred_driver
+        print(f"Setting up scraper driver (requested: {driver_name})... Proxy: {self.proxy if self.proxy else 'None'}")
         
         try:
             # Determine headless mode from environment or default to True
             headless_mode = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
-            self._raw_driver, self.driver_type = get_driver(headless=headless_mode, proxy=self.proxy)
+            
+            # Select driver based on preference
+            force_undetected = (driver_name == 'undetected')
+            force_playwright = (driver_name == 'playwright')
+            
+            self._raw_driver, self.driver_type = get_driver(
+                headless=headless_mode, 
+                proxy=self.proxy,
+                force_undetected=force_undetected,
+                force_playwright=force_playwright
+            )
             
             # For compatibility with existing code, expose the underlying Selenium driver
-            # SeleniumBase exposes .driver, Playwright uses .page
-            if self.driver_type == 'seleniumbase':
+            # Undetected Chrome exposes .driver directly, SeleniumBase exposes .driver, Playwright uses .page
+            if self.driver_type in ('undetected', 'seleniumbase'):
                 self.driver = self._raw_driver.driver
             else:
                 # For Playwright, we use the wrapper itself
@@ -492,7 +505,7 @@ class InstagramScraper:
                 if dburl:
                     env["DATABASE_URL"] = dburl
 
-                uploader = os.path.join(os.path.dirname(__file__), "upload_to_db.py")
+                uploader = os.path.join(os.path.dirname(__file__), "..", "..", "shared", "upload_to_db.py")
                 if not os.path.exists(uploader):
                     print(f"Uploader script not found at {uploader}; skipping auto-upload")
                 else:
@@ -907,11 +920,20 @@ class InstagramScraper:
         """
         # Normalize hashtag (remove # if present)
         hashtag = hashtag.lstrip('#').strip()
-        hashtag_url = f" https://www.instagram.com/explore/search/keyword/?q=%{hashtag}"
+        # Use direct hashtag page instead of search
+        hashtag_url = f"https://www.instagram.com/explore/tags/{hashtag}/"
         
         print(f"Navigating to hashtag page: {hashtag_url}")
         self.driver.get(hashtag_url)
-        time.sleep(3)
+        time.sleep(5)
+        
+        # Take a screenshot to verify page state
+        try:
+            os.makedirs("/app/screenshots", exist_ok=True)
+            self.driver.save_screenshot(f"/app/screenshots/ig_hashtag_{hashtag}.png")
+        except:
+            pass
+
         
         posts_data = []
         post_links = set()

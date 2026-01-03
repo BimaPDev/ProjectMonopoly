@@ -8,6 +8,7 @@ Automatically discovers and scrapes hashtags from competitor posts.
 """
 import os
 import sys
+import json
 import psycopg
 import logging
 from typing import List, Set, Dict, Any
@@ -30,7 +31,7 @@ class HashtagDiscovery:
     # Hard limit to prevent infinite scraping - cannot be exceeded regardless of input
     MAX_ITERATIONS_LIMIT = 10
     
-    def __init__(self, user_id: int = None, group_id: int = None, max_posts_per_hashtag: int = 50, platform: str = 'instagram', proxy: str = None, seed_hashtags: List[str] = None):
+    def __init__(self, user_id: int = None, group_id: int = None, max_posts_per_hashtag: int = 50, platform: str = 'instagram', proxy: str = None, seed_hashtags: List[str] = None, driver_type: str = 'undetected'):
         self.database_url = DATABASE_URL
         self.user_id = user_id
         self.group_id = group_id
@@ -38,36 +39,15 @@ class HashtagDiscovery:
         self.platform = platform.lower()
         self.proxy = proxy
         self.seed_hashtags = seed_hashtags or []
+        self.driver_type = driver_type.lower()  # 'undetected', 'seleniumbase', or 'playwright'
         
         # Handle special "DIRECT" value - means skip proxy entirely
         if self.proxy == "DIRECT":
             log.info("Direct connection mode enabled (no proxy)")
             self.proxy = None
-        # If no explicit proxy provided, try to get one from ProxyManager
-        # This is for scraping only - Docker/general app does not use proxies
+        # PROXY DISABLED - Always use direct connection unless explicitly provided
         elif not self.proxy:
-            try:
-                # Add parent path to allow relative imports when run as script
-                import sys
-                import os
-                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-                from socialmedia.drivers.proxy_manager import proxy_manager
-                
-                # First, try to get a proxy from existing verified list
-                self.proxy = proxy_manager.get_working_proxy()
-                
-                # If no verified proxies exist, trigger a fresh validation
-                if not self.proxy:
-                    log.info("No verified proxies found. Fetching and validating fresh proxy list...")
-                    proxy_manager.validate_all_proxies()
-                    self.proxy = proxy_manager.get_working_proxy()
-                
-                if self.proxy:
-                    log.info(f"Using auto-selected proxy from ProxyManager: {self.proxy}")
-                else:
-                    log.warning("ProxyManager found no working proxies. Scraping will use direct connection.")
-            except Exception as e:
-                log.warning(f"Failed to get proxy from ProxyManager: {e}. Scraping will use direct connection.")
+            self.proxy = None  # Direct connection
 
 
         
@@ -342,7 +322,8 @@ class HashtagDiscovery:
                         password=password if use_login else None, 
                         headless=headless, 
                         proxy=self.proxy,
-                        use_cookies=use_login  # Only use cookies if we have login credentials
+                        use_cookies=use_login,  # Only use cookies if we have login credentials
+                        driver_type=self.driver_type  # Use the selected driver type
                     )
                     
                     # Only attempt login if we have credentials
@@ -386,23 +367,10 @@ class HashtagDiscovery:
             max_proxy_attempts = 3
             for proxy_attempt in range(1, max_proxy_attempts + 1):
                 try:
-                    current_proxy = self.proxy
+                    # PROXY DISABLED - Always use direct connection
+                    current_proxy = None
                     
-                    # If retrying, get a new proxy from the manager
-                    if proxy_attempt > 1:
-                        log.info(f"Proxy attempt {proxy_attempt}/{max_proxy_attempts}: Getting new proxy...")
-                        try:
-                            from socialmedia.drivers.proxy_manager import proxy_manager
-                            current_proxy = proxy_manager.get_working_proxy()
-                            if current_proxy:
-                                log.info(f"Switched to proxy: {current_proxy}")
-                            else:
-                                log.warning("No more proxies available, using direct connection")
-                        except Exception as pe:
-                            log.warning(f"Failed to get new proxy: {pe}")
-                            current_proxy = None
-                    
-                    scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=current_proxy)
+                    scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=current_proxy, driver_type=self.driver_type)
                     
                     # Test the scraper by doing a quick navigation test
                     # If this succeeds, we have a working setup
@@ -507,7 +475,7 @@ class HashtagDiscovery:
                                     # Reinitialize scraper with new proxy
                                     from socialmedia.tiktok.scraper.profile_scraper import TikTokScraper
                                     headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
-                                    scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=new_proxy)
+                                    scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=new_proxy, driver_type=self.driver_type)
                                     continue
                                     
                         except Exception as scrape_error:
@@ -558,7 +526,7 @@ class HashtagDiscovery:
                                 # Reinitialize scraper with new proxy
                                 from socialmedia.tiktok.scraper.profile_scraper import TikTokScraper
                                 headless = os.getenv("HEADLESS", "true").lower() not in ("false", "0", "no")
-                                scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=new_proxy)
+                                scraper = TikTokScraper(headless=headless, use_cookies=False, proxy=new_proxy, driver_type=self.driver_type)
                                 continue
                             else:
                                 raise scrape_error  # Re-raise if not proxy failure or out of retries
@@ -572,6 +540,7 @@ class HashtagDiscovery:
                     # Find the JSON file that was just created
                     import glob
                     scrape_result_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scrape_result")
+                    os.makedirs(scrape_result_dir, exist_ok=True)
                     
                     if self.platform == 'instagram':
                          json_files = glob.glob(os.path.join(scrape_result_dir, f"{hashtag}_hashtag_posts_*.json"))
@@ -814,6 +783,13 @@ def main():
         default=None,
         help="Seed hashtags (comma-separated, e.g. 'indiegame,gamedev')"
     )
+    parser.add_argument(
+        "--driver",
+        type=str,
+        default="undetected",
+        choices=["undetected", "seleniumbase", "playwright"],
+        help="Browser driver to use: undetected (best anti-detection), seleniumbase, or playwright"
+    )
 
     
     args = parser.parse_args()
@@ -840,7 +816,8 @@ def main():
         max_posts_per_hashtag=args.max_posts,
         platform=args.platform,
         proxy=proxy_value,
-        seed_hashtags=seed_hashtags
+        seed_hashtags=seed_hashtags,
+        driver_type=args.driver
     )
 
     

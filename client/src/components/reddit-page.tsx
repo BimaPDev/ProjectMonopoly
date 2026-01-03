@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { useGroup } from "./groupContext";
 import { TriangleAlert } from "lucide-react";
+import { NoGroupWarning } from "@/components/NoGroupWarning";
 
 // Types
 interface RedditSource {
@@ -233,16 +234,7 @@ export function RedditPage() {
     }, [activeGroup]);
 
     if (!activeGroup) {
-        return (
-            <div className="flex justify-center w-full h-[45px] text-center">
-                <div className="flex gap-2 p-2 border border-red-500 border-dashed">
-                    <div className="w-[30px] h-[30px] flex justify-center items-center rounded-lg">
-                        <TriangleAlert className="text-yellow-400" />
-                    </div>
-                    <h1 className="font-semibold">Please select a group to continue</h1>
-                </div>
-            </div>
-        );
+        return <NoGroupWarning featureName="Reddit Insights" />;
     }
 
     const formatDate = (dateStr: string) => {

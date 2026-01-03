@@ -306,7 +306,17 @@ export function Dashboard() {
     });
   };
 
-  // No active group state
+  // Compute user's social media totals from group items
+  const userSocialStats = useMemo(() => {
+    const totalFollowers = groupItems.reduce((acc, item) => acc + (item.data?.followers || 0), 0);
+    const platforms = groupItems.map(item => item.platform);
+    const lastUpdated = groupItems.length > 0
+      ? new Date(Math.max(...groupItems.map(item => new Date(item.updated_at).getTime()))).toLocaleDateString()
+      : null;
+    return { totalFollowers, platforms, lastUpdated, count: groupItems.length };
+  }, [groupItems]);
+
+  // No active group state - must be AFTER all hooks
   if (!activeGroup) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -337,16 +347,6 @@ export function Dashboard() {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
-
-  // Compute user's social media totals from group items
-  const userSocialStats = useMemo(() => {
-    const totalFollowers = groupItems.reduce((acc, item) => acc + (item.data?.followers || 0), 0);
-    const platforms = groupItems.map(item => item.platform);
-    const lastUpdated = groupItems.length > 0
-      ? new Date(Math.max(...groupItems.map(item => new Date(item.updated_at).getTime()))).toLocaleDateString()
-      : null;
-    return { totalFollowers, platforms, lastUpdated, count: groupItems.length };
-  }, [groupItems]);
 
   return (
     <div className="min-h-screen text-foreground bg-background">

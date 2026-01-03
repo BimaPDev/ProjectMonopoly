@@ -2,3 +2,4 @@
 server/.DS_Store
 *.vscode
 *.idea
+.env

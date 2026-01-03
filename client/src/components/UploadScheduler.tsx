@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { useGroup } from "@/components/groupContext";
+import { NoGroupWarning } from "@/components/NoGroupWarning";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -212,6 +213,10 @@ export function UploadScheduler() {
         setEditCaption(job.ai_title || "");
         setEditHashtags((job.ai_hashtags || []).join(", "));
     };
+
+    if (!activeGroup) {
+        return <NoGroupWarning featureName="Upload Schedule" />;
+    }
 
     return (
         <div className="space-y-6">

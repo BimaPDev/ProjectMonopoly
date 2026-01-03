@@ -8,6 +8,7 @@ import os
 import pickle
 import re
 from datetime import datetime, timedelta
+import datetime as dt
 import random
 import logging
 
@@ -95,7 +96,7 @@ def random_delay(min_seconds=1, max_seconds=3):
 
 
 class TikTokScraper:
-    def __init__(self, cookies_path="cookies/tiktok_cookies.pkl", use_cookies=False, headless=True, proxy=None):
+    def __init__(self, cookies_path="cookies/tiktok_cookies.pkl", use_cookies=False, headless=True, proxy=None, driver_type='undetected'):
         """
         Initialize TikTok scraper.
         
@@ -104,22 +105,34 @@ class TikTokScraper:
             use_cookies: If True, use cookies for authenticated scraping. If False, scrape as guest.
             headless: Run browser in headless mode (recommended for server)
             proxy: Optional proxy string (e.g. "http://1.2.3.4:8080")
+            driver_type: Driver to use - 'undetected', 'seleniumbase', or 'playwright'
         """
         self.cookies_path = cookies_path
         self.use_cookies = use_cookies
         self.headless = headless
         self.proxy = proxy
         self.driver = None
-        self.driver_type = None  # 'seleniumbase' or 'playwright'
+        self.driver_type = None  # Will be set by setup_driver
+        self.preferred_driver = driver_type.lower()  # 'undetected', 'seleniumbase' or 'playwright'
         self._raw_driver = None  # The underlying driver object
         self.setup_driver()
         
     def setup_driver(self):
-        """Initialize scraper using SeleniumBase CDP mode with Playwright."""
-        print(f"Setting up TikTok scraper driver (SeleniumBase CDP + Playwright)... Proxy: {self.proxy if self.proxy else 'None'}")
+        """Initialize scraper using the preferred driver type."""
+        driver_name = self.preferred_driver
+        print(f"Setting up TikTok scraper driver (requested: {driver_name})... Proxy: {self.proxy if self.proxy else 'None'}")
         
         try:
-            self._raw_driver, self.driver_type = get_driver(headless=self.headless, proxy=self.proxy)
+            # Select driver based on preference
+            force_undetected = (driver_name == 'undetected')
+            force_playwright = (driver_name == 'playwright')
+            
+            self._raw_driver, self.driver_type = get_driver(
+                headless=self.headless, 
+                proxy=self.proxy,
+                force_undetected=force_undetected,
+                force_playwright=force_playwright
+            )
             
             # The driver now uses Playwright's page object directly
             # All methods like get(), find_element(), page_source work on both
@@ -214,54 +227,153 @@ class TikTokScraper:
         
     def accept_cookies_and_setup(self):
         """Handle initial TikTok page setup - accept cookie consent and dismiss popups."""
-        self.driver.get("https://www.tiktok.com")
-        time.sleep(3)
+        import logging
+        log = logging.getLogger(__name__)
         
-        # Try to accept cookies if dialog appears (Playwright-compatible)
-        try:
-            accept_selectors = [
-                "button:has-text('Accept')",
-                "button:has-text('Agree')",
-                "button:has-text('Accept all')",
+        # Use retry logic for navigation
+        if not self._navigate_with_retry("https://www.tiktok.com"):
+            raise Exception("Failed to navigate to TikTok home page after retries")
+        
+        time.sleep(2)
+        
+        # Use different method based on driver type
+        if self.driver_type == 'playwright':
+            # Playwright-specific selectors
+            try:
+                accept_selectors = [
+                    "button:has-text('Accept')",
+                    "button:has-text('Agree')",
+                    "button:has-text('Accept all')",
+                ]
+                for selector in accept_selectors:
+                    try:
+                        locator = self.driver.page.locator(selector)
+                        if locator.count() > 0:
+                            locator.first.click(timeout=5000)
+                            log.info("Accepted cookies dialog (Playwright)")
+                            time.sleep(2)
+                            break
+                    except Exception:
+                        continue
+            except Exception as e:
+                log.warning(f"No cookie dialog found: {e}")
+        else:
+            # Selenium-compatible approach (for undetected-chromedriver and seleniumbase)
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            
+            accept_xpaths = [
+                "//button[contains(text(), 'Accept')]",
+                "//button[contains(text(), 'Agree')]",
+                "//button[contains(text(), 'Accept all')]",
+                "//button[contains(text(), 'Accept All')]",
             ]
-            for selector in accept_selectors:
+            
+            # Use explicit wait with short timeout to avoid hanging
+            for xpath in accept_xpaths:
                 try:
-                    locator = self.driver.page.locator(selector)
-                    if locator.count() > 0:
-                        locator.first.click(timeout=5000)
-                        print("Accepted cookies dialog")
+                    # Wait up to 3 seconds for the button
+                    btn = WebDriverWait(self.driver, 3).until(
+                        EC.presence_of_element_located((By.XPATH, xpath))
+                    )
+                    if btn and btn.is_displayed():
+                        btn.click()
+                        log.info("Accepted cookies dialog (Selenium)")
                         time.sleep(2)
                         break
                 except Exception:
+                    # Timeout or not found - just continue to next selector
                     continue
-        except Exception as e:
-            print(f"No cookie dialog found: {e}")
-            
+        
         # Close any popup dialogs
         self._dismiss_popups()
         
         # Only save cookies if we're using cookie mode
         if self.use_cookies:
             self.save_cookies()
+        
+        log.info("Setup completed successfully")
         return True
+    
+    def _navigate_with_retry(self, url, max_retries=3, timeout=30):
+        """Navigate to a URL with retry logic and timeout handling."""
+        import logging
+        import time
+        log = logging.getLogger(__name__)
+        
+        for attempt in range(max_retries):
+            try:
+                log.info(f"Navigating to {url} (Attempt {attempt+1}/{max_retries})...")
+                
+                # Set page load timeout if supported
+                if hasattr(self.driver, 'set_page_load_timeout'):
+                    self.driver.set_page_load_timeout(timeout)
+                
+                self.driver.get(url)
+                
+                # Reset timeout to default
+                if hasattr(self.driver, 'set_page_load_timeout'):
+                    self.driver.set_page_load_timeout(60)
+                    
+                log.info("Navigation successful")
+                return True
+            except Exception as e:
+                log.warning(f"Navigation failed (Attempt {attempt+1}): {e}")
+                
+                # If it was a timeout, try to stop loading and check if we have content
+                if "timeout" in str(e).lower():
+                    try:
+                        self.driver.execute_script("window.stop();")
+                        log.info("Stopped page load after timeout, proceeding...")
+                        return True
+                    except:
+                        pass
+                
+                time.sleep(2)
+        
+        log.error(f"Failed to navigate to {url} after {max_retries} attempts")
+        return False
     
     def _dismiss_popups(self):
         """Dismiss any popup dialogs (login prompts, notifications, etc.)."""
-        popup_selectors = [
-            "[aria-label='Close']",
-            "div[role='dialog'] button:has-text('close')",
-            "button:has-text('Not now')",
-            "button:has-text('Maybe later')",
-        ]
-        for selector in popup_selectors:
-            try:
-                locator = self.driver.page.locator(selector)
-                if locator.count() > 0:
-                    locator.first.click(timeout=2000)
-                    time.sleep(0.5)
-                    print(f"Dismissed popup using: {selector}")
-            except Exception:
-                pass
+        if self.driver_type == 'playwright':
+            # Playwright-specific
+            popup_selectors = [
+                "[aria-label='Close']",
+                "div[role='dialog'] button:has-text('close')",
+                "button:has-text('Not now')",
+                "button:has-text('Maybe later')",
+            ]
+            for selector in popup_selectors:
+                try:
+                    locator = self.driver.page.locator(selector)
+                    if locator.count() > 0:
+                        locator.first.click(timeout=2000)
+                        time.sleep(0.5)
+                        print(f"Dismissed popup using: {selector}")
+                except Exception:
+                    pass
+        else:
+            # Selenium-compatible
+            from selenium.webdriver.common.by import By
+            popup_xpaths = [
+                "//*[@aria-label='Close']",
+                "//div[@role='dialog']//button[contains(text(), 'close')]",
+                "//button[contains(text(), 'Not now')]",
+                "//button[contains(text(), 'Maybe later')]",
+            ]
+            for xpath in popup_xpaths:
+                try:
+                    elements = self.driver.find_elements(By.XPATH, xpath)
+                    for el in elements:
+                        if el.is_displayed():
+                            el.click()
+                            time.sleep(0.5)
+                            print(f"Dismissed popup (Selenium)")
+                            break
+                except Exception:
+                    pass
     
     def scrape_profile(self, profile_url, max_posts=None):
         """Scrape TikTok profile posts (public access, no login required).
@@ -412,10 +524,8 @@ class TikTokScraper:
         }
         
         try:
-            # TikTok profile stats are in elements with specific data-e2e attributes
-            # Followers: data-e2e="followers-count"
-            # Following: data-e2e="following-count"
-            # Likes: data-e2e="likes-count"
+            # Check if using Playwright (has .page attribute)
+            is_playwright = hasattr(self.driver, 'page')
             
             selectors = {
                 "followers": "[data-e2e='followers-count']",
@@ -425,18 +535,28 @@ class TikTokScraper:
             
             for key, selector in selectors.items():
                 try:
-                    locator = self.driver.page.locator(selector)
-                    if locator.count() > 0:
-                        text = locator.first.text_content()
-                        profile_info[key] = self._parse_count_text(text)
-                        print(f"  → {key.capitalize()}: {profile_info[key]}")
+                    text_value = None
+                    if is_playwright:
+                        locator = self.driver.page.locator(selector)
+                        if locator.count() > 0:
+                            text_value = locator.first.text_content()
+                    else:
+                        # Selenium
+                        from selenium.webdriver.common.by import By
+                        elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                        if elements:
+                            text_value = elements[0].text
+                            
+                    if text_value:
+                        profile_info[key] = self._parse_count_text(text_value)
+                        # print(f"  → {key.capitalize()}: {profile_info[key]}")  # Verbose
                 except Exception as e:
-                    print(f"Could not extract {key}: {e}")
+                    pass  # Silently continue on extraction errors
             
-            print(f"Profile stats for @{username}: {profile_info['followers']} followers, {profile_info['following']} following, {profile_info['likes']} likes")
+            # print(f"Profile stats for @{username}: {profile_info['followers']} followers, {profile_info['following']} following, {profile_info['likes']} likes")  # Verbose
             
         except Exception as e:
-            print(f"Error extracting profile stats: {e}")
+            pass  # Silently continue on profile stat errors
         
         return profile_info
     
@@ -466,10 +586,10 @@ class TikTokScraper:
                 print(f"Attempting to scrape video (attempt {attempt + 1}/{retries + 1}): {video_url}")
                 
                 try:
-                    print(f"  → Navigating to video...")
+                    # print(f"  → Navigating to video...")  # Verbose
                     # Use 20 second timeout for video pages
                     self.driver.get(video_url, timeout=20000)
-                    print(f"  → Navigation complete")
+                    # print(f"  → Navigation complete")  # Verbose
                 except Exception as e:
                     print(f"Error navigating to video: {e}")
                     if attempt < retries:
@@ -478,7 +598,7 @@ class TikTokScraper:
                     return None
                 
                 # Wait for page to load (reduced delay since we now have proper timeout)
-                print(f"  → Waiting for content...")
+                # print(f"  → Waiting for content...")  # Verbose
                 random_delay(2, 4)
                 
                 video_data = {
@@ -498,7 +618,7 @@ class TikTokScraper:
                 success = False
                 
                 try:
-                    print(f"  → Extracting video data...")
+                    # print(f"  → Extracting video data...")  # Verbose
                     
                     # Extract author
                     author_selectors = [
@@ -512,9 +632,22 @@ class TikTokScraper:
                             elem = self.driver.find_element(By.XPATH, sel)
                             video_data["author"] = elem.text.strip()
                             if video_data["author"]:
+                                log.info(f"  → Found author: {video_data['author']}")
                                 break
                         except Exception:
                             continue
+                            
+                    if not video_data["author"]:
+                        log.warning(f"  → WARNING: Cloud not extract author from video. Selectors tried: {len(author_selectors)}")
+                        # Fallback: try getting from URL if possible
+                        try:
+                            if "/@" in video_url:
+                                match = re.search(r"@([^/?&]+)", video_url)
+                                if match:
+                                    video_data["author"] = match.group(1)
+                                    log.info(f"  → Extracted author from URL: {video_data['author']}")
+                        except:
+                            pass
                     
                     # Extract description
                     desc_selectors = [
@@ -542,7 +675,7 @@ class TikTokScraper:
                             match = re.search(r"Watch more videos from user (.+)", aria_label)
                             if match:
                                 video_data["description"] = match.group(1).strip()
-                                print(f"Extracted description from aria-label: {video_data['description']}")
+                                # print(f"Extracted description from aria-label: {video_data['description']}")  # Verbose
                         except NoSuchElementException:
                             pass
 
@@ -621,9 +754,46 @@ class TikTokScraper:
                     except NoSuchElementException:
                         video_data["video_url"] = ""
                     
+                    # --- NEW: Scrape Author Account Data ---
+                    if video_data.get("author"):
+                        try:
+                            # print(f"  → Scraping account data for @{video_data['author']}...")  # Verbose
+                            
+                            # Navigate to profile in SAME tab to avoid driver crashes
+                            author_name = video_data['author'].lstrip('@')
+                            profile_url = f"https://www.tiktok.com/@{author_name}"
+                            
+                            # Use navigate with retry logic if available, otherwise standard get
+                            if hasattr(self, '_navigate_with_retry'):
+                                self._navigate_with_retry(profile_url)
+                            else:
+                                self.driver.get(profile_url)
+                                
+                            random_delay(2, 4)
+                            
+                            # Extract stats
+                            account_stats = self._extract_profile_stats(video_data['author'])
+                            video_data["author_stats"] = account_stats
+                            
+                            # print(f"  → Account scraping complete")  # Verbose
+                            
+                            # Navigate BACK to video page for comments extraction
+                            # print(f"  → Returning to video page...")  # Verbose
+                            self.driver.get(video_url)
+                            random_delay(1, 2)
+                            
+                        except Exception as acc_err:
+                            print(f"  → Failed to scrape account data: {acc_err}")
+                            # Try to navigate back to video on error as well
+                            try:
+                                self.driver.get(video_url)
+                                random_delay(1, 2)
+                            except:
+                                pass
+                    
                     # Extract comments (top comments visible on page)
                     try:
-                        print(f"  → Extracting comments...")
+                        # print(f"  → Extracting comments...")  # Verbose
                         comments = []
                         # TikTok comment selectors
                         comment_container_selectors = [
@@ -675,10 +845,10 @@ class TikTokScraper:
                                 continue
                         
                         video_data["comments"] = comments
-                        if comments:
-                            print(f"  → Found {len(comments)} comments")
+                        # if comments:
+                        #     print(f"  → Found {len(comments)} comments")  # Verbose
                     except Exception as e:
-                        print(f"  → Comment extraction failed: {e}")
+                        # print(f"  → Comment extraction failed: {e}")  # Verbose - keep as log.debug if needed
                         video_data["comments"] = []
                     
                     success = True
@@ -783,47 +953,121 @@ class TikTokScraper:
     
     def scrape_hashtag(self, hashtag, max_posts=None):
         """Scrape videos from a hashtag page (public access, no login required)."""
+        import logging
+        import sys
+        log = logging.getLogger(__name__)
+        # log.info(f"DEBUG: scrape_hashtag called with hashtag={hashtag}")  # Verbose
+        sys.stdout.flush()
+        
         if not hashtag.startswith("#"):
             hashtag = "#" + hashtag
             
         hashtag_url = f"https://www.tiktok.com/tag/{hashtag[1:]}"
-        print(f"Navigating to hashtag: {hashtag_url}")
+        # log.info(f"DEBUG: About to print navigation message")  # Verbose
+        print(f"Navigating to hashtag: {hashtag_url}", flush=True)
         
+        # log.info(f"DEBUG: Checking use_cookies={self.use_cookies}, driver_type={self.driver_type}")  # Verbose
         # Cookie handling - only if use_cookies is enabled
         if self.use_cookies:
+            # log.info("DEBUG: Loading cookies...")  # Verbose
             if not self.load_cookies():
+                # log.info("DEBUG: Calling accept_cookies_and_setup...")  # Verbose
                 self.accept_cookies_and_setup()
         else:
             # Guest mode - just accept cookie consent dialog
+            # log.info("DEBUG: Guest mode - calling accept_cookies_and_setup...")  # Verbose
             self.accept_cookies_and_setup()
-            
-        self.driver.get(hashtag_url)
-        random_delay(3, 5)
+            # log.info("DEBUG: accept_cookies_and_setup completed")  # Verbose
         
+        # log.info(f"DEBUG: Navigating to hashtag URL: {hashtag_url}")  # Verbose
+        # Use retry logic for navigation
+        if not self._navigate_with_retry(hashtag_url):
+            log.error(f"Failed to navigate to hashtag {hashtag}")
+            return False
+            
+        # log.info("DEBUG: Navigation completed, now running random_delay(3,5)...")  # Verbose
+        random_delay(3, 5)
+        # log.info("DEBUG: random_delay completed, taking screenshot...")  # Verbose
+        
+        # IMMEDIATELY take a screenshot for debugging (before any error detection)
+        try:
+            import os
+            from datetime import datetime as dt_screenshot
+            debug_screenshot_path = f"/app/screenshots/tiktok_initial_{self.driver_type}_{dt_screenshot.now().strftime('%Y%m%d_%H%M%S')}.png"
+            os.makedirs("/app/screenshots", exist_ok=True)
+            # log.info(f"DEBUG: About to call save_screenshot to {debug_screenshot_path}")  # Verbose
+            self.driver.save_screenshot(debug_screenshot_path)
+            # log.info(f"DEBUG: Initial screenshot saved to: {debug_screenshot_path}")  # Verbose
+        except Exception as ss_err:
+            pass  # Silently continue if screenshot fails
+        
+        # log.info("DEBUG: Now checking for error elements...")  # Verbose
         # Check if TikTok returned an error page and try clicking Refresh
+        # Note: We check for VISIBLE error elements, not just page source text
+        # (TikTok's JS includes 'something went wrong' strings even on successful pages)
         max_refresh_retries = 3
         for refresh_attempt in range(max_refresh_retries):
-            page_source = self.driver.page_source.lower() if hasattr(self.driver, 'page_source') else ""
-            if "something went wrong" in page_source or "page not available" in page_source:
-                print(f"TikTok showing 'Something went wrong' - attempting refresh ({refresh_attempt + 1}/{max_refresh_retries})")
+            error_detected = False
+            
+            # Try to find visible error elements instead of checking page source
+            try:
+                from selenium.webdriver.common.by import By
+                # Check for actual error page elements
+                error_selectors = [
+                    "//div[contains(@class, 'error') and contains(text(), 'went wrong')]",
+                    "//h1[contains(text(), 'Something went wrong')]",
+                    "//p[contains(text(), 'Something went wrong')]",
+                    "//button[contains(text(), 'Refresh')]//ancestor::div[contains(@class, 'error')]",
+                ]
+                for selector in error_selectors:
+                    try:
+                        elements = self.driver.find_elements(By.XPATH, selector)
+                        if elements and len(elements) > 0:
+                            # Check if element is actually visible
+                            for el in elements:
+                                if el.is_displayed():
+                                    error_detected = True
+                                    break
+                        if error_detected:
+                            break
+                    except:
+                        continue
+            except Exception as e:
+                log.error(f"Error checking for error elements: {e}")
+            
+            # Fallback check: if we couldn't find videos, assume there's an issue
+            if not error_detected:
+                try:
+                    video_elements = self.driver.find_elements(By.XPATH, "//div[@data-e2e='challenge-item']//a")
+                    if len(video_elements) > 0:
+                        # log.info(f"DEBUG: Found {len(video_elements)} video elements - page loaded successfully!")  # Verbose
+                        error_detected = False
+                        break  # Exit the retry loop - page is working
+                    else:
+                        # No videos found - might be an issue, but don't trigger fallback yet
+                        pass
+                except Exception as e:
+                    log.error(f"Error checking for videos: {e}")
+            
+            if error_detected:
+                log.warning(f"TikTok showing error page - attempting refresh ({refresh_attempt + 1}/{max_refresh_retries})")
                 
                 # Take screenshot for debugging
                 try:
-                    import os
-                    from datetime import datetime
+                    # Removed redundant imports that cause UnboundLocalError
                     screenshot_path = f"/app/screenshots/tiktok_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                     os.makedirs("/app/screenshots", exist_ok=True)
                     self.driver.save_screenshot(screenshot_path)
-                    print(f"Screenshot saved to: {screenshot_path}")
+                    # print(f"Screenshot saved to: {screenshot_path}")  # Verbose
                 except Exception as ss_err:
-                    print(f"Failed to save screenshot: {ss_err}")
+                    pass  # Silently continue
                 
                 if refresh_attempt < max_refresh_retries - 1:
                     # Special handling for SeleniumBase - try built-in captcha/verify tools
                     if self.driver_type == 'seleniumbase' and hasattr(self._raw_driver, 'sb'):
                         try:
                             # If we have access to the raw sb object
-                            print("Attempting SeleniumBase verification/captcha solver...")
+                            # print("Attempting SeleniumBase verification/captcha solver...")  # Verbose
                             sb = self._raw_driver.sb
                             
                             # Try general verification
@@ -837,23 +1081,22 @@ class TikTokScraper:
                             
                             random_delay(2, 4)
                         except Exception as sb_err:
-                            print(f"SeleniumBase verify failed: {sb_err}")
+                            pass  # Silently continue
 
-                    # Try clicking the Refresh button
                     try:
                         from selenium.webdriver.common.by import By
                         refresh_btn = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Refresh')]")
                         refresh_btn.click()
-                        print("Clicked Refresh button, waiting...")
+                        # print("Clicked Refresh button, waiting...")  # Verbose
                         random_delay(5, 8)  # Wait longer after refresh
                     except Exception as click_err:
-                        print(f"Could not click Refresh: {click_err}")
+                        # print(f"Could not click Refresh: {click_err}")  # Verbose
 
                         # Try page refresh instead
                         self.driver.get(hashtag_url)
                         random_delay(5, 8)
                 else:
-                    print("Refresh failed. triggering fallback to Stealthy Playwright driver...")
+                    # print("Refresh failed. triggering fallback to Stealthy Playwright driver...")  # Verbose
                     # Switch to fallback driver (Playwright with stealth plugin)
                     try:
                         self._raw_driver, self.driver_type = switch_to_fallback(
@@ -868,7 +1111,7 @@ class TikTokScraper:
                         else:
                             self.driver = self._raw_driver
                             
-                        print(f"Switched to driver: {self.driver_type}")
+                        # print(f"Switched to driver: {self.driver_type}")  # Verbose
                         
                         # Retry navigation with new driver
                         self.driver.get(hashtag_url)
@@ -887,14 +1130,49 @@ class TikTokScraper:
 
 
         
+        # User requested specific check for post count
+        try:
+            # log.info("DEBUG: Attempting to extract post count using user XPath...")  # Verbose
+            post_count_xpath = "/html/body/div[1]/div[2]/div[2]/div/div[1]/div[1]/div[2]/h2"
+            
+            # Wait briefly for the element
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            
+            try:
+                post_count_el = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, post_count_xpath))
+                )
+                if post_count_el:
+                    post_count_text = post_count_el.text
+                    # log.info(f"DEBUG: FOUND POST COUNT: {post_count_text}")  # Verbose
+                    # print(f"FOUND POST COUNT: {post_count_text}")  # Verbose
+                    pass
+                else:
+                    pass  # log.warning("DEBUG: Post count element found but null")
+            except Exception as wait_err:
+                pass  # log.warning(f"DEBUG: specific post count element not found: {wait_err}")
+                
+        except Exception as e:
+            log.error(f"Error extracting post count: {e}")
+            
         posts_data = []
         video_links = set()
         
-        print(f"Finding videos for hashtag {hashtag}...")
+        posts_data = []
+        video_links = set()
+        
+        log.info(f"Finding videos for hashtag {hashtag}...")
 
         
         # Similar scrolling logic as profile scraping
-        last_height = self.driver.execute_script("return document.body.scrollHeight")
+        try:
+            last_height = self.driver.execute_script("return document.body.scrollHeight")
+        except Exception as e:
+            log.error(f"Failed to get initial scroll height: {e}")
+            last_height = 0
+            
         scroll_attempts = 0
         max_scroll_attempts = 15
         
@@ -944,7 +1222,7 @@ class TikTokScraper:
             except Exception as e:
                 print(f"Error processing {video_url}: {e}")
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         # Ensure output directory exists (using same logic as scrape_profile)
         output_dir = os.path.join(os.path.dirname(__file__), "scrape_result")
         os.makedirs(output_dir, exist_ok=True)

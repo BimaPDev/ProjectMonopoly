@@ -15,6 +15,7 @@ import {
     Plus,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { NoGroupWarning } from "@/components/NoGroupWarning";
 import { useRef } from "react";
 import FormField from "@/components/ui/form-field";
 import GameDropdown from "@/components/GameContextItem";
@@ -376,15 +377,7 @@ export default function GameContextPage() {
         fetchGameContexts();
     }, [activeGroup])
     if (!activeGroup) {
-        return (
-            <div className="flex items-center justify-center h-[400px]">
-                <Card className="p-8 text-center bg-card border-border">
-                    <EyeClosed className="w-16 h-16 mx-auto mb-4 text-amber-500" />
-                    <h3 className="mb-2 text-xl font-semibold">No Group Selected</h3>
-                    <p className="text-muted-foreground">Please select a group from the sidebar to view.</p>
-                </Card>
-            </div>
-        );
+        return <NoGroupWarning featureName="Game Context" />;
     }
     if (!inputMethod) {
         return (

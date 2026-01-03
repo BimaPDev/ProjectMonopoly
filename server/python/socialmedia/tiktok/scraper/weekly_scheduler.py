@@ -93,18 +93,8 @@ class WeeklyTikTokScraper:
         try:
             log.info("🔧 Initializing TikTok scraper in guest mode...")
             
-            # --- PROXY INTEGRATION ---
-            # Attempt to get a working proxy from the free list
-            from socialmedia.drivers.proxy_manager import proxy_manager
-            
-            # Try to get a proxy (with retries handled by manager)
-            proxy = proxy_manager.get_working_proxy()
-            
-            if proxy:
-                log.info(f"🌐 Using proxy: {proxy}")
-            else:
-                log.warning("⚠️ No working proxy found. Falling back to local IP (DIRECT connection).")
-            # -------------------------
+            # PROXY DISABLED - Always use direct connection
+            proxy = None
             
             # TikTok scraper works in guest mode - no credentials needed
             self.scraper = TikTokScraper(use_cookies=False, headless=True, proxy=proxy)
